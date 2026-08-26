@@ -68,6 +68,9 @@ Game.checkCollisions = function() {
                 const enemy = nearby.obj;
 
                 if (this.isColliding(bullet, enemy)) {
+                    // An enemy killed earlier this frame is still in the spatial grid;
+                    // skip it so a second bullet (e.g. from triple-shot) can't score it again.
+                    if (enemy.health <= 0) continue;
                     this.releaseObject('bullets', bullet);
                     enemy.health--;
 
