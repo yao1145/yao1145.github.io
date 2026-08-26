@@ -1,0 +1,40 @@
+@media (max-width: 768px) {
+    .uiPanel {
+        padding: 12px;
+    }
+
+    .uiTitle {
+        font-size: 20px;
+    }
+
+    .uiText {
+        font-size: 14px;
+    }
+
+    .uiScore {
+        font-size: 24px;
+    }
+
+    .uiButton {
+        padding: 10px 16px;
+        font-size: 16px;
+    }
+
+    .stats {
+        font-size: 14px;
+        padding: 6px 10px;
+    }
+
+    .bossWarning {
+        font-size: 20px;
+    }
+
+    .bossHealthBar {
+        height: 16px;
+    }
+
+    .shieldIndicator, .attackIndicator {
+        font-size: 10px;
+        padding: 3px 6px;
+    }
+}
