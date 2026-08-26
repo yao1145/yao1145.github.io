@@ -116,8 +116,9 @@ Game.updateBossHealthBar = function(force = false) {
     if (!this.boss) return;
 
     const healthPercent = this.boss.health / this.boss.maxHealth;
-    this.bossHealthFill.style.width = (healthPercent * 100) + '%';
-    this.bossHealthText.textContent = `${this.boss.name} Lv.${this.boss.level}: ${this.boss.health}/${this.boss.maxHealth}`;
+    // Recede the colors from right to left: anchor the gradient, clip the depleted side.
+    this.bossHealthFill.style.clipPath = `inset(0 ${(1 - healthPercent) * 100}% 0 0)`;
+    this.bossHealthText.textContent = `${this.boss.health}/${this.boss.maxHealth}`;
 };
 
 Game.bossShoot = function() {

@@ -29,10 +29,6 @@
         font-size: 20px;
     }
 
-    .bossHealthBar {
-        height: 16px;
-    }
-
     .shieldIndicator, .attackIndicator {
         font-size: 10px;
         padding: 3px 6px;

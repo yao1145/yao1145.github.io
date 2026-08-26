@@ -17,8 +17,8 @@
     top: 10px;
     left: 50%;
     transform: translateX(-50%);
-    width: 80%;
-    height: 20px;
+    width: 50%;
+    height: clamp(14px, 3.5vw, 22px);
     background: #333;
     border: 2px solid #fff;
     border-radius: 10px;
@@ -28,24 +28,29 @@
 }
 
 .bossHealthFill {
-    height: 100%;
+    position: absolute;
+    inset: 0;
     background: linear-gradient(to right, #f00, #ff0, #0f0);
-    width: 100%;
-    transition: width 0.3s;
+    transition: clip-path 0.3s;
 }
 
 .bossHealthText {
     position: absolute;
     top: 0;
-    left: 0;
-    width: 100%;
+    left: 50%;
+    transform: translateX(-50%);
     height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
     color: #fff;
-    font-size: 12px;
+    font-size: clamp(10px, 2.2vw, 15px);
     font-weight: bold;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 0 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+    z-index: 2;
 }
 
 @keyframes pulse {
