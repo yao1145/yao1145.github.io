@@ -1,0 +1,1988 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>starfighter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+    
+        body {
+            background: #000;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            color: white;
+            width: 100vw;
+            height: 100vh;
+        }
+    
+        #gameContainer {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+    
+        #gameCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            image-rendering: pixelated;
+        }
+    
+        #uiOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 20;
+        }
+    
+        .uiPanel {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            max-width: 300px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #0af;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            pointer-events: auto;
+            z-index: 25;
+        }
+    
+        #gameOverPanel {
+            display: none;
+        }
+    
+        .uiTitle {
+            color: #0af;
+            font-size: 24px;
+            margin-bottom: 15px;
+            text-shadow: 0 0 5px #0af;
+        }
+    
+        .uiText {
+            color: #fff;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+    
+        .uiScore {
+            color: #ff0;
+            font-size: 28px;
+            margin: 10px 0;
+            text-shadow: 0 0 5px #ff0;
+        }
+    
+        .uiButton {
+            background: linear-gradient(to bottom, #0af, #08f);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 12px 20px;
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 10px;
+            cursor: pointer;
+            pointer-events: auto;
+            width: 100%;
+            box-shadow: 0 4px 0 #06c;
+        }
+    
+        .uiButton:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #06c;
+        }
+    
+        .stats {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 16px;
+            z-index: 15;
+        }
+    
+        .stats div {
+            margin-bottom: 4px;
+        }
+    
+        .mobileControls {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+        }
+    
+        .mobileControls .controlArea {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: auto;
+        }    
+   
+        .bossWarning {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #f00;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 0 0 10px #f00;
+            animation: pulse 0.5s infinite;
+            display: none;
+            z-index: 20;
+        }
+    
+        .bossHealthBar {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            height: 20px;
+            background: #333;
+            border: 2px solid #fff;
+            border-radius: 10px;
+            overflow: hidden;
+            display: none;
+            z-index: 15;
+        }
+    
+        .bossHealthFill {
+            height: 100%;
+            background: linear-gradient(to right, #f00, #ff0, #0f0);
+            width: 100%;
+            transition: width 0.3s;
+        }
+    
+        .bossHealthText {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 12px;
+            font-weight: bold;
+        }
+    
+        .shieldIndicator, .attackIndicator {
+            position: absolute;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            z-index: 15;
+            display: none;
+            font-family: 'Courier New', monospace;
+        }
+    
+        .shieldIndicator {
+            top: 10px;
+            border: 1px solid #0af;
+            color: #0af;
+        }
+    
+        .attackIndicator {
+            top: 40px;
+            border: 1px solid #f90;
+            color: #f90;
+        }
+    
+        @keyframes pulse {
+            0% { opacity: 0.7; }
+            50% { opacity: 1; }
+            100% { opacity: 0.7; }
+        }
+    
+        @media (max-width: 768px) {
+            .uiPanel {
+                padding: 12px;
+            }
+        
+            .uiTitle {
+                font-size: 20px;
+            }
+        
+            .uiText {
+                font-size: 14px;
+            }
+        
+            .uiScore {
+                font-size: 24px;
+            }
+        
+            .uiButton {
+                padding: 10px 16px;
+                font-size: 16px;
+            }
+        
+            .stats {
+                font-size: 14px;
+                padding: 6px 10px;
+            }
+        
+            .bossWarning {
+                font-size: 20px;
+            }
+        
+            .bossHealthBar {
+                height: 16px;
+            }
+        
+            .shieldIndicator, .attackIndicator {
+                font-size: 10px;
+                padding: 3px 6px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+    
+        <div id="uiOverlay">
+            <div class="stats">
+                <div>分数: <span id="score">0</span></div>
+                <div>生命: <span id="lives">3</span></div>
+                <div>等级: <span id="level">1</span></div>
+                <div>皇冠: <span id="crowns">0</span></div>
+            </div>
+        
+            <div class="shieldIndicator" id="shieldIndicator">盾: 0.0</div>
+            <div class="attackIndicator" id="attackIndicator">攻: 0.0</div>
+        
+            <div id="gameStartPanel" class="uiPanel">
+                <div class="uiTitle">starfighter</div>
+                <div class="uiText">滑动屏幕控制飞机移动</div>
+                <button id="startButton" class="uiButton">开始游戏</button>
+            </div>
+        
+            <div id="gameOverPanel" class="uiPanel">
+                <div class="uiTitle">游戏结束</div>
+                <div class="uiText">最终得分</div>
+                <div id="finalScore" class="uiScore">0</div>
+                <div class="uiText">皇冠数量</div>
+                <div id="finalCrowns" class="uiScore">0</div>
+                <button id="restartButton" class="uiButton">重新开始</button>
+            </div>      
+      
+            <div class="bossWarning" id="bossWarning">BOSS来袭!</div>
+            <div class="bossHealthBar" id="bossHealthBar">
+                <div class="bossHealthFill" id="bossHealthFill"></div>
+                <div class="bossHealthText" id="bossHealthText"></div>
+            </div>
+        
+            <div class="mobileControls">
+                <div class="controlArea"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const Game = {
+            canvas: null,
+            ctx: null,
+            width: 0,
+            height: 0,
+            isRunning: false,
+            isGameOver: false,
+            lastTime: 0,
+            gameTime: 0,
+            score: 0,
+            highScore: 0,
+            lives: 3,
+            level: 1,
+            crowns: 0,
+            enemySpawnRate: 0.02,
+            enemySpeed: 2,
+            enemyShotRate: 0.01,
+            enemyBulletSpeed: 4,
+            player: null,
+            keys: {},
+            touch: {
+                isTouching: false,
+                startX: 0,
+                startY: 0,
+                currentX: 0,
+                currentY: 0
+            },
+        
+            objectPools: {
+                bullets: { pool: [], active: [], maxSize: 200 },
+                enemyBullets: { pool: [], active: [], maxSize: 300 },
+                enemies: { pool: [], active: [], maxSize: 50 },
+                particles: { pool: [], active: [], maxSize: 100 },
+                items: { pool: [], active: [], maxSize: 20 }
+            },
+        
+            spatialGrid: {
+                cellSize: 100,
+                grid: {},
+                clear: function() {
+                    this.grid = {};
+                },
+                getKey: function(x, y) {
+                    const cellX = Math.floor(x / this.cellSize);
+                    const cellY = Math.floor(y / this.cellSize);
+                    return `${cellX},${cellY}`;
+                },
+                insert: function(obj, poolType) {
+                    const key = this.getKey(obj.x, obj.y);
+                    if (!this.grid[key]) {
+                        this.grid[key] = [];
+                    }
+                    this.grid[key].push({ obj: obj, poolType: poolType });
+                },
+                getNearby: function(obj) {
+                    const cellX = Math.floor(obj.x / this.cellSize);
+                    const cellY = Math.floor(obj.y / this.cellSize);
+                    const nearby = [];
+                
+                    for (let dx = -1; dx <= 1; dx++) {
+                        for (let dy = -1; dy <= 1; dy++) {
+                            const key = `${cellX + dx},${cellY + dy}`;
+                            if (this.grid[key]) {
+                                nearby.push(...this.grid[key]);
+                            }
+                        }
+                    }
+                    return nearby;
+                }
+            },
+        
+            isBossStage: false,
+            boss: null,
+            bossSpawnThreshold: 1000,
+            bossHealthBar: null,
+            bossHealthFill: null,
+            bossHealthText: null,
+            bossWarning: null,
+            shieldIndicator: null,
+            attackIndicator: null,
+        
+            bossAppearCount: 0,
+            itemSpawnRate: 0.001,
+            isTripleShot: false,
+            tripleShotTime: 0,
+            lastUIUpdateTime: 0,
+            uiUpdateInterval: 100,
+        
+            init: function() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.resizeCanvas();
+            
+                this.player = {
+                    x: this.width / 2 - 15,
+                    y: this.height - 100,
+                    width: 30,
+                    height: 30,
+                    speed: 7,
+                    color: '#0f0',
+                    lastShot: 0,
+                    shotDelay: 300,
+                    shieldTime: 0
+                };
+            
+                this.highScore = localStorage.getItem('planeGameHighScore') || 0;
+                this.highCrowns = localStorage.getItem('planeGameHighCrowns') || 0;
+            
+                this.bossHealthBar = document.getElementById('bossHealthBar');
+                this.bossHealthFill = document.getElementById('bossHealthFill');
+                this.bossHealthText = document.getElementById('bossHealthText');
+                this.bossWarning = document.getElementById('bossWarning');
+                this.shieldIndicator = document.getElementById('shieldIndicator');
+                this.attackIndicator = document.getElementById('attackIndicator');
+            
+                this.setupEventListeners();
+                this.lastTime = performance.now();
+                this.gameLoop();
+            },
+        
+            getObject: function(poolType) {
+                const pool = this.objectPools[poolType];
+                if (pool.pool.length > 0) {
+                    const obj = pool.pool.pop();
+                    for (const key in obj) {
+                        delete obj[key];
+                    }
+                    pool.active.push(obj);
+                    return obj;
+                }
+                if (pool.active.length < pool.maxSize) {
+                    const newObj = {};
+                    pool.active.push(newObj);
+                    return newObj;
+                }
+                return null;
+            },
+        
+            releaseObject: function(poolType, obj) {
+                const pool = this.objectPools[poolType];
+                const index = pool.active.indexOf(obj);
+                if (index > -1) {
+                    pool.active.splice(index, 1);
+                    pool.pool.push(obj);
+                }
+            },
+        
+            clearAllPools: function() {
+                for (const poolType in this.objectPools) {
+                    const pool = this.objectPools[poolType];
+                    pool.active = [];
+                }
+            },
+        
+            resizeCanvas: function() {
+                this.width = this.canvas.width = window.innerWidth;
+                this.height = this.canvas.height = window.innerHeight;
+            
+                if (this.player) {
+                    this.player.x = Math.min(this.player.x, this.width - this.player.width);
+                    this.player.y = Math.min(this.player.y, this.height - this.player.height);
+                }
+            },
+        
+            setupEventListeners: function() {
+                window.addEventListener('keydown', (e) => {
+                    this.keys[e.key.toLowerCase()] = true;
+                    if (e.key === ' ' && this.isRunning) {
+                        this.togglePause();
+                    }
+                });
+            
+                window.addEventListener('keyup', (e) => {
+                    this.keys[e.key.toLowerCase()] = false;
+                });
+            
+                const controlArea = document.querySelector('.controlArea');
+            
+                const handleMove = (x, y) => {
+                    const dx = x - this.touch.startX;
+                    const dy = y - this.touch.startY;
+                
+                    this.player.x += dx;
+                    this.player.y += dy;
+                
+                    this.touch.startX = x;
+                    this.touch.startY = y;
+                
+                    this.player.x = Math.max(0, Math.min(this.width - this.player.width, this.player.x));
+                    this.player.y = Math.max(0, Math.min(this.height - this.player.height, this.player.y));
+                };
+            
+                controlArea.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    if (!this.isRunning || this.isGameOver) return;
+                
+                    const touch = e.touches[0];
+                    this.touch.isTouching = true;
+                    this.touch.startX = touch.clientX;
+                    this.touch.startY = touch.clientY;
+                    this.touch.currentX = touch.clientX;
+                    this.touch.currentY = touch.clientY;
+                });
+            
+                controlArea.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                    if (!this.touch.isTouching || !this.isRunning || this.isGameOver) return;
+                
+                    const touch = e.touches[0];
+                    this.touch.currentX = touch.clientX;
+                    this.touch.currentY = touch.clientY;
+                
+                    handleMove(this.touch.currentX, this.touch.currentY);
+                });
+            
+                controlArea.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    this.touch.isTouching = false;
+                });
+            
+                controlArea.addEventListener('mousedown', (e) => {
+                    if (!this.isRunning || this.isGameOver) return;
+                
+                    this.touch.isTouching = true;
+                    this.touch.startX = e.clientX;
+                    this.touch.startY = e.clientY;
+                    this.touch.currentX = e.clientX;
+                    this.touch.currentY = e.clientY;
+                });
+            
+                controlArea.addEventListener('mousemove', (e) => {
+                    if (!this.touch.isTouching || !this.isRunning || this.isGameOver) return;
+                
+                    this.touch.currentX = e.clientX;
+                    this.touch.currentY = e.clientY;
+                
+                    handleMove(this.touch.currentX, this.touch.currentY);
+                });
+            
+                controlArea.addEventListener('mouseup', () => {
+                    this.touch.isTouching = false;
+                });
+            
+                controlArea.addEventListener('mouseleave', () => {
+                    this.touch.isTouching = false;
+                });
+            
+                window.addEventListener('resize', () => {
+                    this.resizeCanvas();
+                });
+            
+                document.getElementById('startButton').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.startGame();
+                });
+            
+                document.getElementById('restartButton').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.startGame();
+                });
+            
+                this.enableControlArea(false);
+            },
+        
+            enableControlArea: function(enable) {
+                const controlArea = document.querySelector('.controlArea');
+                if (controlArea) {
+                    controlArea.style.pointerEvents = enable ? 'auto' : 'none';
+                }
+            },
+        
+            startGame: function() {
+                this.isRunning = true;
+                this.isGameOver = false;
+                this.score = 0;
+                this.lives = 3;
+                this.level = 1;
+                this.crowns = 0;
+                this.enemySpawnRate = 0.02;
+                this.enemySpeed = 2;
+                this.enemyShotRate = 0.01;
+                this.enemyBulletSpeed = 4;
+                this.gameTime = 0;
+                this.isBossStage = false;
+                this.boss = null;
+                this.bossAppearCount = 0;
+                this.bossSpawnThreshold = 1000;
+                this.itemSpawnRate = 0.001;
+                this.isTripleShot = false;
+                this.tripleShotTime = 0;
+            
+                this.player.x = this.width / 2 - 15;
+                this.player.y = this.height - 100;
+                this.player.lastShot = 0;
+                this.player.color = '#0f0';
+                this.player.shieldTime = 0;
+            
+                this.clearAllPools();
+            
+                this.bossHealthBar.style.display = 'none';
+                this.bossWarning.style.display = 'none';
+                this.shieldIndicator.style.display = 'none';
+                this.attackIndicator.style.display = 'none';
+            
+                document.getElementById('gameStartPanel').style.display = 'none';
+                document.getElementById('gameOverPanel').style.display = 'none';
+            
+                this.enableControlArea(true);
+                this.updateUI();
+            },
+        
+            togglePause: function() {
+                this.isRunning = !this.isRunning;
+            
+                if (this.isRunning) {
+                    document.getElementById('gameStartPanel').style.display = 'none';
+                    this.lastTime = performance.now();
+                    this.enableControlArea(true);
+                } else {
+                    document.getElementById('gameStartPanel').style.display = 'block';
+                    document.querySelector('.uiTitle').textContent = '游戏暂停';
+                    document.getElementById('startButton').textContent = '继续游戏';
+                    this.enableControlArea(false);
+                }
+            },
+        
+            gameLoop: function(currentTime) {
+                const deltaTime = currentTime - this.lastTime;
+                this.lastTime = currentTime;
+            
+                if (this.isRunning && !this.isGameOver) {
+                    this.gameTime += deltaTime;
+                    this.update(deltaTime);
+                }
+            
+                this.render();
+                requestAnimationFrame((time) => this.gameLoop(time));
+            },
+        
+            update: function(deltaTime) {
+                this.updatePlayer(deltaTime);
+                this.updateBullets();
+                this.updateEnemyBullets();
+                this.updateEnemies(deltaTime);
+                this.updateParticles();
+                this.updateItems(deltaTime);
+            
+                this.spawnEnemies();
+                this.enemiesShoot();
+                this.spawnItems();
+            
+                if (this.isBossStage) {
+                    this.updateBoss();
+                    this.bossShoot();
+                }
+            
+                this.checkCollisions();
+                this.updateGameState();
+            },
+        
+            updatePlayer: function(deltaTime) {
+                if (this.keys['arrowleft'] || this.keys['a']) this.player.x -= this.player.speed;
+                if (this.keys['arrowright'] || this.keys['d']) this.player.x += this.player.speed;
+                if (this.keys['arrowup'] || this.keys['w']) this.player.y -= this.player.speed;
+                if (this.keys['arrowdown'] || this.keys['s']) this.player.y += this.player.speed;
+            
+                this.player.x = Math.max(0, Math.min(this.width - this.player.width, this.player.x));
+                this.player.y = Math.max(0, Math.min(this.height - this.player.height, this.player.y));
+            
+                if (this.gameTime - this.player.lastShot > this.player.shotDelay) {
+                    this.spawnBullet();
+                    this.player.lastShot = this.gameTime;
+                }
+            
+                if (this.player.shieldTime > 0) {
+                    this.player.shieldTime -= deltaTime / 1000;
+                    if (this.player.shieldTime < 0) {
+                        this.player.shieldTime = 0;
+                    }
+                
+                    this.updateShieldUI();
+                }
+            
+                if (this.isTripleShot) {
+                    this.tripleShotTime -= deltaTime / 1000;
+                    if (this.tripleShotTime < 0) {
+                        this.isTripleShot = false;
+                        this.tripleShotTime = 0;
+                    }
+                
+                    this.updateAttackUI();
+                }
+            },
+        
+            updateShieldUI: function(force = false) {
+                if (this.player.shieldTime > 0) {
+                    this.shieldIndicator.style.display = 'block';
+                    this.shieldIndicator.textContent = `盾: ${this.player.shieldTime.toFixed(1)}`;
+                } else {
+                    this.shieldIndicator.style.display = 'none';
+                }
+            },
+        
+            updateAttackUI: function(force = false) {
+                if (this.isTripleShot) {
+                    this.attackIndicator.style.display = 'block';
+                    this.attackIndicator.textContent = `攻: ${this.tripleShotTime.toFixed(1)}`;
+                } else {
+                    this.attackIndicator.style.display = 'none';
+                }
+            },
+        
+            spawnBullet: function() {
+                if (this.isTripleShot) {
+                    const bullet1 = this.getObject('bullets');
+                    if (bullet1) {
+                        bullet1.x = this.player.x + this.player.width / 2 - 8;
+                        bullet1.y = this.player.y;
+                        bullet1.width = 4;
+                        bullet1.height = 12;
+                        bullet1.speed = 8;
+                        bullet1.color = '#f90';
+                    }
+                    const bullet2 = this.getObject('bullets');
+                    if (bullet2) {
+                        bullet2.x = this.player.x + this.player.width / 2 - 2;
+                        bullet2.y = this.player.y;
+                        bullet2.width = 4;
+                        bullet2.height = 12;
+                        bullet2.speed = 8;
+                        bullet2.color = '#f90';
+                    }
+                    const bullet3 = this.getObject('bullets');
+                    if (bullet3) {
+                        bullet3.x = this.player.x + this.player.width / 2 + 4;
+                        bullet3.y = this.player.y;
+                        bullet3.width = 4;
+                        bullet3.height = 12;
+                        bullet3.speed = 8;
+                        bullet3.color = '#f90';
+                    }
+                } else {
+                    const bullet = this.getObject('bullets');
+                    if (bullet) {
+                        bullet.x = this.player.x + this.player.width / 2 - 2;
+                        bullet.y = this.player.y;
+                        bullet.width = 4;
+                        bullet.height = 12;
+                        bullet.speed = 8;
+                        bullet.color = '#ff0';
+                    }
+                }
+            },
+        
+            updateBullets: function() {
+                const pool = this.objectPools.bullets;
+                for (let i = pool.active.length - 1; i >= 0; i--) {
+                    const bullet = pool.active[i];
+                    bullet.y -= bullet.speed;
+                
+                    if (bullet.y + bullet.height < 0) {
+                        this.releaseObject('bullets', bullet);
+                    }
+                }
+            },
+        
+            spawnTrackingBullet: function(enemy) {
+                if (this.boss && this.gameTime - this.boss.lastTrackingShot < this.boss.trackingShotDelay) {
+                    return;
+                }
+            
+                const dx = this.player.x + this.player.width/2 - (enemy.x + enemy.width/2);
+                const dy = this.player.y + this.player.height/2 - (enemy.y + enemy.height/2);
+                const distance = Math.sqrt(dx*dx + dy*dy);
+            
+                if (distance > 0) {
+                    const speed = this.enemyBulletSpeed * 0.8;
+                    const vx = (dx / distance) * speed;
+                    const vy = (dy / distance) * speed;
+                
+                    const bullet = this.getObject('enemyBullets');
+                    if (bullet) {
+                        bullet.x = enemy.x + enemy.width / 2 - 2;
+                        bullet.y = enemy.y + enemy.height;
+                        bullet.width = 6;
+                        bullet.height = 6;
+                        bullet.vx = vx;
+                        bullet.vy = vy;
+                        bullet.speed = speed;
+                        bullet.color = '#ff0';
+                        bullet.isTracking = true;
+                        bullet.trackingPower = 0.05;
+                    }
+                
+                    if (this.boss) {
+                        this.boss.lastTrackingShot = this.gameTime;
+                    }
+                }
+            },
+        
+            spawnRingBullet: function(enemy, count = 8, speedMulti = 0.7) {
+                const bulletCount = count;
+                const speed = this.enemyBulletSpeed * speedMulti;
+            
+                for (let i = 0; i < bulletCount; i++) {
+                    const bullet = this.getObject('enemyBullets');
+                    if (!bullet) break;
+                
+                    const angle = (i * Math.PI * 2) / bulletCount;
+                    const vx = Math.cos(angle) * speed;
+                    const vy = Math.sin(angle) * speed;
+                
+                    bullet.x = enemy.x + enemy.width / 2 - 2;
+                    bullet.y = enemy.y + enemy.height;
+                    bullet.width = 5;
+                    bullet.height = 5;
+                    bullet.vx = vx;
+                    bullet.vy = vy;
+                    bullet.color = '#0af';
+                    bullet.isRing = true;
+                }
+            },
+        
+            spawnWaveBullet: function(enemy, offset = 0) {
+                const bulletCount = 4;
+                const baseSpeed = this.enemyBulletSpeed * 0.6;
+                const waveAmplitude = 2.0;
+                const waveFrequency = 0.1;
+            
+                for (let i = 0; i < bulletCount; i++) {
+                    const bullet = this.getObject('enemyBullets');
+                    if (!bullet) break;
+                
+                    const angleOffset = (i * Math.PI * 2) / bulletCount;
+                    const vx = Math.cos(angleOffset) * waveAmplitude;
+                    const vy = baseSpeed;
+                
+                    bullet.x = enemy.x + enemy.width / 2 - 2;
+                    bullet.y = enemy.y + enemy.height;
+                    bullet.width = 6;
+                    bullet.height = 6;
+                    bullet.vx = vx;
+                    bullet.vy = vy;
+                    bullet.baseVx = vx;
+                    bullet.baseVy = vy;
+                    bullet.waveAmplitude = waveAmplitude;
+                    bullet.waveFrequency = waveFrequency;
+                    bullet.waveOffset = offset + i * 0.5;
+                    bullet.color = '#f0f';
+                    bullet.isWave = true;
+                }
+            },
+        
+            spawnScatterBullet: function(enemy) {
+                const bulletCount = 7;
+                const baseSpeed = this.enemyBulletSpeed * 0.5;
+            
+                for (let i = 0; i < bulletCount; i++) {
+                    const bullet = this.getObject('enemyBullets');
+                    if (!bullet) break;
+                
+                    const angle = Math.PI/2 + (i - (bulletCount-1)/2) * Math.PI/12;
+                    const vx = Math.cos(angle) * baseSpeed;
+                    const vy = Math.sin(angle) * baseSpeed;
+                
+                    bullet.x = enemy.x + enemy.width / 2 - 2;
+                    bullet.y = enemy.y + enemy.height;
+                    bullet.width = 5;
+                    bullet.height = 5;
+                    bullet.vx = vx;
+                    bullet.vy = vy;
+                    bullet.color = '#f90';
+                    bullet.isScatter = true;
+                }
+            },
+        
+            spawnExplosionBullet: function(x, y, count = 16) {
+                const speed = this.enemyBulletSpeed * 0.8;
+            
+                for (let i = 0; i < count; i++) {
+                    const bullet = this.getObject('enemyBullets');
+                    if (!bullet) break;
+                
+                    const angle = (i * Math.PI * 2) / count;
+                    const vx = Math.cos(angle) * speed;
+                    const vy = Math.sin(angle) * speed;
+                
+                    bullet.x = x;
+                    bullet.y = y;
+                    bullet.width = 6;
+                    bullet.height = 6;
+                    bullet.vx = vx;
+                    bullet.vy = vy;
+                    bullet.color = '#f00';
+                    bullet.isExplosion = true;
+                }
+            },
+        
+            updateEnemyBullets: function() {
+                const pool = this.objectPools.enemyBullets;
+                for (let i = pool.active.length - 1; i >= 0; i--) {
+                    const bullet = pool.active[i];
+                
+                    if (bullet.isTracking) {
+                        const dx = this.player.x + this.player.width/2 - bullet.x;
+                        const dy = this.player.y + this.player.height/2 - bullet.y;
+                        const distance = Math.sqrt(dx*dx + dy*dy);
+                    
+                        if (distance > 0) {
+                            bullet.vx += (dx / distance) * bullet.trackingPower;
+                            bullet.vy += (dy / distance) * bullet.trackingPower;
+                        
+                            const currentSpeed = Math.sqrt(bullet.vx*bullet.vx + bullet.vy*bullet.vy);
+                            if (currentSpeed > 0) {
+                                bullet.vx = (bullet.vx / currentSpeed) * bullet.speed;
+                                bullet.vy = (bullet.vy / currentSpeed) * bullet.speed;
+                            }
+                        }
+                    
+                        bullet.x += bullet.vx;
+                        bullet.y += bullet.vy;
+                    } else if (bullet.isRing || bullet.isScatter || bullet.isExplosion || bullet.isIce || bullet.isPoison) {
+                        bullet.x += bullet.vx;
+                        bullet.y += bullet.vy;
+                    } else if (bullet.isWave) {
+                        bullet.waveOffset += bullet.waveFrequency;
+                        const waveValue = Math.sin(bullet.waveOffset) * bullet.waveAmplitude;
+                        bullet.vx = bullet.baseVx + waveValue;
+                        bullet.y += bullet.vy;
+                        bullet.x += bullet.vx;
+                    } else if (bullet.isIceBeam) {
+                        bullet.y += bullet.speed;
+                    } else {
+                        bullet.y += this.enemyBulletSpeed;
+                    }
+                
+                    if (bullet.y > this.height || bullet.y < -20 || 
+                        bullet.x > this.width + 20 || bullet.x < -20) {
+                        this.releaseObject('enemyBullets', bullet);
+                    }
+                }
+            },
+        
+            spawnEnemies: function() {
+                if (!this.isBossStage && Math.random() < this.enemySpawnRate) {
+                    const type = Math.floor(Math.random() * 5);
+                    let color, speed, canShoot, health, width, height;
+                
+                    switch (type) {
+                        case 0:
+                            color = '#f00';
+                            speed = this.enemySpeed;
+                            canShoot = false;
+                            health = 1;
+                            width = 30;
+                            height = 30;
+                            break;
+                        case 1:
+                            color = '#00f';
+                            speed = this.enemySpeed * 1.5;
+                            canShoot = true;
+                            health = 1;
+                            width = 30;
+                            height = 30;
+                            break;
+                        case 2:
+                            color = '#a0f';
+                            speed = this.enemySpeed * 0.7;
+                            canShoot = true;
+                            health = 2;
+                            width = 35;
+                            height = 35;
+                            break;
+                        case 3:
+                            color = '#ff0';
+                            speed = this.enemySpeed * 0.9;
+                            canShoot = true;
+                            health = 1;
+                            width = 28;
+                            height = 28;
+                            break;
+                        case 4:
+                            color = '#0af';
+                            speed = this.enemySpeed * 0.8;
+                            canShoot = true;
+                            health = 2;
+                            width = 32;
+                            height = 32;
+                            break;
+                    }
+                
+                    const enemy = this.getObject('enemies');
+                    if (enemy) {
+                        enemy.x = Math.random() * (this.width - width);
+                        enemy.y = -height;
+                        enemy.width = width;
+                        enemy.height = height;
+                        enemy.speed = speed;
+                        enemy.color = color;
+                        enemy.type = type;
+                        enemy.canShoot = canShoot;
+                        enemy.health = health;
+                        enemy.maxHealth = health;
+                        enemy.lastShot = 0;
+                        enemy.shotDelay = 1000 + Math.random() * 1000;
+                    }
+                }
+            },
+        
+            enemiesShoot: function() {
+                const currentTime = this.gameTime;
+                const pool = this.objectPools.enemies;
+            
+                for (let i = 0; i < pool.active.length; i++) {
+                    const enemy = pool.active[i];
+                
+                    if (enemy.canShoot && currentTime - enemy.lastShot > enemy.shotDelay) {
+                        if (Math.random() < this.enemyShotRate) {
+                            switch (enemy.type) {
+                                case 1:
+                                case 2:
+                                    this.spawnEnemyBullet(enemy);
+                                    break;
+                                case 3:
+                                    this.spawnTrackingBullet(enemy);
+                                    break;
+                                case 4:
+                                    this.spawnRingBullet(enemy);
+                                    break;
+                            }
+                            enemy.lastShot = currentTime;
+                        }
+                    }
+                }
+            },
+        
+            spawnEnemyBullet: function(enemy) {
+                const bullet = this.getObject('enemyBullets');
+                if (bullet) {
+                    bullet.x = enemy.x + enemy.width / 2 - 2;
+                    bullet.y = enemy.y + enemy.height;
+                    bullet.width = 4;
+                    bullet.height = 12;
+                    bullet.speed = this.enemyBulletSpeed;
+                    bullet.color = '#f0f';
+                    bullet.vx = 0;
+                    bullet.vy = this.enemyBulletSpeed;
+                }
+            },
+        
+            updateEnemies: function(deltaTime) {
+                const pool = this.objectPools.enemies;
+                for (let i = pool.active.length - 1; i >= 0; i--) {
+                    const enemy = pool.active[i];
+                
+                    enemy.y += enemy.speed;
+                
+                    if (enemy.type === 0) {
+                        const dx = this.player.x + this.player.width/2 - (enemy.x + enemy.width/2);
+                        const dy = this.player.y + this.player.height/2 - (enemy.y + enemy.height/2);
+                        const distance = Math.sqrt(dx*dx + dy*dy);
+                    
+                        if (distance < 150 && Math.random() < 0.005) {
+                            this.createExplosion(enemy.x + enemy.width/2, enemy.y + enemy.height/2, '#f00', 8);
+                            this.spawnExplosionBullet(enemy.x + enemy.width/2, enemy.y + enemy.height/2, 16);
+                            this.score += 10;
+                            this.releaseObject('enemies', enemy);
+                            continue;
+                        }
+                    }
+                
+                    if (enemy.y > this.height) {
+                        this.releaseObject('enemies', enemy);
+                    }
+                }
+            },
+        
+            spawnItems: function() {
+                if (Math.random() < this.itemSpawnRate) {
+                    const type = Math.floor(Math.random() * 3);
+                    let color, width, height, speed;
+                
+                    switch (type) {
+                        case 0:
+                            color = '#f00';
+                            break;
+                        case 1:
+                            color = '#f90';
+                            break;
+                        case 2:
+                            color = '#0af';
+                            break;
+                    }
+                
+                    width = 20;
+                    height = 20;
+                    speed = 2;
+                
+                    const item = this.getObject('items');
+                    if (item) {
+                        item.x = Math.random() * (this.width - width);
+                        item.y = -height;
+                        item.width = width;
+                        item.height = height;
+                        item.speed = speed;
+                        item.color = color;
+                        item.type = type;
+                    }
+                }
+            },
+        
+            updateItems: function(deltaTime) {
+                const pool = this.objectPools.items;
+                for (let i = pool.active.length - 1; i >= 0; i--) {
+                    const item = pool.active[i];
+                    item.y += item.speed;
+                
+                    if (item.y > this.height) {
+                        this.releaseObject('items', item);
+                    }
+                }
+            },
+        
+            spawnBoss: function() {
+                this.isBossStage = true;
+                this.bossAppearCount++;
+            
+                const bossTypes = [
+                    { name: '火焰BOSS', color: '#f00', baseHealth: 200, baseSpeed: 1, baseShotDelay: 500 },
+                    { name: '冰霜BOSS', color: '#00f', baseHealth: 250, baseSpeed: 1.2, baseShotDelay: 450 },
+                    { name: '毒液BOSS', color: '#a0f', baseHealth: 300, baseSpeed: 0.8, baseShotDelay: 400 }
+                ];
+            
+                const bossTypeIndex = Math.floor(Math.random() * bossTypes.length);
+                const bossType = bossTypes[bossTypeIndex];
+            
+                let bossHealth = bossType.baseHealth;
+                let bossSpeed = bossType.baseSpeed;
+                let bossShotDelay = bossType.baseShotDelay;
+                let bossPatternChangeDelay = 3000;
+            
+                if (this.bossAppearCount > 1) {
+                    const bossLevelMultiplier = Math.min(8, 1 + this.level * 0.25);
+                
+                    bossHealth = Math.floor(bossType.baseHealth * bossLevelMultiplier);
+                    bossSpeed = bossType.baseSpeed + (this.level - 1) * 0.1;
+                    bossShotDelay = Math.max(250, bossType.baseShotDelay - (this.level - 1) * 15);
+                    bossPatternChangeDelay = Math.max(1500, 3000 - (this.level - 1) * 100);
+                }
+            
+                this.boss = {
+                    x: this.width / 2 - 50,
+                    y: 50,
+                    width: 100,
+                    height: 100,
+                    health: bossHealth,
+                    maxHealth: bossHealth,
+                    speed: bossSpeed,
+                    color: bossType.color,
+                    type: bossTypeIndex,
+                    name: bossType.name,
+                    lastShot: 0,
+                    shotDelay: bossShotDelay,
+                    lastPatternChange: 0,
+                    patternChangeDelay: bossPatternChangeDelay,
+                    currentPattern: 0,
+                    moveDirection: 1,
+                    waveOffset: 0,
+                    level: this.level,
+                    movePhase: 0,
+                    centerX: this.width / 2 - 50,
+                    centerY: 50,
+                    orbitAngle: 0,
+                    lastTrackingShot: 0,
+                    trackingShotDelay: bossShotDelay * 2
+                };
+            
+                this.objectPools.enemies.active = [];
+                this.objectPools.enemyBullets.active = [];
+            
+                this.bossWarning.textContent = `${bossType.name}来袭!`;
+                this.bossWarning.style.display = 'block';
+                setTimeout(() => {
+                    this.bossWarning.style.display = 'none';
+                }, 2000);
+            
+                this.bossHealthBar.style.display = 'block';
+                this.updateBossHealthBar();
+            },
+        
+            updateBoss: function() {
+                if (!this.boss) return;
+            
+                switch (this.boss.type) {
+                    case 0:
+                        this.updateFireBoss();
+                        break;
+                    case 1:
+                        this.updateIceBoss();
+                        break;
+                    case 2:
+                        this.updatePoisonBoss();
+                        break;
+                }
+            
+                this.updateBossHealthBar();
+            },
+        
+            updateFireBoss: function() {
+                this.boss.x += this.boss.speed * this.boss.moveDirection;
+            
+                if (this.boss.x <= 0 || this.boss.x >= this.width - this.boss.width) {
+                    this.boss.moveDirection *= -1;
+                }
+            
+                this.boss.waveOffset += 0.05;
+            },
+        
+            updateIceBoss: function() {
+                this.boss.x += this.boss.speed * this.boss.moveDirection;
+                this.boss.y += Math.sin(this.boss.waveOffset) * 2;
+            
+                if (this.boss.x <= 0 || this.boss.x >= this.width - this.boss.width) {
+                    this.boss.moveDirection *= -1;
+                }
+            
+                this.boss.waveOffset += 0.03;
+            },
+        
+            updatePoisonBoss: function() {
+                this.boss.movePhase += 0.02;
+                const radius = 100;
+                this.boss.x = this.boss.centerX + Math.cos(this.boss.movePhase) * radius;
+                this.boss.y = this.boss.centerY + Math.sin(this.boss.movePhase * 0.5) * 50;
+            
+                this.boss.x = Math.max(0, Math.min(this.width - this.boss.width, this.boss.x));
+            },
+        
+            updateBossHealthBar: function(force = false) {
+                if (!this.boss) return;
+            
+                const healthPercent = this.boss.health / this.boss.maxHealth;
+                this.bossHealthFill.style.width = (healthPercent * 100) + '%';
+                this.bossHealthText.textContent = `${this.boss.name} Lv.${this.boss.level}: ${this.boss.health}/${this.boss.maxHealth}`;
+            },
+        
+            bossShoot: function() {
+                if (!this.boss) return;
+            
+                const currentTime = this.gameTime;
+                let levelMultiplier = 1;
+            
+                if (this.bossAppearCount > 1) {
+                    levelMultiplier = Math.min(8, 1 + (this.boss.level - 1) * 0.08);
+                }
+            
+                if (currentTime - this.boss.lastShot > this.boss.shotDelay) {
+                    const healthPercent = this.boss.health / this.boss.maxHealth;
+                
+                    switch (this.boss.type) {
+                        case 0:
+                            if (healthPercent > 0.7) {
+                                this.fireBossPattern1(levelMultiplier);
+                            } else if (healthPercent > 0.3) {
+                                this.fireBossPattern2(levelMultiplier);
+                            } else {
+                                this.fireBossPattern3(levelMultiplier);
+                            }
+                            break;
+                        case 1:
+                            if (healthPercent > 0.7) {
+                                this.iceBossPattern1(levelMultiplier);
+                            } else if (healthPercent > 0.3) {
+                                this.iceBossPattern2(levelMultiplier);
+                            } else {
+                                this.iceBossPattern3(levelMultiplier);
+                            }
+                            break;
+                        case 2:
+                            if (healthPercent > 0.7) {
+                                this.poisonBossPattern1(levelMultiplier);
+                            } else if (healthPercent > 0.3) {
+                                this.poisonBossPattern2(levelMultiplier);
+                            } else {
+                                this.poisonBossPattern3(levelMultiplier);
+                            }
+                            break;
+                    }
+                
+                    this.boss.lastShot = currentTime;
+                }
+            
+                if (currentTime - this.boss.lastPatternChange > this.boss.patternChangeDelay) {
+                    this.boss.currentPattern = (this.boss.currentPattern + 1) % 3;
+                    this.boss.lastPatternChange = currentTime;
+                }
+            },
+        
+            fireBossPattern1: function(multiplier) {
+                let count = 8;
+                if (this.bossAppearCount > 1) {
+                    count = Math.min(12, 8 + Math.floor(this.boss.level * 0.3));
+                }
+                this.spawnRingBullet(this.boss, count, 0.6 * multiplier);
+            },
+        
+            fireBossPattern2: function(multiplier) {
+                this.spawnTrackingBullet(this.boss);
+                this.spawnWaveBullet(this.boss, this.boss.waveOffset);
+                setTimeout(() => {
+                    if (this.boss) {
+                        let count = 4;
+                        if (this.bossAppearCount > 1) {
+                            count = Math.min(8, 4 + Math.floor(this.boss.level * 0.2));
+                        }
+                        this.spawnRingBullet(this.boss, count, 0.8 * multiplier);
+                    }
+                }, 500);
+            },
+        
+            fireBossPattern3: function(multiplier) {
+                this.spawnWaveBullet(this.boss, this.boss.waveOffset);
+                this.spawnWaveBullet(this.boss, this.boss.waveOffset + Math.PI);
+                setTimeout(() => {
+                    if (this.boss) this.spawnScatterBullet(this.boss);
+                }, 200);
+                setTimeout(() => {
+                    if (this.boss) this.spawnTrackingBullet(this.boss);
+                }, 400);
+            },
+        
+            iceBossPattern1: function(multiplier) {
+                for (let i = 0; i < 2; i++) {
+                    setTimeout(() => {
+                        if (this.boss) {
+                            const bulletCount = 3;
+                            const speed = this.enemyBulletSpeed * 0.5 * multiplier;
+                        
+                            for (let j = 0; j < bulletCount; j++) {
+                                const bullet = this.getObject('enemyBullets');
+                                if (!bullet) continue;
+                            
+                                const angle = Math.PI/2 + (j - bulletCount/2) * Math.PI/12;
+                                const vx = Math.cos(angle) * speed;
+                                const vy = Math.sin(angle) * speed;
+                            
+                                bullet.x = this.boss.x + this.boss.width / 2 - 2;
+                                bullet.y = this.boss.y + this.boss.height;
+                                bullet.width = 6;
+                                bullet.height = 6;
+                                bullet.vx = vx;
+                                bullet.vy = vy;
+                                bullet.color = '#0af';
+                                bullet.isIce = true;
+                            }
+                        }
+                    }, i * 200);
+                }
+            },
+        
+            iceBossPattern2: function(multiplier) {
+                this.spawnRingBullet(this.boss, 10, 0.4 * multiplier);
+                setTimeout(() => {
+                    if (this.boss) {
+                        this.spawnTrackingBullet(this.boss);
+                    }
+                }, 300);
+            },
+        
+            iceBossPattern3: function(multiplier) {
+                for (let i = 0; i < 3; i++) {
+                    setTimeout(() => {
+                        if (this.boss) {
+                            const bullet = this.getObject('enemyBullets');
+                            if (bullet) {
+                                const offsetX = (i - 1) * 20;
+                                bullet.x = this.boss.x + this.boss.width / 2 - 3 + offsetX;
+                                bullet.y = this.boss.y + this.boss.height;
+                                bullet.width = 6;
+                                bullet.height = 15;
+                                bullet.speed = this.enemyBulletSpeed * 0.7 * multiplier;
+                                bullet.color = '#00f';
+                                bullet.isIceBeam = true;
+                            }
+                        }
+                    }, i * 100);
+                }
+                this.spawnRingBullet(this.boss, 10, 0.4 * multiplier);
+                setTimeout(() => {
+                    if (this.boss) {
+                        this.spawnTrackingBullet(this.boss);
+                    }
+                }, 300);
+            },
+        
+            poisonBossPattern1: function(multiplier) {
+                const bulletCount = 12;
+                const speed = this.enemyBulletSpeed * 0.5 * multiplier;
+            
+                for (let i = 0; i < bulletCount; i++) {
+                    const bullet = this.getObject('enemyBullets');
+                    if (!bullet) continue;
+                
+                    const angle = (i * Math.PI * 2) / bulletCount;
+                    const vx = Math.cos(angle) * speed;
+                    const vy = Math.sin(angle) * speed;
+                
+                    bullet.x = this.boss.x + this.boss.width / 2 - 2;
+                    bullet.y = this.boss.y + this.boss.height / 2;
+                    bullet.width = 5;
+                    bullet.height = 5;
+                    bullet.vx = vx;
+                    bullet.vy = vy;
+                    bullet.color = '#a0f';
+                    bullet.isPoison = true;
+                }
+            },
+        
+            poisonBossPattern2: function(multiplier) {
+                for (let i = 0; i < 3; i++) {
+                    setTimeout(() => {
+                        if (this.boss) {
+                            this.spawnExplosionBullet(
+                                this.boss.x + this.boss.width / 2 + (Math.random() - 0.5) * 100,
+                                this.boss.y + this.boss.height / 2 + (Math.random() - 0.5) * 50,
+                                8
+                            );
+                        }
+                    }, i * 300);
+                }
+                setTimeout(() => {
+                    if (this.boss) {
+                        this.spawnScatterBullet(this.boss);
+                    }
+                }, 400);
+            },
+        
+            poisonBossPattern3: function(multiplier) {
+                this.spawnWaveBullet(this.boss, this.boss.waveOffset);
+                this.spawnWaveBullet(this.boss, this.boss.waveOffset + Math.PI/2);
+                this.spawnWaveBullet(this.boss, this.boss.waveOffset + Math.PI);
+                this.spawnWaveBullet(this.boss, this.boss.waveOffset + Math.PI * 1.5);
+            
+                setTimeout(() => {
+                    if (this.boss) {
+                        this.spawnScatterBullet(this.boss);
+                    }
+                }, 400);
+            },
+                   
+            updateParticles: function() {
+                const pool = this.objectPools.particles;
+                for (let i = pool.active.length - 1; i >= 0; i--) {
+                    const particle = pool.active[i];
+                    particle.x += particle.vx;
+                    particle.y += particle.vy;
+                    particle.life--;
+                
+                    if (particle.life <= 0) {
+                        this.releaseObject('particles', particle);
+                    }
+                }
+            },
+        
+            checkCollisions: function() {
+                this.spatialGrid.clear();
+            
+                const bulletPool = this.objectPools.bullets;
+                for (const bullet of bulletPool.active) {
+                    this.spatialGrid.insert(bullet, 'bullets');
+                }
+            
+                const enemyPool = this.objectPools.enemies;
+                for (const enemy of enemyPool.active) {
+                    this.spatialGrid.insert(enemy, 'enemies');
+                }
+            
+                const enemyBulletPool = this.objectPools.enemyBullets;
+                for (const bullet of enemyBulletPool.active) {
+                    this.spatialGrid.insert(bullet, 'enemyBullets');
+                }
+            
+                const itemPool = this.objectPools.items;
+                for (const item of itemPool.active) {
+                    this.spatialGrid.insert(item, 'items');
+                }
+            
+                for (let i = bulletPool.active.length - 1; i >= 0; i--) {
+                    const bullet = bulletPool.active[i];
+                
+                    if (this.isBossStage && this.boss) {
+                        if (this.isColliding(bullet, this.boss)) {
+                            this.releaseObject('bullets', bullet);
+                            this.boss.health--;
+                        
+                            this.createExplosion(bullet.x, bullet.y, '#fff', 2);
+                        
+                            if (this.boss.health <= 0) {
+                                this.createExplosion(this.boss.x + this.boss.width/2, this.boss.y + this.boss.height/2, '#f00', 8);
+                                this.crowns++;
+                                this.lives += 3;
+                                this.boss = null;
+                                this.isBossStage = false;
+                                this.bossHealthBar.style.display = 'none';
+                                this.bossSpawnThreshold += 1000;
+                                enemyBulletPool.active = [];
+                                this.updateUI(true);
+                            }
+                            break;
+                        }
+                    }
+                
+                    const nearbyEnemies = this.spatialGrid.getNearby(bullet);
+                    for (const nearby of nearbyEnemies) {
+                        if (nearby.poolType === 'enemies') {
+                            const enemy = nearby.obj;
+                        
+                            if (this.isColliding(bullet, enemy)) {
+                                this.releaseObject('bullets', bullet);
+                                enemy.health--;
+                            
+                                enemy.color = '#fff';
+                                setTimeout(() => {
+                                    if (enemy && enemy.color === '#fff') {
+                                        if (enemy.type === 0) enemy.color = '#f00';
+                                        else if (enemy.type === 1) enemy.color = '#00f';
+                                        else if (enemy.type === 2) enemy.color = '#a0f';
+                                        else if (enemy.type === 3) enemy.color = '#ff0';
+                                        else if (enemy.type === 4) enemy.color = '#0af';
+                                    }
+                                }, 50);
+                            
+                                if (enemy.health <= 0) {
+                                    this.releaseObject('enemies', enemy);
+                                    let score = 0;
+                                    switch (enemy.type) {
+                                        case 0: score = 10; break;
+                                        case 1: score = 15; break;
+                                        case 2: score = 25; break;
+                                        case 3: score = 20; break;
+                                        case 4: score = 30; break;
+                                    }
+                                    this.score += score;
+                                    this.createExplosion(enemy.x + enemy.width/2, enemy.y + enemy.height/2, enemy.color, 4);
+                                } else {
+                                    this.createExplosion(enemy.x + enemy.width/2, enemy.y + enemy.height/2, '#fff', 2);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+            
+                if (this.player.shieldTime <= 0) {
+                    const nearbyEnemyBullets = this.spatialGrid.getNearby(this.player);
+                    for (const nearby of nearbyEnemyBullets) {
+                        if (nearby.poolType === 'enemyBullets') {
+                            const bullet = nearby.obj;
+                        
+                            if (this.isColliding(bullet, this.player)) {
+                                this.releaseObject('enemyBullets', bullet);
+                                this.lives--;
+                                this.createExplosion(this.player.x + this.player.width/2, this.player.y + this.player.height/2, '#fff', 4);
+                            
+                                this.player.color = '#f00';
+                                setTimeout(() => {
+                                    if (this.player) this.player.color = '#0f0';
+                                }, 100);
+                            
+                                this.player.shieldTime = 5;
+                                this.updateShieldUI();
+                            
+                                if (this.lives <= 0) {
+                                    this.gameOver();
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+            
+                const nearbyEnemies = this.spatialGrid.getNearby(this.player);
+                for (const nearby of nearbyEnemies) {
+                    if (nearby.poolType === 'enemies') {
+                        const enemy = nearby.obj;
+                    
+                        if (this.isColliding(this.player, enemy)) {
+                            this.releaseObject('enemies', enemy);
+                            this.lives--;
+                            this.createExplosion(enemy.x + enemy.width/2, enemy.y + enemy.height/2, '#fff', 4);
+                        
+                            this.player.color = '#f00';
+                            setTimeout(() => {
+                                if (this.player) this.player.color = '#0f0';
+                            }, 100);
+                        
+                            this.player.shieldTime = 5;
+                            this.updateShieldUI();
+                        
+                            if (this.lives <= 0) {
+                                this.gameOver();
+                            }
+                            break;
+                        }
+                    }
+                }
+            
+                if (this.boss && this.isColliding(this.player, this.boss)) {
+                    this.lives--;
+                    this.createExplosion(this.player.x + this.player.width/2, this.player.y + this.player.height/2, '#fff', 4);
+                
+                    this.player.color = '#f00';
+                    setTimeout(() => {
+                        if (this.player) this.player.color = '#0f0';
+                    }, 100);
+                
+                    this.player.shieldTime = 5;
+                    this.updateShieldUI();
+                
+                    if (this.lives <= 0) {
+                        this.gameOver();
+                    }
+                }
+            
+                const nearbyItems = this.spatialGrid.getNearby(this.player);
+                for (const nearby of nearbyItems) {
+                    if (nearby.poolType === 'items') {
+                        const item = nearby.obj;
+                    
+                        if (this.isColliding(this.player, item)) {
+                            this.createExplosion(item.x + item.width/2, item.y + item.height/2, item.color, 4);
+                        
+                            switch (item.type) {
+                                case 0:
+                                    this.lives++;
+                                    this.updateUI(true);
+                                    break;
+                                case 1:
+                                    this.isTripleShot = true;
+                                    this.tripleShotTime = 10;
+                                    this.updateAttackUI(true);
+                                    break;
+                                case 2:
+                                    this.player.shieldTime = 5;
+                                    this.updateShieldUI(true);
+                                    break;
+                            }
+                        
+                            this.releaseObject('items', item);
+                            break;
+                        }
+                    }
+                }
+            },
+        
+            isColliding: function(obj1, obj2) {
+                return obj1.x < obj2.x + obj2.width &&
+                       obj1.x + obj1.width > obj2.x &&
+                       obj1.y < obj2.y + obj2.height &&
+                       obj1.y + obj1.height > obj2.y;
+            },
+        
+            createExplosion: function(x, y, color, count = 4) {
+                for (let i = 0; i < count; i++) {
+                    const particle = this.getObject('particles');
+                    if (particle) {
+                        particle.x = x;
+                        particle.y = y;
+                        particle.vx = (Math.random() - 0.5) * 4;
+                        particle.vy = (Math.random() - 0.5) * 4;
+                        particle.life = 10;
+                        particle.color = color;
+                    }
+                }
+            },
+        
+            updateGameState: function() {
+                if (!this.isBossStage && this.score >= this.bossSpawnThreshold) {
+                    this.spawnBoss();
+                }
+            
+                const newLevel = Math.floor(this.score / 500) + 1;
+                if (newLevel > this.level) {
+                    this.level = newLevel;
+                    this.enemySpawnRate = 0.02 + (this.level - 1) * 0.005;
+                    this.enemySpeed = 2 + (this.level - 1) * 0.15;
+                    this.enemyShotRate = 0.01 + (this.level - 1) * 0.0005;
+                    this.enemyBulletSpeed = 4 + (this.level - 1) * 0.25;
+                    this.itemSpawnRate = 0.001 + (this.level - 1) * 0.00025;
+                }
+                this.updateUI();
+            },
+        
+            updateUI: function(force = false) {
+                const currentTime = performance.now();
+                if (!force && currentTime - this.lastUIUpdateTime < this.uiUpdateInterval) {
+                    return;
+                }
+                this.lastUIUpdateTime = currentTime;
+            
+                document.getElementById('score').textContent = this.score;
+                document.getElementById('lives').textContent = this.lives;
+                document.getElementById('level').textContent = this.level;
+                document.getElementById('crowns').textContent = this.crowns;
+            },
+        
+            gameOver: function() {
+                this.isRunning = false;
+                this.isGameOver = true;
+            
+                if (this.score > this.highScore) {
+                    this.highScore = this.score;
+                    localStorage.setItem('planeGameHighScore', this.highScore);
+                }
+            
+                if (this.crowns > this.highCrowns) {
+                    this.highCrowns = this.crowns;
+                    localStorage.setItem('planeGameHighCrowns', this.highCrowns);
+                }
+            
+                document.getElementById('finalScore').textContent = this.score;
+                document.getElementById('finalCrowns').textContent = this.crowns;
+                document.getElementById('gameOverPanel').style.display = 'block';
+                this.enableControlArea(false);
+            },
+        
+            render: function() {
+                const ctx = this.ctx;
+                ctx.fillStyle = '#000';
+                ctx.fillRect(0, 0, this.width, this.height);
+            
+                if (this.player.shieldTime > 0) {
+                    ctx.strokeStyle = '#0af';
+                    ctx.lineWidth = 2;
+                    ctx.globalAlpha = 0.5;
+                    ctx.beginPath();
+                    ctx.arc(
+                        this.player.x + this.player.width/2,
+                        this.player.y + this.player.height/2,
+                        Math.max(this.player.width, this.player.height)/2 + 3,
+                        0, Math.PI * 2
+                    );
+                    ctx.stroke();
+                    ctx.globalAlpha = 1.0;
+                }
+            
+                this.drawTrianglePlayer(this.player.x, this.player.y, this.player.width, this.player.height, this.player.color);
+            
+                const bulletPool = this.objectPools.bullets;
+                for (const bullet of bulletPool.active) {
+                    this.drawPixelArt(bullet.x, bullet.y, bullet.width, bullet.height, bullet.color, 1);
+                }
+            
+                const enemyBulletPool = this.objectPools.enemyBullets;
+                for (const bullet of enemyBulletPool.active) {
+                    this.drawPixelArt(bullet.x, bullet.y, bullet.width, bullet.height, bullet.color, 1);
+                }
+            
+                const enemyPool = this.objectPools.enemies;
+                for (const enemy of enemyPool.active) {
+                    this.drawPixelArt(enemy.x, enemy.y, enemy.width, enemy.height, enemy.color, 2);
+                
+                    if (enemy.maxHealth > 1) {
+                        const healthBarWidth = 20;
+                        const healthBarHeight = 3;
+                        const healthBarX = enemy.x + (enemy.width - healthBarWidth) / 2;
+                        const healthBarY = enemy.y - 5;
+                    
+                        ctx.fillStyle = '#333';
+                        ctx.fillRect(healthBarX, healthBarY, healthBarWidth, healthBarHeight);
+                    
+                        const healthPercent = enemy.health / enemy.maxHealth;
+                        ctx.fillStyle = enemy.health > 1 ? '#0f0' : '#f00';
+                        ctx.fillRect(healthBarX, healthBarY, healthBarWidth * healthPercent, healthBarHeight);
+                    }
+                }
+            
+                const itemPool = this.objectPools.items;
+                for (const item of itemPool.active) {
+                    this.drawItem(item.x, item.y, item.width, item.height, item.color, item.type);
+                }
+            
+                if (this.boss) {
+                    this.drawBoss(this.boss.x, this.boss.y, this.boss.width, this.boss.height, this.boss.color);
+                }
+            
+                const particlePool = this.objectPools.particles;
+                for (const particle of particlePool.active) {
+                    const alpha = particle.life / 10;
+                    ctx.fillStyle = particle.color;
+                    ctx.globalAlpha = alpha;
+                    ctx.fillRect(particle.x, particle.y, 2, 2);
+                }
+                ctx.globalAlpha = 1.0;
+            },
+        
+            drawTrianglePlayer: function(x, y, width, height, color) {
+                const ctx = this.ctx;
+                ctx.fillStyle = color;
+            
+                const pixelSize = 2;
+                const triangleHeight = height;
+                const triangleWidth = width;
+            
+                for (let row = 0; row < triangleHeight; row += pixelSize) {
+                    const rowWidth = Math.floor((row / triangleHeight) * triangleWidth);
+                    const startX = x + (triangleWidth - rowWidth) / 2;
+                
+                    for (let col = 0; col < rowWidth; col += pixelSize) {
+                        if ((row + col) % (pixelSize * 2) === 0) {
+                            ctx.fillRect(startX + col, y + row, pixelSize, pixelSize);
+                        }
+                    }
+                }
+            
+                ctx.fillStyle = '#0c0';
+                const wingSize = 4;
+                ctx.fillRect(x, y + height - wingSize, wingSize, wingSize);
+                ctx.fillRect(x + width - wingSize, y + height - wingSize, wingSize, wingSize);
+            
+                ctx.fillRect(x + width/2 - pixelSize, y, pixelSize * 2, pixelSize * 2);
+            },
+        
+            drawBoss: function(x, y, width, height, color) {
+                const ctx = this.ctx;
+                const centerX = x + width/2;
+                const centerY = y + height/2;
+            
+                switch (this.boss.type) {
+                    case 0:
+                        this.drawFireBoss(x, y, width, height, color, centerX, centerY);
+                        break;
+                    case 1:
+                        this.drawIceBoss(x, y, width, height, color, centerX, centerY);
+                        break;
+                    case 2:
+                        this.drawPoisonBoss(x, y, width, height, color, centerX, centerY);
+                        break;
+                }
+            },
+        
+            drawFireBoss: function(x, y, width, height, color, centerX, centerY) {
+                const ctx = this.ctx;
+            
+                ctx.fillStyle = '#f00';
+                for (let i = 0; i < height; i += 4) {
+                    for (let j = 0; j < width; j += 4) {
+                        if ((i + j) % 8 === 0) {
+                            ctx.fillRect(x + j, y + i, 4, 4);
+                        }
+                    }
+                }
+            
+                ctx.fillStyle = '#f90';
+                for (let i = 0; i < 4; i++) {
+                    const angle = (i * Math.PI * 2) / 4 + Math.sin(this.boss.waveOffset) * 0.2;
+                    const px = centerX + Math.cos(angle) * 25;
+                    const py = centerY + Math.sin(angle) * 25;
+                    ctx.fillRect(px - 4, py - 4, 8, 8);
+                }
+            
+                ctx.fillStyle = '#ff0';
+                ctx.fillRect(centerX - 8, centerY - 8, 16, 16);
+            
+                ctx.fillStyle = '#f00';
+                for (let i = 0; i < 3; i++) {
+                    const flameY = y + height - 10 - i * 8;
+                    const flameWidth = 20 - i * 4;
+                    ctx.fillRect(centerX - flameWidth/2, flameY, flameWidth, 6);
+                }
+            },
+        
+            drawIceBoss: function(x, y, width, height, color, centerX, centerY) {
+                const ctx = this.ctx;
+            
+                ctx.fillStyle = '#00f';
+                for (let i = 0; i < height; i += 4) {
+                    for (let j = 0; j < width; j += 4) {
+                        if ((i + j) % 8 === 0) {
+                            ctx.fillRect(x + j, y + i, 4, 4);
+                        }
+                    }
+                }
+            
+                ctx.fillStyle = '#0af';
+                for (let i = 0; i < 6; i++) {
+                    const angle = (i * Math.PI * 2) / 6 + this.boss.waveOffset * 0.5;
+                    const px = centerX + Math.cos(angle) * 30;
+                    const py = centerY + Math.sin(angle) * 30;
+                    ctx.fillRect(px - 3, py - 3, 6, 6);
+                }
+            
+                ctx.fillStyle = '#aaf';
+                ctx.fillRect(centerX - 10, centerY - 10, 20, 20);
+            
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(centerX - 5, centerY - 5, 10, 10);
+            },
+        
+            drawPoisonBoss: function(x, y, width, height, color, centerX, centerY) {
+                const ctx = this.ctx;
+            
+                ctx.fillStyle = '#a0f';
+                for (let i = 0; i < height; i += 4) {
+                    for (let j = 0; j < width; j += 4) {
+                        if ((i + j) % 8 === 0) {
+                            ctx.fillRect(x + j, y + i, 4, 4);
+                        }
+                    }
+                }
+            
+                ctx.fillStyle = '#f0f';
+                for (let i = 0; i < 8; i++) {
+                    const angle = (i * Math.PI * 2) / 8 + this.boss.movePhase;
+                    const px = centerX + Math.cos(angle) * 35;
+                    const py = centerY + Math.sin(angle) * 35;
+                    ctx.fillRect(px - 2, py - 2, 4, 4);
+                }
+            
+                ctx.fillStyle = '#0f0';
+                ctx.fillRect(centerX - 12, centerY - 12, 24, 24);
+            
+                ctx.fillStyle = '#f00';
+                ctx.fillRect(centerX - 4, centerY - 4, 8, 8);
+            },
+        
+            drawPixelArt: function(x, y, width, height, color, pixelSize) {
+                const ctx = this.ctx;
+                ctx.fillStyle = color;
+            
+                for (let i = 0; i < height; i += pixelSize) {
+                    for (let j = 0; j < width; j += pixelSize) {
+                        if ((i + j) % (pixelSize * 2) === 0) {
+                            ctx.fillRect(x + j, y + i, pixelSize, pixelSize);
+                        }
+                    }
+                }
+            },
+        
+            drawItem: function(x, y, width, height, color, type) {
+                const ctx = this.ctx;
+                ctx.fillStyle = color;
+            
+                const pixelSize = 2;
+            
+                for (let i = 0; i < height; i += pixelSize) {
+                    for (let j = 0; j < width; j += pixelSize) {
+                        if ((i + j) % (pixelSize * 2) === 0) {
+                            ctx.fillRect(x + j, y + i, pixelSize, pixelSize);
+                        }
+                    }
+                }
+            
+                ctx.fillStyle = '#fff';
+                if (type === 0) {
+                    ctx.fillRect(x + width/2 - pixelSize, y + height/2 - pixelSize, pixelSize * 2, pixelSize * 2);
+                } else if (type === 1) {
+                    ctx.fillRect(x + 2, y + height/2 - 1, width - 4, 2);
+                    ctx.fillRect(x + width/2 - 1, y + 2, 2, height - 4);
+                } else if (type === 2) {
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.arc(x + width/2, y + height/2, width/3, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            }
+        };
+    
+        window.addEventListener('load', () => {
+            Game.init();
+        });
+    </script>
+</body>
+</html>
