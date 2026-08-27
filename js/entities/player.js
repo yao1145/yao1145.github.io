@@ -1,5 +1,5 @@
-import { Game } from './game.js';
-import { CONFIG } from './config.js';
+import { Game } from '../core/game.js';
+import { CONFIG } from '../core/config.js';
 
 Game.updatePlayer = function(deltaTime) {
     if (this.keys['arrowleft'] || this.keys['a']) this.player.x -= this.player.speed;
@@ -66,7 +66,7 @@ Game.updateAttackUI = function(force = false) {
 
 Game.spawnBullet = function() {
     const count = this.baseBulletCount;
-    const color = '#ff0';
+    const color = this.isDamageBoost ? '#f90' : '#ff0';
     const gap = 6;
 
     for (let i = 0; i < count; i++) {

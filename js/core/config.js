@@ -14,6 +14,10 @@ export const CONFIG = {
     // of the display's refresh rate, keeping gameplay speed deterministic.
     fixedFrameRate: 60,
 
+    // Dropped-item spin rate (radians per ms). Items rotate and gently pulse in
+    // scale as they fall so they read as collectibles.
+    itemSpinSpeed: 0.003,
+
     // Player base stats
     player: {
         width: 30,
@@ -42,7 +46,7 @@ export const CONFIG = {
     // Crown-threshold achievement bonuses, unlocked permanently once totalCrowns reaches these.
     achievements: {
         autoShieldCrowns: 10,
-        autoShieldIntervalMs: 30000,
+        autoShieldIntervalMs: 20000,
         autoShieldDuration: 5,
         startingLivesCrowns: 30,
         startingLives: 5,

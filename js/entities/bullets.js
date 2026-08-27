@@ -1,4 +1,4 @@
-import { Game } from './game.js';
+import { Game } from '../core/game.js';
 
 Game.updateBullets = function() {
     const pool = this.objectPools.bullets;

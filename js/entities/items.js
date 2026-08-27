@@ -1,4 +1,4 @@
-import { Game } from './game.js';
+import { Game } from '../core/game.js';
 
 Game.spawnItems = function() {
     if (Math.random() < this.itemSpawnRate) {
@@ -30,6 +30,7 @@ Game.spawnItems = function() {
             item.speed = speed;
             item.color = color;
             item.type = type;
+            item.spin = Math.random() * Math.PI * 2;
         }
     }
 };

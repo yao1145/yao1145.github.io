@@ -1,4 +1,4 @@
-import { Game } from './game.js';
+import { Game } from '../core/game.js';
 
 Game.spawnTrackingBullet = function(enemy) {
     if (this.boss && this.gameTime - this.boss.lastTrackingShot < this.boss.trackingShotDelay) {

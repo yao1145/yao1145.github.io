@@ -25,13 +25,10 @@
 }
 
 .achievementTitle {
-    color: #fff;
-    font-size: 15px;
+    color: #ffd;
+    font-size: 16px;
     font-weight: bold;
-}
-
-.achCost {
-    color: #ff0;
+    letter-spacing: 1px;
 }
 
 .achievementDesc {

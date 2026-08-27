@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>starfighter</title>
-    <link rel="stylesheet" href="css/reset.css">
-    <link rel="stylesheet" href="css/layout.css">
-    <link rel="stylesheet" href="css/panels.css">
-    <link rel="stylesheet" href="css/hud.css">
-    <link rel="stylesheet" href="css/boss.css">
-    <link rel="stylesheet" href="css/mobile.css">
-    <link rel="stylesheet" href="css/responsive.css">
-    <link rel="stylesheet" href="css/achievements.css">
+    <link rel="stylesheet" href="css/base/reset.css">
+    <link rel="stylesheet" href="css/ui/layout.css">
+    <link rel="stylesheet" href="css/ui/panels.css">
+    <link rel="stylesheet" href="css/ui/hud.css">
+    <link rel="stylesheet" href="css/ui/boss.css">
+    <link rel="stylesheet" href="css/responsive/mobile.css">
+    <link rel="stylesheet" href="css/responsive/responsive.css">
+    <link rel="stylesheet" href="css/ui/achievements.css">
 </head>
 <body>
     <div id="gameContainer">
@@ -53,27 +53,27 @@
                 <div class="uiTitle">成就奖励</div>
                 <div class="uiText">当前皇冠: <span id="achievementsCrowns">0</span></div>
                 <div class="achievementRow" data-ach="autoShield">
-                    <div class="achievementTitle"><span class="achCost">10</span> 皇冠</div>
-                    <div class="achievementDesc">自动护盾（每30秒获得一次护盾）</div>
+                    <div class="achievementTitle">初出茅庐</div>
+                    <div class="achievementDesc">每20秒自动护盾</div>
                     <div class="achievementStatus" id="achStatus-autoShield">未解锁</div>
                 </div>
                 <div class="achievementRow" data-ach="lives">
-                    <div class="achievementTitle"><span class="achCost">30</span> 皇冠</div>
+                    <div class="achievementTitle">小有成就</div>
                     <div class="achievementDesc">开局5条生命</div>
                     <div class="achievementStatus" id="achStatus-lives">未解锁</div>
                 </div>
                 <div class="achievementRow" data-ach="bullets2">
-                    <div class="achievementTitle"><span class="achCost">50</span> 皇冠</div>
+                    <div class="achievementTitle">渐入佳境</div>
                     <div class="achievementDesc">每次射击2发子弹</div>
                     <div class="achievementStatus" id="achStatus-bullets2">未解锁</div>
                 </div>
                 <div class="achievementRow" data-ach="firerate">
-                    <div class="achievementTitle"><span class="achCost">80</span> 皇冠</div>
-                    <div class="achievementDesc">射速提升50%（子弹速度不变）</div>
+                    <div class="achievementTitle">锋芒毕露</div>
+                    <div class="achievementDesc">射速提升50%</div>
                     <div class="achievementStatus" id="achStatus-firerate">未解锁</div>
                 </div>
                 <div class="achievementRow" data-ach="bullets3">
-                    <div class="achievementTitle"><span class="achCost">100</span> 皇冠</div>
+                    <div class="achievementTitle">战无不胜</div>
                     <div class="achievementDesc">每次射击3发子弹</div>
                     <div class="achievementStatus" id="achStatus-bullets3">未解锁</div>
                 </div>

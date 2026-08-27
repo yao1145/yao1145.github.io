@@ -1,5 +1,5 @@
-import { Game } from './game.js';
-import { CONFIG } from './config.js';
+import { Game } from '../core/game.js';
+import { CONFIG } from '../core/config.js';
 
 Game.updateAchievementsPanel = function() {
     document.getElementById('achievementsCrowns').textContent = this.totalCrowns;
