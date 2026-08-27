@@ -31,7 +31,7 @@ These modules import only `./game.js` and `./config.js` — never one another �
 
 ## Key mechanics
 
-**Game loop** — `gameLoop()` calls `requestAnimationFrame` recursively. Each frame it computes `deltaTime`, then runs `update(deltaTime)` (if `isRunning && !isGameOver`) followed by `render()`. `update()` is the ordered gathering of per-entity update methods, then spawning, then `checkCollisions()` and `updateGameState()`.
+**Game loop** — `gameLoop()` calls `requestAnimationFrame` recursively. It runs a **fixed-timestep accumulator** (`CONFIG.fixedFrameRate`, default 60): real frame time is added to `accumulator`, then `update(fixedStepMs)` runs zero or more times at a constant step until `accumulator < fixedStepMs`, followed by one `render()`. This decouples simulation speed from the display's refresh rate, so gameplay is deterministic across devices. `update()` is the ordered gathering of per-entity update methods, then spawning, then `checkCollisions()` and `updateGameState()`. `startGame`/`togglePause` reset `accumulator` and `lastTime` to avoid a catch-up burst; `gameTime` advances by `fixedStepMs` per tick.
 
 **Object pools** — `objectPools` (in `js/pools.js`) holds five pools (`bullets`, `enemyBullets`, `enemies`, `particles`, `items`), each `{ pool, active, maxSize }`. Use `getObject(type)` to spawn and `releaseObject(type, obj)` to despawn; never push directly to `active`. `maxSize` values come from `CONFIG.poolMaxSize`. `clearAllPools()` resets for a new game.
 

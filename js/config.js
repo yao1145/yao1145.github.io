@@ -10,6 +10,10 @@ export const CONFIG = {
     // UI
     uiUpdateInterval: 100,
 
+    // Simulation tick rate. The logic loop runs at this constant rate regardless
+    // of the display's refresh rate, keeping gameplay speed deterministic.
+    fixedFrameRate: 60,
+
     // Player base stats
     player: {
         width: 30,

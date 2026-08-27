@@ -8,6 +8,8 @@ export const Game = {
     isRunning: false,
     isGameOver: false,
     lastTime: 0,
+    accumulator: 0,
+    fixedStepMs: 1000 / CONFIG.fixedFrameRate,
     gameTime: 0,
     score: 0,
     highScore: 0,
@@ -92,12 +94,27 @@ export const Game = {
     },
 
     gameLoop: function(currentTime) {
-        const deltaTime = currentTime - this.lastTime;
+        const frameTime = currentTime - this.lastTime;
         this.lastTime = currentTime;
 
         if (this.isRunning && !this.isGameOver) {
-            this.gameTime += deltaTime;
-            this.update(deltaTime);
+            this.accumulator += frameTime;
+
+            // Clamp to avoid a huge catch-up burst after a long tab switch or stall.
+            if (this.accumulator > 250) {
+                this.accumulator = 250;
+            }
+
+            // Advance the simulation in fixed timesteps, decoupled from the display's
+            // refresh rate. Movement, timers and spawning all run at a constant 60
+            // ticks/sec on every device, keeping gameplay speed deterministic.
+            while (this.accumulator >= this.fixedStepMs) {
+                this.gameTime += this.fixedStepMs;
+                this.update(this.fixedStepMs);
+                this.accumulator -= this.fixedStepMs;
+            }
+        } else {
+            this.accumulator = 0;
         }
 
         this.render();
@@ -153,6 +170,9 @@ export const Game = {
 
         this.clearAllPools();
 
+        this.accumulator = 0;
+        this.lastTime = performance.now();
+
         this.bossHealthBar.style.display = 'none';
         this.bossWarning.style.display = 'none';
         this.shieldIndicator.style.display = 'none';
@@ -171,6 +191,7 @@ export const Game = {
         if (this.isRunning) {
             document.getElementById('gameStartPanel').style.display = 'none';
             this.lastTime = performance.now();
+            this.accumulator = 0;
             this.enableControlArea(true);
         } else {
             document.getElementById('gameStartPanel').style.display = 'block';
