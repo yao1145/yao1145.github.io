@@ -5,6 +5,12 @@ Game.render = function() {
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, this.width, this.height);
 
+    // On the main menu, the canvas is just a clean backdrop — the DOM overlay
+    // (title, stats box, buttons) provides the UI, so don't draw the game world.
+    if (this.isMenu) {
+        return;
+    }
+
     if (this.player.shieldTime > 0) {
         ctx.strokeStyle = '#0af';
         ctx.lineWidth = 2;

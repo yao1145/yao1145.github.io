@@ -57,3 +57,36 @@
     transform: translateY(2px);
     box-shadow: 0 2px 0 #06c;
 }
+
+.uiStatsBox {
+    background: rgba(0, 0, 0, 0.6);
+    border: 2px solid #0af;
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin: 12px 0;
+    text-align: center;
+}
+
+.statRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+    font-size: 15px;
+}
+
+.statRow:last-child {
+    margin-bottom: 0;
+}
+
+.statLabel {
+    color: #8cc;
+    margin-right: 16px;
+}
+
+.statValue {
+    color: #ff0;
+    font-weight: bold;
+    text-shadow: 0 0 5px #ff0;
+    font-family: 'Courier New', monospace;
+}

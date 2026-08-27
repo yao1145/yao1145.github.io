@@ -17,7 +17,7 @@
         <canvas id="gameCanvas"></canvas>
 
         <div id="uiOverlay">
-            <div class="stats">
+            <div class="stats" id="hudStats">
                 <div>分数: <span id="score">0</span></div>
                 <div>生命: <span id="lives">3</span></div>
                 <div>等级: <span id="level">1</span></div>
@@ -30,6 +30,11 @@
             <div id="gameStartPanel" class="uiPanel">
                 <div class="uiTitle">starfighter</div>
                 <div class="uiText">滑动屏幕控制飞机移动</div>
+                <div class="uiStatsBox">
+                    <div class="statRow"><span class="statLabel">上次分数</span><span class="statValue" id="lastScoreValue">0</span></div>
+                    <div class="statRow"><span class="statLabel">最高分数</span><span class="statValue" id="highScoreValue">0</span></div>
+                    <div class="statRow"><span class="statLabel">总皇冠</span><span class="statValue" id="totalCrownsValue">0</span></div>
+                </div>
                 <button id="startButton" class="uiButton">开始游戏</button>
             </div>
 
@@ -39,7 +44,7 @@
                 <div id="finalScore" class="uiScore">0</div>
                 <div class="uiText">皇冠数量</div>
                 <div id="finalCrowns" class="uiScore">0</div>
-                <button id="restartButton" class="uiButton">重新开始</button>
+                <button id="restartButton" class="uiButton">返回主菜单</button>
             </div>
 
             <div class="bossWarning" id="bossWarning">BOSS来袭!</div>

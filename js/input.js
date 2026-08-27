@@ -96,7 +96,7 @@ Game.setupEventListeners = function() {
     document.getElementById('restartButton').addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        this.startGame();
+        this.returnToMainMenu();
     });
 
     this.enableControlArea(false);

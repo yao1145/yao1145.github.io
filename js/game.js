@@ -7,6 +7,7 @@ export const Game = {
     height: 0,
     isRunning: false,
     isGameOver: false,
+    isMenu: true,
     lastTime: 0,
     accumulator: 0,
     fixedStepMs: 1000 / CONFIG.fixedFrameRate,
@@ -14,6 +15,8 @@ export const Game = {
     score: 0,
     highScore: 0,
     highCrowns: 0,
+    lastScore: 0,
+    totalCrowns: 0,
     lives: 3,
     level: 1,
     crowns: 0,
@@ -70,6 +73,10 @@ export const Game = {
 
         this.highScore = localStorage.getItem('planeGameHighScore') || 0;
         this.highCrowns = localStorage.getItem('planeGameHighCrowns') || 0;
+        this.lastScore = Number(localStorage.getItem('planeGameLastScore') || 0);
+        this.totalCrowns = Number(localStorage.getItem('planeGameTotalCrowns') || 0);
+        this.updateMainPanel();
+        document.getElementById('hudStats').style.display = 'none';
 
         this.bossHealthBar = document.getElementById('bossHealthBar');
         this.bossHealthFill = document.getElementById('bossHealthFill');
@@ -145,6 +152,7 @@ export const Game = {
     startGame: function() {
         this.isRunning = true;
         this.isGameOver = false;
+        this.isMenu = false;
         this.score = 0;
         this.lives = 3;
         this.level = 1;
@@ -177,6 +185,7 @@ export const Game = {
         this.bossWarning.style.display = 'none';
         this.shieldIndicator.style.display = 'none';
         this.attackIndicator.style.display = 'none';
+        document.getElementById('hudStats').style.display = 'block';
 
         document.getElementById('gameStartPanel').style.display = 'none';
         document.getElementById('gameOverPanel').style.display = 'none';
@@ -231,6 +240,12 @@ export const Game = {
         document.getElementById('crowns').textContent = this.crowns;
     },
 
+    updateMainPanel: function() {
+        document.getElementById('lastScoreValue').textContent = this.lastScore;
+        document.getElementById('highScoreValue').textContent = this.highScore;
+        document.getElementById('totalCrownsValue').textContent = this.totalCrowns;
+    },
+
     gameOver: function() {
         this.isRunning = false;
         this.isGameOver = true;
@@ -245,9 +260,43 @@ export const Game = {
             localStorage.setItem('planeGameHighCrowns', this.highCrowns);
         }
 
+        this.lastScore = this.score;
+        localStorage.setItem('planeGameLastScore', this.lastScore);
+
+        this.totalCrowns += this.crowns;
+        localStorage.setItem('planeGameTotalCrowns', this.totalCrowns);
+
+        this.updateMainPanel();
+
         document.getElementById('finalScore').textContent = this.score;
         document.getElementById('finalCrowns').textContent = this.crowns;
         document.getElementById('gameOverPanel').style.display = 'block';
+        this.enableControlArea(false);
+    },
+
+    returnToMainMenu: function() {
+        this.isRunning = false;
+        this.isGameOver = false;
+        this.isMenu = true;
+
+        document.getElementById('gameOverPanel').style.display = 'none';
+        document.getElementById('gameStartPanel').style.display = 'block';
+        document.getElementById('hudStats').style.display = 'none';
+
+        // Reset the start panel to its default idle look (in case it was in pause state).
+        document.querySelector('.uiTitle').textContent = 'starfighter';
+        document.getElementById('startButton').textContent = '开始游戏';
+
+        // Hide in-game HUD elements and clear leftover entities so the menu is clean.
+        this.bossHealthBar.style.display = 'none';
+        this.bossWarning.style.display = 'none';
+        this.shieldIndicator.style.display = 'none';
+        this.attackIndicator.style.display = 'none';
+        this.isBossStage = false;
+        this.boss = null;
+        this.clearAllPools();
+
+        this.updateMainPanel();
         this.enableControlArea(false);
     },
 };
