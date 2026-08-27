@@ -43,7 +43,7 @@ Game.checkCollisions = function() {
         if (this.isBossStage && this.boss) {
             if (this.isColliding(bullet, this.boss)) {
                 this.releaseObject('bullets', bullet);
-                this.boss.health--;
+                this.boss.health -= this.bulletDamage;
 
                 this.createExplosion(bullet.x, bullet.y, '#fff', 2);
 
@@ -72,7 +72,7 @@ Game.checkCollisions = function() {
                     // skip it so a second bullet (e.g. from triple-shot) can't score it again.
                     if (enemy.health <= 0) continue;
                     this.releaseObject('bullets', bullet);
-                    enemy.health--;
+                    enemy.health -= this.bulletDamage;
 
                     enemy.color = '#fff';
                     setTimeout(() => {
@@ -191,8 +191,9 @@ Game.checkCollisions = function() {
                         this.updateUI(true);
                         break;
                     case 1:
-                        this.isTripleShot = true;
-                        this.tripleShotTime = 10;
+                        this.isDamageBoost = true;
+                        this.damageBoostTime = 10;
+                        this.bulletDamage = 2;
                         this.updateAttackUI(true);
                         break;
                     case 2:

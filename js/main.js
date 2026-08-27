@@ -12,6 +12,7 @@ import './boss.js';
 import './collisions.js';
 import './render.js';
 import './input.js';
+import './achievements.js';
 
 window.addEventListener('load', () => {
     Game.init();

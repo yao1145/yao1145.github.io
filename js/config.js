@@ -38,4 +38,17 @@ export const CONFIG = {
         { name: '冰霜BOSS', color: '#00f', baseHealth: 200, baseSpeed: 1.2, baseShotDelay: 450 },
         { name: '毒液BOSS', color: '#a0f', baseHealth: 200, baseSpeed: 0.8, baseShotDelay: 400 },
     ],
+
+    // Crown-threshold achievement bonuses, unlocked permanently once totalCrowns reaches these.
+    achievements: {
+        autoShieldCrowns: 10,
+        autoShieldIntervalMs: 30000,
+        autoShieldDuration: 5,
+        startingLivesCrowns: 30,
+        startingLives: 5,
+        doubleBulletCrowns: 50,
+        fireRateCrowns: 80,
+        fireRateShotDelayMs: 200,
+        tripleBulletCrowns: 100,
+    },
 };

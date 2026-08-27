@@ -18,6 +18,9 @@ export const Game = {
     lastScore: 0,
     totalCrowns: 0,
     lives: 3,
+    baseBulletCount: 1,
+    autoShieldTimer: 0,
+    bulletDamage: 1,
     level: 1,
     crowns: 0,
 
@@ -49,8 +52,8 @@ export const Game = {
     attackIndicator: null,
 
     bossAppearCount: 0,
-    isTripleShot: false,
-    tripleShotTime: 0,
+    isDamageBoost: false,
+    damageBoostTime: 0,
     lastUIUpdateTime: 0,
     uiUpdateInterval: CONFIG.uiUpdateInterval,
 
@@ -75,6 +78,14 @@ export const Game = {
         this.highCrowns = localStorage.getItem('planeGameHighCrowns') || 0;
         this.lastScore = Number(localStorage.getItem('planeGameLastScore') || 0);
         this.totalCrowns = Number(localStorage.getItem('planeGameTotalCrowns') || 0);
+
+        // Test mode: ?crowns=N overrides the crown count for this load without
+        // writing to stored progress, so achievements/bonuses can be verified fast.
+        const testCrowns = new URLSearchParams(location.search).get('crowns');
+        if (testCrowns !== null) {
+            this.totalCrowns = Number(testCrowns) || 0;
+        }
+
         this.updateMainPanel();
         document.getElementById('hudStats').style.display = 'none';
 
@@ -154,7 +165,16 @@ export const Game = {
         this.isGameOver = false;
         this.isMenu = false;
         this.score = 0;
-        this.lives = 3;
+
+        // Apply crown-threshold achievement bonuses to this run's starting stats.
+        const ach = CONFIG.achievements;
+        this.lives = this.totalCrowns >= ach.startingLivesCrowns ? ach.startingLives : 3;
+        this.player.shotDelay = this.totalCrowns >= ach.fireRateCrowns ? ach.fireRateShotDelayMs : CONFIG.player.shotDelay;
+        this.baseBulletCount = this.totalCrowns >= ach.tripleBulletCrowns ? 3
+            : this.totalCrowns >= ach.doubleBulletCrowns ? 2 : 1;
+        this.bulletDamage = 1;
+        this.autoShieldTimer = this.totalCrowns >= ach.autoShieldCrowns ? ach.autoShieldIntervalMs : 0;
+
         this.level = 1;
         this.crowns = 0;
         this.enemySpawnRate = 0.02;
@@ -167,8 +187,8 @@ export const Game = {
         this.bossAppearCount = 0;
         this.bossSpawnThreshold = 1000;
         this.itemSpawnRate = 0.001;
-        this.isTripleShot = false;
-        this.tripleShotTime = 0;
+        this.isDamageBoost = false;
+        this.damageBoostTime = 0;
 
         this.player.x = this.width / 2 - 15;
         this.player.y = this.height - 100;

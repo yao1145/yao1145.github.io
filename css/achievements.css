@@ -1,0 +1,55 @@
+#achievementsPanel {
+    display: none;
+}
+
+#achievementsButton {
+    margin-top: 10px;
+}
+
+.uiButtonSecondary {
+    background: linear-gradient(to bottom, #f90, #f60);
+    box-shadow: 0 4px 0 #c40;
+}
+
+.uiButtonSecondary:active {
+    box-shadow: 0 2px 0 #c40;
+}
+
+.achievementRow {
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid #0af;
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin: 8px 0;
+    text-align: left;
+}
+
+.achievementTitle {
+    color: #fff;
+    font-size: 15px;
+    font-weight: bold;
+}
+
+.achCost {
+    color: #ff0;
+}
+
+.achievementDesc {
+    color: #9ad;
+    font-size: 13px;
+    margin: 4px 0;
+}
+
+.achievementStatus {
+    color: #f80;
+    font-size: 13px;
+}
+
+.achievementRow.isUnlocked {
+    border-color: #0f0;
+    box-shadow: 0 0 8px rgba(0, 255, 0, 0.5);
+}
+
+.achievementRow.isUnlocked .achievementStatus {
+    color: #0f0;
+}

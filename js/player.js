@@ -1,4 +1,5 @@
 import { Game } from './game.js';
+import { CONFIG } from './config.js';
 
 Game.updatePlayer = function(deltaTime) {
     if (this.keys['arrowleft'] || this.keys['a']) this.player.x -= this.player.speed;
@@ -23,14 +24,25 @@ Game.updatePlayer = function(deltaTime) {
         this.updateShieldUI();
     }
 
-    if (this.isTripleShot) {
-        this.tripleShotTime -= deltaTime / 1000;
-        if (this.tripleShotTime < 0) {
-            this.isTripleShot = false;
-            this.tripleShotTime = 0;
+    if (this.isDamageBoost) {
+        this.damageBoostTime -= deltaTime / 1000;
+        if (this.damageBoostTime < 0) {
+            this.isDamageBoost = false;
+            this.damageBoostTime = 0;
+            this.bulletDamage = 1;
         }
 
         this.updateAttackUI();
+    }
+
+    // Crown achievement: grant an auto-shield every N ms of gameplay.
+    if (this.autoShieldTimer > 0) {
+        this.autoShieldTimer -= deltaTime;
+        if (this.autoShieldTimer <= 0) {
+            this.autoShieldTimer = CONFIG.achievements.autoShieldIntervalMs;
+            this.player.shieldTime = CONFIG.achievements.autoShieldDuration;
+            this.updateShieldUI(true);
+        }
     }
 };
 
@@ -44,52 +56,27 @@ Game.updateShieldUI = function(force = false) {
 };
 
 Game.updateAttackUI = function(force = false) {
-    if (this.isTripleShot) {
+    if (this.isDamageBoost) {
         this.attackIndicator.style.display = 'block';
-        this.attackIndicator.textContent = `攻: ${this.tripleShotTime.toFixed(1)}`;
+        this.attackIndicator.textContent = `攻: ${this.damageBoostTime.toFixed(1)}`;
     } else {
         this.attackIndicator.style.display = 'none';
     }
 };
 
 Game.spawnBullet = function() {
-    if (this.isTripleShot) {
-        const bullet1 = this.getObject('bullets');
-        if (bullet1) {
-            bullet1.x = this.player.x + this.player.width / 2 - 8;
-            bullet1.y = this.player.y;
-            bullet1.width = 4;
-            bullet1.height = 12;
-            bullet1.speed = 8;
-            bullet1.color = '#f90';
-        }
-        const bullet2 = this.getObject('bullets');
-        if (bullet2) {
-            bullet2.x = this.player.x + this.player.width / 2 - 2;
-            bullet2.y = this.player.y;
-            bullet2.width = 4;
-            bullet2.height = 12;
-            bullet2.speed = 8;
-            bullet2.color = '#f90';
-        }
-        const bullet3 = this.getObject('bullets');
-        if (bullet3) {
-            bullet3.x = this.player.x + this.player.width / 2 + 4;
-            bullet3.y = this.player.y;
-            bullet3.width = 4;
-            bullet3.height = 12;
-            bullet3.speed = 8;
-            bullet3.color = '#f90';
-        }
-    } else {
+    const count = this.baseBulletCount;
+    const color = '#ff0';
+    const gap = 6;
+
+    for (let i = 0; i < count; i++) {
         const bullet = this.getObject('bullets');
-        if (bullet) {
-            bullet.x = this.player.x + this.player.width / 2 - 2;
-            bullet.y = this.player.y;
-            bullet.width = 4;
-            bullet.height = 12;
-            bullet.speed = 8;
-            bullet.color = '#ff0';
-        }
+        if (!bullet) break;
+        bullet.x = this.player.x + this.player.width / 2 - 2 + (i - (count - 1) / 2) * gap;
+        bullet.y = this.player.y;
+        bullet.width = 4;
+        bullet.height = 12;
+        bullet.speed = 8;
+        bullet.color = color;
     }
 };

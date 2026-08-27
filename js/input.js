@@ -99,6 +99,18 @@ Game.setupEventListeners = function() {
         this.returnToMainMenu();
     });
 
+    document.getElementById('achievementsButton').addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.openAchievements();
+    });
+
+    document.getElementById('achievementsBackButton').addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.closeAchievements();
+    });
+
     this.enableControlArea(false);
 };
 
