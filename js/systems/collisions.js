@@ -1,4 +1,5 @@
 import { Game } from '../core/game.js';
+import { CONFIG } from '../core/config.js';
 
 Game.updateParticles = function() {
     const pool = this.objectPools.particles;
@@ -54,7 +55,10 @@ Game.checkCollisions = function() {
                     this.boss = null;
                     this.isBossStage = false;
                     this.bossHealthBar.style.display = 'none';
-                    this.bossSpawnThreshold += 1000;
+                    // Next boss needs a bigger gap than the last one (+200 per kill):
+                    // thresholds 1000 → 2200 → 3600 …
+                    this.bossSpawnGap += CONFIG.bossSpawnThresholdIncrement;
+                    this.bossSpawnThreshold += this.bossSpawnGap;
                     enemyBulletPool.active = [];
                     this.updateUI(true);
                 }

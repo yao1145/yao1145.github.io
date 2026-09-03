@@ -43,6 +43,10 @@ export const Game = {
     isBossStage: false,
     boss: null,
     bossSpawnThreshold: CONFIG.bossSpawnThreshold,
+    // Score gap to the next boss after each kill. Starts equal to the first
+    // threshold and grows by CONFIG.bossSpawnThresholdIncrement per kill, so
+    // bosses appear at 1000 → 2200 → 3600 … (gaps 1000, 1200, 1400 …).
+    bossSpawnGap: CONFIG.bossSpawnThreshold,
 
     bossHealthBar: null,
     bossHealthFill: null,
@@ -206,7 +210,8 @@ export const Game = {
         this.isBossStage = false;
         this.boss = null;
         this.bossAppearCount = 0;
-        this.bossSpawnThreshold = 1000;
+        this.bossSpawnThreshold = CONFIG.bossSpawnThreshold;
+        this.bossSpawnGap = CONFIG.bossSpawnThreshold;
         this.itemSpawnRate = 0.001;
         this.isDamageBoost = false;
         this.damageBoostTime = 0;

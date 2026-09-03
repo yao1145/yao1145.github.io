@@ -6,6 +6,9 @@ export const CONFIG = {
     enemyBulletSpeed: 4,
     itemSpawnRate: 0.001,
     bossSpawnThreshold: 1000,
+    // After each boss kill, the score GAP to the next boss grows by this much.
+    // Gaps run 1000 → 1200 → 1400 ..., so bosses appear at 1000 → 2200 → 3600.
+    bossSpawnThresholdIncrement: 200,
 
     // UI
     uiUpdateInterval: 100,
@@ -38,9 +41,9 @@ export const CONFIG = {
 
     // Boss archetypes (base stats; scaled up on repeat appearances)
     bossTypes: [
-        { name: '火焰BOSS', color: '#f00', baseHealth: 200, baseSpeed: 1, baseShotDelay: 500 },
-        { name: '冰霜BOSS', color: '#00f', baseHealth: 200, baseSpeed: 1.2, baseShotDelay: 450 },
-        { name: '毒液BOSS', color: '#a0f', baseHealth: 200, baseSpeed: 0.8, baseShotDelay: 400 },
+        { name: '火焰BOSS', color: '#f00', baseHealth: 100, baseSpeed: 1, baseShotDelay: 500 },
+        { name: '冰霜BOSS', color: '#00f', baseHealth: 100, baseSpeed: 1.2, baseShotDelay: 450 },
+        { name: '毒液BOSS', color: '#a0f', baseHealth: 100, baseSpeed: 0.8, baseShotDelay: 400 },
     ],
 
     // Crown-threshold achievement bonuses, unlocked permanently once totalCrowns reaches these.
