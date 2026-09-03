@@ -7,18 +7,21 @@
 }
 
 .uiButtonSecondary {
-    background: linear-gradient(to bottom, #f90, #f60);
-    box-shadow: 0 4px 0 #c40;
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(140, 170, 190, 0.4);
+    color: #9fb8c4;
 }
 
-.uiButtonSecondary:active {
-    box-shadow: 0 2px 0 #c40;
+.uiButtonSecondary:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #d5e6ee;
+    box-shadow: 0 0 12px rgba(140, 180, 200, 0.25);
 }
 
 .achievementRow {
-    background: rgba(0, 0, 0, 0.5);
-    border: 1px solid #0af;
-    border-radius: 6px;
+    background: rgba(8, 18, 28, 0.6);
+    border: 1px solid rgba(86, 227, 255, 0.28);
+    border-radius: 0;
     padding: 8px 10px;
     margin: 8px 0;
     text-align: left;

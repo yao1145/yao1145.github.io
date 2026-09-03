@@ -1,4 +1,4 @@
-# starfighter
+# PKUfighter
 
 An HTML5 canvas space shooter. Blast waves of enemies, dodge dense bullet patterns, and defeat the three element bosses — fire, ice and poison. The UI is in Chinese (zh-CN).
 

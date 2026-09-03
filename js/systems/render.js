@@ -5,9 +5,14 @@ Game.render = function() {
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, this.width, this.height);
 
-    // On the main menu, the canvas is just a clean backdrop — the DOM overlay
-    // (title, stats box, buttons) provides the UI, so don't draw the game world.
+    // Drifting starfield — the menu backdrop and the game's deep-space
+    // backdrop alike.
+    this.drawStarfield(performance.now());
+
+    // On the main menu the canvas also carries the school-seal watermark,
+    // while the DOM overlay provides the menu UI itself.
     if (this.isMenu) {
+        this.drawMenuEmblem(performance.now());
         return;
     }
 
@@ -459,4 +464,66 @@ Game.drawItem = function(x, y, width, height, color, type) {
         ctx.arc(cx, cy, width / 3, 0, Math.PI * 2);
         ctx.stroke();
     }
+};
+
+// --- Backdrop: drifting starfield + menu seal watermark ---------------------
+
+// Three parallax layers of drifting stars, rendered on the menu and during
+// gameplay alike. Positions are seeded once per viewport size; the downward
+// drift and brightness twinkle are wall-clock driven, so they keep flowing
+// even while the simulation is paused or on the menu.
+const STAR_LAYERS = [
+    { count: 70, speed: 7,  size: 1,   alpha: 0.3 },
+    { count: 40, speed: 14, size: 1.5, alpha: 0.5 },
+    { count: 16, speed: 26, size: 2.2, alpha: 0.85 },
+];
+let stars = null;
+
+function buildStars(width, height) {
+    stars = { builtFor: `${width}x${height}`, stars: [] };
+    for (const layer of STAR_LAYERS) {
+        for (let i = 0; i < layer.count; i++) {
+            stars.stars.push({
+                x: Math.random() * width,
+                y: Math.random() * height,
+                layer,
+            });
+        }
+    }
+}
+
+Game.drawStarfield = function(nowMs) {
+    const ctx = this.ctx;
+    const t = nowMs / 1000;
+
+    if (!stars || stars.builtFor !== `${this.width}x${this.height}`) {
+        buildStars(this.width, this.height);
+    }
+
+    ctx.fillStyle = '#cfeeff';
+    for (const star of stars.stars) {
+        const y = (star.y + t * star.layer.speed) % this.height;
+        ctx.globalAlpha = star.layer.alpha * (0.65 + 0.35 * Math.sin(t * 2 + star.x * 0.05));
+        ctx.fillRect(star.x, y, star.layer.size, star.layer.size);
+    }
+    ctx.globalAlpha = 1;
+};
+
+// Menu-only: the school seal baked crisp, anchored in the bottom-right corner
+// as a breathing watermark.
+Game.drawMenuEmblem = function(nowMs) {
+    const emblem = this.getMenuEmblemCanvas();
+    if (!emblem) return;
+
+    const ctx = this.ctx;
+    const t = nowMs / 1000;
+    const size = Math.min(this.width, this.height) * 0.24;
+    const pad = 28;
+
+    ctx.save();
+    ctx.translate(this.width - size / 2 - pad, this.height - size / 2 - pad);
+    ctx.globalAlpha = 0.45 + 0.1 * Math.sin(t * 0.8);
+    ctx.drawImage(emblem, -size / 2, -size / 2, size, size);
+    ctx.restore();
+    ctx.globalAlpha = 1;
 };

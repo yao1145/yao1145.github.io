@@ -36,6 +36,6 @@ Game.openAchievements = function() {
 Game.closeAchievements = function() {
     document.getElementById('achievementsPanel').style.display = 'none';
     document.getElementById('gameStartPanel').style.display = 'block';
-    document.querySelector('.uiTitle').textContent = 'starfighter';
+    document.querySelector('.uiTitle').textContent = 'PKUfighter';
     document.getElementById('startButton').textContent = '开始游戏';
 };

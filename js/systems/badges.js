@@ -100,6 +100,20 @@ Game.getBossBadgeSprite = function(type, size) {
 };
 
 Game.getPlayerBadgeKey = () => PLAYER_BADGE;
+
+// Menu backdrop emblem: the player's seal baked once at high resolution so
+// the menu render just drawImages a plain canvas each frame.
+const MENU_EMBLEM_BAKE = 512;
+
+Game.getMenuEmblemCanvas = function() {
+    if (Game.menuEmblemCanvas) return Game.menuEmblemCanvas;
+    if (!Game.badgeImages[PLAYER_BADGE]) return null;
+
+    const { canvas, ctx } = Game.makeSpriteCanvas(MENU_EMBLEM_BAKE, MENU_EMBLEM_BAKE);
+    Game.drawBadge(ctx, PLAYER_BADGE, MENU_EMBLEM_BAKE / 2, MENU_EMBLEM_BAKE / 2, MENU_EMBLEM_BAKE);
+    Game.menuEmblemCanvas = canvas;
+    return canvas;
+};
 Game.getBossBadgeKey = type => BOSS_BADGES[type];
 Game.getEnemyBadgeKey = (type, variant) => {
     const list = ENEMY_BADGES[type] || [];

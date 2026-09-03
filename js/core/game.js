@@ -124,6 +124,7 @@ export const Game = {
         this.spriteCache.items = {};
         this.spriteCache.player = null;
         this.bossBadgeSprites = {};
+        this.menuEmblemCanvas = null;
 
         if (this.player) {
             this.player.x = Math.min(this.player.x, this.width - this.player.width);
@@ -324,7 +325,7 @@ export const Game = {
         document.getElementById('hudStats').style.display = 'none';
 
         // Reset the start panel to its default idle look (in case it was in pause state).
-        document.querySelector('.uiTitle').textContent = 'starfighter';
+        document.querySelector('.uiTitle').textContent = 'PKUfighter';
         document.getElementById('startButton').textContent = '开始游戏';
 
         // Hide in-game HUD elements and clear leftover entities so the menu is clean.
