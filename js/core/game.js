@@ -58,6 +58,10 @@ export const Game = {
     bossAppearCount: 0,
     isDamageBoost: false,
     damageBoostTime: 0,
+    // Effect card (see js/systems/cards.js): null until picked.
+    activeCard: null,
+    cardRegenTimer: 0,
+    isCardSelectionOpen: false,
     lastUIUpdateTime: 0,
     uiUpdateInterval: CONFIG.uiUpdateInterval,
 
@@ -101,6 +105,7 @@ export const Game = {
         this.attackIndicator = document.getElementById('attackIndicator');
 
         this.setupEventListeners();
+        this.setupCards();
         this.loadBadges();
         this.lastTime = performance.now();
         this.gameLoop();
@@ -171,6 +176,7 @@ export const Game = {
         this.updateEnemies(deltaTime);
         this.updateParticles();
         this.updateItems(deltaTime);
+        this.updateCardEffects(deltaTime);
 
         this.spawnEnemies();
         this.enemiesShoot();
@@ -215,6 +221,9 @@ export const Game = {
         this.itemSpawnRate = 0.001;
         this.isDamageBoost = false;
         this.damageBoostTime = 0;
+        this.activeCard = null;
+        this.cardRegenTimer = 0;
+        this.cardIndicator.style.display = 'none';
 
         this.player.x = this.width / 2 - 15;
         this.player.y = this.height - 100;
@@ -238,9 +247,13 @@ export const Game = {
 
         this.enableControlArea(true);
         this.updateUI();
+
+        // Pause and let the player pick an effect card before the run begins.
+        this.openCardSelection(true);
     },
 
     togglePause: function() {
+        if (this.isCardSelectionOpen) return; // card picking owns the pause state
         this.isRunning = !this.isRunning;
 
         if (this.isRunning) {
@@ -293,6 +306,9 @@ export const Game = {
     },
 
     gameOver: function() {
+        this.isCardSelectionOpen = false;
+        document.getElementById('cardPanel').style.display = 'none';
+        this.cardIndicator.style.display = 'none';
         this.isRunning = false;
         this.isGameOver = true;
 
@@ -328,6 +344,10 @@ export const Game = {
         document.getElementById('gameOverPanel').style.display = 'none';
         document.getElementById('gameStartPanel').style.display = 'block';
         document.getElementById('hudStats').style.display = 'none';
+        document.getElementById('cardPanel').style.display = 'none';
+        this.cardIndicator.style.display = 'none';
+        this.activeCard = null;
+        this.isCardSelectionOpen = false;
 
         // Reset the start panel to its default idle look (in case it was in pause state).
         document.querySelector('.uiTitle').textContent = 'PKUfighter';

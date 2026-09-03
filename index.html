@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="css/responsive/mobile.css">
     <link rel="stylesheet" href="css/responsive/responsive.css">
     <link rel="stylesheet" href="css/ui/achievements.css">
+    <link rel="stylesheet" href="css/ui/cards.css">
 </head>
 <body>
     <div id="gameContainer">
@@ -27,6 +28,7 @@
 
             <div class="shieldIndicator" id="shieldIndicator">盾: 0.0</div>
             <div class="attackIndicator" id="attackIndicator">攻: 0.0</div>
+            <div class="cardIndicator" id="cardIndicator">效果卡: 无</div>
 
             <div id="gameStartPanel" class="uiPanel">
                 <div class="uiMeta">PKUer can fly</div>
@@ -48,6 +50,34 @@
                 <div class="uiText">皇冠数量</div>
                 <div id="finalCrowns" class="uiScore">0</div>
                 <button id="restartButton" class="uiButton">返回主菜单</button>
+            </div>
+
+            <div id="cardPanel" class="uiPanel cardPanel" style="display: none;">
+                <div class="uiMeta">Effect Card</div>
+                <div class="uiTitle">选择效果卡</div>
+                <div class="cardHint" id="cardHint">首次选择免费</div>
+                <div class="cardGrid">
+                    <button type="button" class="effectCard" data-card="passion">
+                        <span class="cardName">激情岁月</span>
+                        <span class="cardDesc">敌我攻击速度翻倍</span>
+                        <span class="cardBadge">当前效果</span>
+                    </button>
+                    <button type="button" class="effectCard" data-card="survival">
+                        <span class="cardName">生存之道</span>
+                        <span class="cardDesc">攻击力减半，每20秒自动获得1点生命</span>
+                        <span class="cardBadge">当前效果</span>
+                    </button>
+                    <button type="button" class="effectCard" data-card="comeback">
+                        <span class="cardName">绝地反击</span>
+                        <span class="cardDesc">生命为1或2时，攻击力与攻击速度翻倍</span>
+                        <span class="cardBadge">当前效果</span>
+                    </button>
+                    <button type="button" class="effectCard" data-card="peace">
+                        <span class="cardName">平安无事</span>
+                        <span class="cardDesc">无效果</span>
+                        <span class="cardBadge">当前效果</span>
+                    </button>
+                </div>
             </div>
 
             <div id="achievementsPanel" class="uiPanel">

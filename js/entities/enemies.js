@@ -75,7 +75,7 @@ Game.enemiesShoot = function() {
         const enemy = pool.active[i];
 
         if (enemy.canShoot && currentTime - enemy.lastShot > enemy.shotDelay) {
-            if (Math.random() < this.enemyShotRate) {
+            if (Math.random() < this.getEnemyShotRate()) {
                 switch (enemy.type) {
                     case 1:
                     case 2:

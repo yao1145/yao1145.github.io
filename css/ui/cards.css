@@ -1,0 +1,149 @@
+/* Sci-fi HUD effect cards — the "choose an effect card" selection panel.
+   Palette: deep-space navy frosted glass, signal-cyan structure lines,
+   PKU-crimson "equipped" state, amber warnings. Extends .uiPanel. */
+
+/* Wider variant of the shared .uiPanel plate, laid out as a column once the
+   game JS flips the inline style to `display: flex`. */
+#cardPanel {
+    display: none;
+    flex-direction: column;
+    gap: 12px;
+    width: 88%;
+    max-width: 500px;
+}
+
+/* The .uiMeta/.uiTitle have their own bottom margins for the stacked panels;
+   here the flex gap carries the rhythm, so cancel those duplicates. */
+#cardPanel .uiMeta,
+#cardPanel .uiTitle {
+    margin-bottom: 0;
+}
+
+.cardGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    width: 100%;
+}
+
+.effectCard {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    padding: 14px 12px;
+    background: linear-gradient(180deg, rgba(86, 227, 255, 0.09), rgba(86, 227, 255, 0.03));
+    border: 1px solid rgba(86, 227, 255, 0.45);
+    border-radius: 2px;
+    color: #bdf3ff;
+    font-family: inherit;
+    font-size: inherit;
+    text-align: center;
+    cursor: pointer;
+    transition: background 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+
+    /* Smaller angular cut than the panel plate, matching .uiButton. */
+    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+
+.effectCard:hover {
+    background: linear-gradient(180deg, rgba(86, 227, 255, 0.26), rgba(86, 227, 255, 0.08));
+    border-color: rgba(86, 227, 255, 0.9);
+    color: #fff;
+    box-shadow: 0 0 16px rgba(86, 227, 255, 0.3), inset 0 0 10px rgba(86, 227, 255, 0.08);
+}
+
+.effectCard:active {
+    transform: translateY(1px);
+}
+
+.effectCard:focus-visible {
+    outline: 2px solid #bdf3ff;
+    outline-offset: 2px;
+}
+
+/* Equipped card: PKU-crimson read like an active loadout slot. */
+.effectCard.cardActive {
+    border-color: rgba(230, 57, 79, 0.85);
+    background: linear-gradient(180deg, rgba(230, 57, 79, 0.18), rgba(230, 57, 79, 0.06));
+    box-shadow: 0 0 16px rgba(230, 57, 79, 0.35), inset 0 0 12px rgba(230, 57, 79, 0.1);
+}
+
+/* The label + description stack, centered in the card. */
+.cardName {
+    font-size: 16px;
+    font-weight: bold;
+    letter-spacing: 0.08em;
+    color: #eaffff;
+    text-shadow: 0 0 8px rgba(86, 227, 255, 0.5);
+}
+
+.cardDesc {
+    font-size: 11px;
+    line-height: 1.5;
+    letter-spacing: 0.05em;
+    color: rgba(168, 200, 216, 0.85);
+}
+
+/* "Equipped" corner tag: only shown on the active card, up in the
+   square top-right corner (the clip cuts the top-left instead). */
+.cardBadge {
+    display: none;
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    padding: 2px 5px;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 10px;
+    font-weight: bold;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    background: #e6394f;
+    color: #18060a;
+    box-shadow: 0 0 8px rgba(230, 57, 79, 0.6);
+}
+
+.effectCard.cardActive .cardBadge {
+    display: block;
+}
+
+/* Single-line hint under the title; JS flags `warn` when switching costs HP. */
+.cardHint {
+    margin: 0;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    color: rgba(140, 222, 245, 0.65);
+}
+
+.cardHint.warn {
+    color: #ffd166;
+    text-shadow: 0 0 8px rgba(255, 190, 80, 0.5);
+}
+
+/* Tiny always-available HUD chip, third in the top-right stack below the
+   shield/attack indicators. Hidden by default; JS flips it on when a card
+   is picked. */
+.cardIndicator {
+    position: absolute;
+    top: 70px;
+    right: 10px;
+    background: rgba(8, 16, 28, 0.75);
+    padding: 3px 8px;
+    border-radius: 4px;
+    border: 1px solid #0af;
+    color: #0af;
+    font-size: 11px;
+    font-family: 'Courier New', monospace;
+    z-index: 15;
+    display: none;
+}
+
+/* Narrow screens: stack the four cards in a single column. */
+@media (max-width: 520px) {
+    .cardGrid {
+        grid-template-columns: 1fr;
+    }
+}

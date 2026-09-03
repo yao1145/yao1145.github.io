@@ -131,7 +131,7 @@ Game.bossShoot = function() {
         levelMultiplier = Math.min(8, 1 + (this.boss.level - 1) * 0.08);
     }
 
-    if (currentTime - this.boss.lastShot > this.boss.shotDelay) {
+    if (currentTime - this.boss.lastShot > this.getBossShotDelay()) {
         const healthPercent = this.boss.health / this.boss.maxHealth;
 
         switch (this.boss.type) {

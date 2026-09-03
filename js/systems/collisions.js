@@ -44,7 +44,7 @@ Game.checkCollisions = function() {
         if (this.isBossStage && this.boss) {
             if (this.isColliding(bullet, this.boss)) {
                 this.releaseObject('bullets', bullet);
-                this.boss.health -= this.bulletDamage;
+                this.boss.health -= this.getBulletDamage();
 
                 this.createExplosion(bullet.x, bullet.y, '#fff', 2);
 
@@ -61,6 +61,9 @@ Game.checkCollisions = function() {
                     this.bossSpawnThreshold += this.bossSpawnGap;
                     enemyBulletPool.active = [];
                     this.updateUI(true);
+                    // Boss defeated: pause and let the player re-pick an effect
+                    // card (keeping the current one is free, switching costs 1 life).
+                    this.openCardSelection(false);
                 }
                 break;
             }
@@ -76,7 +79,7 @@ Game.checkCollisions = function() {
                     // skip it so a second bullet (e.g. from triple-shot) can't score it again.
                     if (enemy.health <= 0) continue;
                     this.releaseObject('bullets', bullet);
-                    enemy.health -= this.bulletDamage;
+                    enemy.health -= this.getBulletDamage();
 
                     enemy.color = '#fff';
                     setTimeout(() => {

@@ -10,7 +10,7 @@ Game.updatePlayer = function(deltaTime) {
     this.player.x = Math.max(0, Math.min(this.width - this.player.width, this.player.x));
     this.player.y = Math.max(0, Math.min(this.height - this.player.height, this.player.y));
 
-    if (this.gameTime - this.player.lastShot > this.player.shotDelay) {
+    if (this.gameTime - this.player.lastShot > this.getPlayerShotDelay()) {
         this.spawnBullet();
         this.player.lastShot = this.gameTime;
     }

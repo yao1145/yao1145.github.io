@@ -46,6 +46,17 @@ export const CONFIG = {
         { name: '毒液BOSS', color: '#a0f', baseHealth: 100, baseSpeed: 0.8, baseShotDelay: 400 },
     ],
 
+    // Effect-card system (one card picked at game start and re-picked after
+    // each boss; switching cards mid-run costs switchCost lives).
+    cards: {
+        regenIntervalMs: 20000,   // 生存之道: +1 life per interval of game time
+        damageMult: 0.5,          // 生存之道: player damage multiplier
+        comebackMult: 2,          // 绝地反击: damage/attack-speed multiplier
+        comebackMaxLives: 2,      // 绝地反击: active while lives <= this
+        speedMult: 2,             // 激情岁月: attack-speed multiplier (shot delays divide by it)
+        switchCost: 1,            // lives lost when changing to a different card
+    },
+
     // Crown-threshold achievement bonuses, unlocked permanently once totalCrowns reaches these.
     achievements: {
         autoShieldCrowns: 10,
