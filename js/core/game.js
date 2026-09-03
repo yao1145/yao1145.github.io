@@ -97,13 +97,33 @@ export const Game = {
         this.attackIndicator = document.getElementById('attackIndicator');
 
         this.setupEventListeners();
+        this.loadBadges();
         this.lastTime = performance.now();
         this.gameLoop();
     },
 
     resizeCanvas: function() {
-        this.width = this.canvas.width = window.innerWidth;
-        this.height = this.canvas.height = window.innerHeight;
+        // Render at device resolution (capped at 2x for perf) while keeping the
+        // game logic in CSS pixels: the backing store is scaled by dpr, the
+        // context transform converts logical -> device coords, and the CSS size
+        // pins the canvas layout to the logical viewport.
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        this.dpr = dpr;
+        this.width = window.innerWidth;
+        this.height = window.innerHeight;
+        this.canvas.width = Math.round(this.width * dpr);
+        this.canvas.height = Math.round(this.height * dpr);
+        this.canvas.style.width = this.width + 'px';
+        this.canvas.style.height = this.height + 'px';
+        this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        this.ctx.imageSmoothingQuality = 'high';
+
+        // Cached sprites were baked for the previous resolution — re-bake lazily.
+        this.spriteCache.enemies = {};
+        this.spriteCache.bullets = {};
+        this.spriteCache.items = {};
+        this.spriteCache.player = null;
+        this.bossBadgeSprites = {};
 
         if (this.player) {
             this.player.x = Math.min(this.player.x, this.width - this.player.width);

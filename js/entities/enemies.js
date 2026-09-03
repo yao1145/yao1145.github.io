@@ -62,6 +62,7 @@ Game.spawnEnemies = function() {
             enemy.maxHealth = health;
             enemy.lastShot = 0;
             enemy.shotDelay = 1000 + Math.random() * 1000;
+            enemy.variant = this.rollEnemyVariant(type);
         }
     }
 };

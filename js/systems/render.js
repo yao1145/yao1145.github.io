@@ -303,6 +303,13 @@ Game.drawFireBoss = function(x, y, width, height, color, centerX, centerY) {
         ctx.restore();
     }
 
+    // Body — the school badge, with the flame corona still orbiting outside it.
+    const fireBadge = this.getBossBadgeSprite(this.boss.type, r * 2);
+    if (fireBadge) {
+        ctx.drawImage(fireBadge, centerX - r, centerY - r, r * 2, r * 2);
+        return;
+    }
+
     // Body — layered flame.
     ctx.fillStyle = '#d30';
     ctx.beginPath();
@@ -347,6 +354,13 @@ Game.drawIceBoss = function(x, y, width, height, color, centerX, centerY) {
         ctx.restore();
     }
 
+    // Body — the school badge, with the crystal shards still orbiting outside it.
+    const iceBadge = this.getBossBadgeSprite(this.boss.type, r * 2);
+    if (iceBadge) {
+        ctx.drawImage(iceBadge, centerX - r, centerY - r, r * 2, r * 2);
+        return;
+    }
+
     // Icy body — layered bluish facets.
     ctx.fillStyle = '#08f';
     ctx.beginPath();
@@ -388,6 +402,13 @@ Game.drawPoisonBoss = function(x, y, width, height, color, centerX, centerY) {
         ctx.arc(px - 1, py - 1, 1.2, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = '#c0f';
+    }
+
+    // Body — the school badge, with the toxic bubbles still drifting outside it.
+    const poisonBadge = this.getBossBadgeSprite(this.boss.type, r * 2);
+    if (poisonBadge) {
+        ctx.drawImage(poisonBadge, centerX - r, centerY - r, r * 2, r * 2);
+        return;
     }
 
     // Oozing toxic body.

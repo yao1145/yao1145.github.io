@@ -12,6 +12,7 @@ import './entities/boss.js';
 import './systems/collisions.js';
 import './systems/render.js';
 import './systems/sprites.js';
+import './systems/badges.js';
 import './systems/input.js';
 import './systems/achievements.js';
 
