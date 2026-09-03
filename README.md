@@ -23,6 +23,8 @@ python -m http.server 8000
 - **Pre-rendered sprites** — enemies, bullets, items and the player are baked once to offscreen canvases and blitted with `drawImage`, so the hot render loop does no path fills.
 - **5 enemy types**, each with a distinct silhouette and behaviour (straight / homing / ring shots, a suicide bomber, and a tank).
 - **3 elemental bosses** (fire / ice / poison), each with three attack patterns gated by remaining health.
+- **Effect cards** — pick 1 of 4 run modifiers when the run starts and after every boss kill; swapping to a different card costs a life.
+- **School-badge skins** — the player flies under the Peking University emblem while enemies and bosses wear other universities' badges (falls back to procedural sprites if the SVGs are missing).
 - **Power-up drops** — health, double-damage and shield pickups that spin and gently pulse as they fall.
 - **Crown progression** — earn crowns each run and unlock permanent achievement bonuses (see below).
 - **Persistence** — high score, highest crowns, last score and total crowns are saved to `localStorage`.
@@ -32,19 +34,33 @@ python -m http.server 8000
 - **Keyboard** — Arrows / WASD to move, `Space` to pause.
 - **Touch / mouse** — drag to move.
 
+## Gameplay
+
+- **Goal** — survive and rack up score. Every hit (an enemy bullet, a ramming enemy, or touching a boss) costs 1 life and grants a brief 5 s shield; at 0 lives the run ends.
+- **Leveling** — the difficulty level rises every 500 points: enemies spawn faster, move faster, fire more often, and their bullets speed up.
+- **Enemies** — five types, each with its own behaviour: straight shooters, a slow 2 HP tank, homing shots, radial bullet rings, and a red kamikaze that detonates when it gets close.
+- **Bosses** — the first boss arrives at **1000 points**; each kill grants **+3 lives and +1 crown**, and raises the score gap to the next boss by **+200**, so bosses appear at 1000 → 2200 → 3600 … Each elemental boss (fire / ice / poison) has three attack patterns that escalate below 70% and 30% health.
+- **Effect cards** — when the run starts you pick 1 of 4 cards; after **every boss kill** you pick again. Keeping the current card is free, **switching to a different one costs 1 life** (the panel warns you). The active card is shown in the top-right HUD chip.
+  | Card              | Effect                                                     |
+  | ----------------- | ---------------------------------------------------------- |
+  | 激情岁月 Passion  | Enemy**and** player attack speed doubled             |
+  | 生存之道 Survival | Your damage halved; +1 life every 20 s                     |
+  | 绝地反击 Comeback | While you have 1–2 lives: damage and attack speed doubled |
+  | 平安无事 Peace    | No effect                                                  |
+- **Power-ups** — falling pickups: **+1 life**, **double damage for 10 s**, or a **5 s shield**.
+- **Crowns** — every boss kill earns a crown; crown totals unlock the permanent achievements below and are never spent.
+
 ## Achievements
 
 Crowns are never spent down — reaching a threshold unlocks its bonus permanently. Open them from the **成就** button on the main menu.
 
-| Rank | Crowns | Bonus |
-|------|-------|-------|
-| 初出茅庐 | 10 | Auto-shield every 20s |
-| 小有成就 | 30 | Start with 5 lives |
-| 渐入佳境 | 50 | Shoot 2 bullets per shot |
-| 锋芒毕露 | 80 | +50% fire rate |
-| 战无不胜 | 100 | Shoot 3 bullets per shot |
-
-> **Tip:** append `?crowns=100` to the URL to test the bonuses without playing the full progression.
+| Rank     | Crowns | Bonus                    |
+| -------- | ------ | ------------------------ |
+| 初出茅庐 | 10     | Auto-shield every 20s    |
+| 小有成就 | 30     | Start with 5 lives       |
+| 渐入佳境 | 50     | Shoot 2 bullets per shot |
+| 锋芒毕露 | 80     | +50% fire rate           |
+| 战无不胜 | 100    | Shoot 3 bullets per shot |
 
 ## Structure
 
@@ -58,7 +74,8 @@ Crowns are never spent down — reaching a threshold unlocks its bonus permanent
 │   │   ├── panels.css
 │   │   ├── hud.css
 │   │   ├── boss.css
-│   │   └── achievements.css
+│   │   ├── achievements.css
+│   │   └── cards.css
 │   └── responsive/
 │       ├── mobile.css
 │       └── responsive.css
@@ -81,7 +98,9 @@ Crowns are never spent down — reaching a threshold unlocks its bonus permanent
         ├── render.js         # render() and all draw* helpers
         ├── sprites.js        # offscreen sprite pre-rendering + blit helpers
         ├── input.js          # keyboard / touch / mouse wiring
-        └── achievements.js   # achievement panel logic
+        ├── achievements.js   # achievement panel logic
+        ├── badges.js         # 校徽 badge sprite skinning + menu emblem
+        └── cards.js          # effect-card definitions, pick flow, stat multipliers
 ```
 
 ### Module wiring
