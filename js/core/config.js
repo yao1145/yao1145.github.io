@@ -10,6 +10,11 @@ export const CONFIG = {
     // Gaps run 1000 → 1200 → 1400 ..., so bosses appear at 1000 → 2200 → 3600.
     bossSpawnThresholdIncrement: 200,
 
+    // Consistent bullet spacing: a pattern's bullet count scales up with its bullet
+    // speed so the gap between adjacent bullets stays roughly constant across levels.
+    patternSpacingRef: 4,    // reference speed = level-1 enemyBulletSpeed, where count is "as authored"
+    patternSpacingMax: 32,   // hard cap on bullets per volley (pool/perf safety)
+
     // UI
     uiUpdateInterval: 100,
 

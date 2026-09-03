@@ -174,11 +174,8 @@ Game.bossShoot = function() {
 };
 
 Game.fireBossPattern1 = function(multiplier) {
-    let count = 8;
-    if (this.bossAppearCount > 1) {
-        count = Math.min(12, 8 + Math.floor(this.boss.level * 0.3));
-    }
-    this.spawnRingBullet(this.boss, count, 0.6 * multiplier);
+    // spawnRingBullet scales the count with bullet speed, so pass a fixed base.
+    this.spawnRingBullet(this.boss, 8, 0.6 * multiplier);
 };
 
 Game.fireBossPattern2 = function(multiplier) {
@@ -186,11 +183,7 @@ Game.fireBossPattern2 = function(multiplier) {
     this.spawnWaveBullet(this.boss, this.boss.waveOffset);
     setTimeout(() => {
         if (this.boss) {
-            let count = 4;
-            if (this.bossAppearCount > 1) {
-                count = Math.min(8, 4 + Math.floor(this.boss.level * 0.2));
-            }
-            this.spawnRingBullet(this.boss, count, 0.8 * multiplier);
+            this.spawnRingBullet(this.boss, 4, 0.8 * multiplier);
         }
     }, 500);
 };
@@ -210,14 +203,16 @@ Game.iceBossPattern1 = function(multiplier) {
     for (let i = 0; i < 2; i++) {
         setTimeout(() => {
             if (this.boss) {
-                const bulletCount = 3;
                 const speed = this.enemyBulletSpeed * 0.5 * multiplier;
+                const bulletCount = this.scaledBulletCount(3, speed);
+                const ICE1_SPREAD = Math.PI / 6; // total fan angle = the original 3-at-π/12 spray
 
                 for (let j = 0; j < bulletCount; j++) {
                     const bullet = this.getObject('enemyBullets');
                     if (!bullet) continue;
 
-                    const angle = Math.PI/2 + (j - bulletCount/2) * Math.PI/12;
+                    const t = bulletCount === 1 ? 0.5 : j / (bulletCount - 1);
+                    const angle = Math.PI / 2 + (t - 0.5) * ICE1_SPREAD;
                     const vx = Math.cos(angle) * speed;
                     const vy = Math.sin(angle) * speed;
 
@@ -271,8 +266,8 @@ Game.iceBossPattern3 = function(multiplier) {
 };
 
 Game.poisonBossPattern1 = function(multiplier) {
-    const bulletCount = 12;
     const speed = this.enemyBulletSpeed * 0.5 * multiplier;
+    const bulletCount = this.scaledBulletCount(12, speed);
 
     for (let i = 0; i < bulletCount; i++) {
         const bullet = this.getObject('enemyBullets');

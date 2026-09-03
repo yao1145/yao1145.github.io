@@ -1,4 +1,15 @@
 import { Game } from '../core/game.js';
+import { CONFIG } from '../core/config.js';
+
+// Scale a pattern's bullet count with its bullet speed so the gap between
+// adjacent bullets stays roughly constant when the level raises enemyBulletSpeed.
+// Anchored so the level-1 speed (patternSpacingRef) reproduces the authored
+// count; the count never drops below baseCount (keeps low levels / first boss
+// the same) and caps at patternSpacingMax (pool & perf safety).
+Game.scaledBulletCount = function(baseCount, speed) {
+    let count = Math.round(baseCount * (speed / CONFIG.patternSpacingRef));
+    return Math.max(baseCount, Math.min(count, CONFIG.patternSpacingMax));
+};
 
 Game.spawnTrackingBullet = function(enemy) {
     if (this.boss && this.gameTime - this.boss.lastTrackingShot < this.boss.trackingShotDelay) {
@@ -35,8 +46,8 @@ Game.spawnTrackingBullet = function(enemy) {
 };
 
 Game.spawnRingBullet = function(enemy, count = 8, speedMulti = 0.7) {
-    const bulletCount = count;
     const speed = this.enemyBulletSpeed * speedMulti;
+    const bulletCount = this.scaledBulletCount(count, speed);
 
     for (let i = 0; i < bulletCount; i++) {
         const bullet = this.getObject('enemyBullets');
@@ -88,14 +99,18 @@ Game.spawnWaveBullet = function(enemy, offset = 0) {
 };
 
 Game.spawnScatterBullet = function(enemy) {
-    const bulletCount = 7;
     const baseSpeed = this.enemyBulletSpeed * 0.5;
+    const bulletCount = this.scaledBulletCount(7, baseSpeed);
+    // Keep the fan's total angular spread constant while the bullet count grows,
+    // so the gap between adjacent bullet tracks stays the same at any speed.
+    const SCATTER_SPREAD = Math.PI / 2;
 
     for (let i = 0; i < bulletCount; i++) {
         const bullet = this.getObject('enemyBullets');
         if (!bullet) break;
 
-        const angle = Math.PI/2 + (i - (bulletCount-1)/2) * Math.PI/12;
+        const t = bulletCount === 1 ? 0.5 : i / (bulletCount - 1);
+        const angle = Math.PI / 2 + (t - 0.5) * SCATTER_SPREAD;
         const vx = Math.cos(angle) * baseSpeed;
         const vy = Math.sin(angle) * baseSpeed;
 
@@ -112,12 +127,13 @@ Game.spawnScatterBullet = function(enemy) {
 
 Game.spawnExplosionBullet = function(x, y, count = 16) {
     const speed = this.enemyBulletSpeed * 0.8;
+    const bulletCount = this.scaledBulletCount(count, speed);
 
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < bulletCount; i++) {
         const bullet = this.getObject('enemyBullets');
         if (!bullet) break;
 
-        const angle = (i * Math.PI * 2) / count;
+        const angle = (i * Math.PI * 2) / bulletCount;
         const vx = Math.cos(angle) * speed;
         const vy = Math.sin(angle) * speed;
 
