@@ -10,6 +10,9 @@ export const CONFIG = {
     // Gaps run 1000 → 1200 → 1400 ..., so bosses appear at 1000 → 2200 → 3600.
     bossSpawnThresholdIncrement: 200,
 
+    // Every this many levels, ALL normal enemies gain +1 HP (levels 5/9/13 → +1/+2/+3).
+    enemyHpLevelInterval: 4,
+
     // Consistent bullet spacing: a pattern's bullet count scales up with its bullet
     // speed so the gap between adjacent bullets stays roughly constant across levels.
     patternSpacingRef: 4,    // reference speed = level-1 enemyBulletSpeed, where count is "as authored"
@@ -72,9 +75,20 @@ export const CONFIG = {
         glassShotSpeedMult: 1.5,  // 玻璃大炮: shot-speed multiplier (divides shot delay)
         bossDamageMult: 3,        // Boss猎手: damage vs the Boss entity
         mobDamageMult: 0.5,       // Boss猎手: damage vs normal enemies
-        thornsKillCount: 3,       // 荆棘护甲: enemies killed per player hit
+        thornsRadius: 200,        // 荆棘护甲: all enemies within this radius of the player die per hit
         thornsBossFrac: 0.1,      // 荆棘护甲: Boss loses maxHealth*this on each player hit
         thornsBulletSpeedMult: 2, // 荆棘护甲: enemy-bullet speed multiplier
+        // 粮草先行
+        supplyItemMult: 1.5,          // item spawn-rate multiplier
+        supplyEnemyShotMult: 1.5,     // enemy shot-rate multiplier
+        // 战争迷雾 (fog): tuning is inline in render/enemyBullets; no numeric mult needed here.
+        // 增益加强
+        boostHeartHeal: 2,            // red heart grants this many lives instead of 1
+        boostDamageTime: 15,          // damage-boost item duration (was 10)
+        boostShieldTime: 10,          // shield-ring item shield seconds (was 5)
+        boostHitLoss: 2,              // lives lost per enemy-bullet hit (was 1)
+        // Each card can be equipped at most this many times per run; afterwards it stops being offered.
+        cardMaxPicks: 3,
     },
 
     // Crown-threshold achievement bonuses, unlocked permanently once totalCrowns reaches these.

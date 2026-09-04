@@ -15,6 +15,9 @@ Game.CARDS = {
     glass: { name: '玻璃大炮' },
     boss: { name: 'Boss猎手' },
     thorns: { name: '荆棘护甲' },
+    supply: { name: '粮草先行' },
+    fog: { name: '战争迷雾' },
+    boost: { name: '增益加强' },
 };
 
 // Short per-card descriptions (卡面辅助文案), intentionally kept to ~10 glyphs
@@ -30,24 +33,36 @@ Game.CARD_DESCS = {
     glass: '伤害×2·生命上限1',
     boss: 'Boss伤×3·小兵减半',
     thorns: '受击反杀·敌弹翻倍',
+    supply: '道具更多·敌射+50%',
+    fog: '迷雾掩护·追踪失准',
+    boost: '道具强化·敌弹伤2',
 };
 
-// 选卡面板固定展示 4 张：当前已装备的卡必含其一（保证“保持当前卡免费”始终可行），
-// 其余位置从剩下的卡里随机补足。开局无已装备卡时展示 4 张随机卡。
+// 选卡面板固定展示至多 4 张：若当前已装备的卡仍被允许（未达到本局 pick 上限）则必含其一，
+// 其余位置从剩余允许的卡里随机补足。开局无已装备卡时展示至多 4 张随机卡。
 Game.rollCardOptions = function() {
-    const keys = Object.keys(this.CARDS);
-    const chosen = [];
-    if (this.activeCard && this.CARDS[this.activeCard]) chosen.push(this.activeCard);
+    // 每种卡每局最多被装备 cardMaxPicks 次；超出后不再出现在候选池。
+    const used = this.cardPickCount || {};
+    const allowed = Object.keys(this.CARDS).filter(k => (used[k] || 0) < CONFIG.cards.cardMaxPicks);
 
-    const rest = keys.filter(k => chosen.indexOf(k) === -1);
-    for (let i = rest.length - 1; i > 0; i--) {
+    // Fisher–Yates shuffle of the remaining allowed cards.
+    for (let i = allowed.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
-        const tmp = rest[i];
-        rest[i] = rest[j];
-        rest[j] = tmp;
+        const tmp = allowed[i];
+        allowed[i] = allowed[j];
+        allowed[j] = tmp;
     }
-    const need = Math.min(4 - chosen.length, rest.length);
-    for (let i = 0; i < need; i++) chosen.push(rest[i]);
+
+    const chosen = [];
+    // 当前已装备的卡仅在其仍被允许时保留在备选中。
+    const equippedIndex = this.activeCard ? allowed.indexOf(this.activeCard) : -1;
+    if (equippedIndex !== -1) {
+        chosen.push(allowed[equippedIndex]);
+        allowed.splice(equippedIndex, 1);
+    }
+    // 从剩余允许的卡里随机补齐到 4 张；不足 4 张时展示现有张数。
+    const need = Math.min(4 - chosen.length, allowed.length);
+    for (let i = 0; i < need; i++) chosen.push(allowed[i]);
 
     for (const button of this.cardButtons) {
         const id = button.dataset.card;
@@ -133,6 +148,10 @@ Game.selectCard = function(cardId) {
         this.maxLives = Infinity;
     }
 
+    // 每种卡每局最多装备 cardMaxPicks 次；保持当前卡也被计为一次使用。
+    this.cardPickCount = this.cardPickCount || {};
+    this.cardPickCount[cardId] = (this.cardPickCount[cardId] || 0) + 1;
+
     this.updateCardHighlight();
     this.cardIndicator.textContent = `效果卡: ${this.CARDS[cardId].name}`;
     this.cardIndicator.style.display = 'block';
@@ -193,7 +212,14 @@ Game.getPlayerShotDelay = function() {
 };
 
 Game.getEnemyShotRate = function() {
-    return this.enemyShotRate * (this.activeCard === 'passion' ? CONFIG.cards.speedMult : 1);
+    let rate = this.enemyShotRate;
+    if (this.activeCard === 'passion') rate *= CONFIG.cards.speedMult;
+    if (this.activeCard === 'supply') rate *= CONFIG.cards.supplyEnemyShotMult;
+    return rate;
+};
+
+Game.getItemSpawnRate = function() {
+    return this.itemSpawnRate * (this.activeCard === 'supply' ? CONFIG.cards.supplyItemMult : 1);
 };
 
 Game.getBossShotDelay = function() {

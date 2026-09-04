@@ -1,6 +1,8 @@
 import { Game } from '../core/game.js';
+import { CONFIG } from '../core/config.js';
 
 Game.spawnEnemies = function() {
+    const hpBonus = Math.floor((this.level - 1) / CONFIG.enemyHpLevelInterval);
     if (!this.isBossStage && Math.random() < this.getEnemySpawnRate()) {
         const type = Math.floor(Math.random() * 5);
         let color, speed, canShoot, health, width, height;
@@ -58,8 +60,8 @@ Game.spawnEnemies = function() {
             enemy.color = color;
             enemy.type = type;
             enemy.canShoot = canShoot;
-            enemy.health = health;
-            enemy.maxHealth = health;
+            enemy.health = health + hpBonus;
+            enemy.maxHealth = health + hpBonus;
             enemy.lastShot = 0;
             enemy.shotDelay = 1000 + Math.random() * 1000;
             enemy.variant = this.rollEnemyVariant(type);

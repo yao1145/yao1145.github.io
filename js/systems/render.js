@@ -91,6 +91,33 @@ Game.render = function() {
         }
     }
     ctx.globalAlpha = 1.0;
+
+    // Opaque fog of war (战争迷雾): the mist bank is drawn AFTER the whole world,
+    // so enemies/boss and their bullets above the fog line are concealed by an
+    // opaque layer; anything crossing below the line emerges into view. A single
+    // gradient fill per frame is the whole cost (no per-sprite work).
+    if (this.activeCard === 'fog') {
+        this.drawFogBand(this.height * 0.5);
+    }
+};
+
+// Fog (战争迷雾) bank: an opaque vertical mist covering the top half of the
+// screen. Fully solid from the top edge to FOG_MARGIN pixels ABOVE the fog
+// line, then a smooth FOG_MARGIN-up/FOG_MARGIN-down gradient so enemies
+// "emerge" progressively across the boundary instead of popping in at a hard
+// cut. Inside the solid zone enemies are completely invisible.
+Game.drawFogBand = function(fogLine) {
+    const ctx = this.ctx;
+    const margin = 50; // 雾线上下各 50px 的渐变过渡带
+    const bottom = fogLine + margin;
+    const fadeStart = Math.max(0, fogLine - margin);
+
+    const gradient = ctx.createLinearGradient(0, 0, 0, bottom);
+    gradient.addColorStop(0, 'rgba(10, 17, 30, 1)');
+    gradient.addColorStop(fadeStart / bottom, 'rgba(10, 17, 30, 1)');
+    gradient.addColorStop(1, 'rgba(10, 17, 30, 0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, this.width, bottom);
 };
 
 Game.drawTrianglePlayer = function(x, y, width, height, color) {

@@ -227,6 +227,8 @@ export const Game = {
         this.damageBoostTime = 0;
         this.activeCard = null;
         this.cardRegenTimer = 0;
+        // 新一局清空每张效果卡的已选次数 / fresh run resets per-card pick counts.
+        this.cardPickCount = {};
         this.cardIndicator.style.display = 'none';
 
         this.player.x = this.width / 2 - 15;

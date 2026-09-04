@@ -106,7 +106,22 @@
                     </button>
                     <button type="button" class="effectCard" data-card="thorns">
                         <span class="cardName">荆棘护甲</span>
-                        <span class="cardDesc">受伤时击杀附近3个敌机并令Boss掉血；敌弹速度翻倍</span>
+                        <span class="cardDesc">受伤时击杀200px内敌机并令Boss掉血；敌弹速度翻倍</span>
+                        <span class="cardBadge">当前效果</span>
+                    </button>
+                    <button type="button" class="effectCard" data-card="supply">
+                        <span class="cardName">粮草先行</span>
+                        <span class="cardDesc">道具出现概率提高50%；敌机射速提高50%</span>
+                        <span class="cardBadge">当前效果</span>
+                    </button>
+                    <button type="button" class="effectCard" data-card="fog">
+                        <span class="cardName">战争迷雾</span>
+                        <span class="cardDesc">敌机与Boss藏于上半屏迷雾中难以看见；追踪弹失去目标变为直线</span>
+                        <span class="cardBadge">当前效果</span>
+                    </button>
+                    <button type="button" class="effectCard" data-card="boost">
+                        <span class="cardName">增益加强</span>
+                        <span class="cardDesc">道具效果提升（红心+2命，攻/盾+5秒）；每发敌机子弹扣除2点生命</span>
                         <span class="cardBadge">当前效果</span>
                     </button>
                 </div>
@@ -199,8 +214,12 @@
                             <li>连环爆炸 —— 击毁敌机引发大范围连锁爆炸，敌机生成 +30%。</li>
                             <li>玻璃大炮 —— 伤害 ×2、射速 +50%，生命上限锁定为 1。</li>
                             <li>Boss猎手 —— 对 Boss 伤害 ×3、对小兵 ×0.5。</li>
-                            <li>荆棘护甲 —— 受击反杀附近敌机并削 Boss 血，敌弹速度 ×2。</li>
+                            <li>荆棘护甲 —— 受击反杀 200px 内敌机并削 Boss 血，敌弹速度 ×2。</li>
+                            <li>粮草先行 —— 道具出现更多；敌机射速 +50%。</li>
+                            <li>战争迷雾 —— 敌机与 Boss 藏于迷雾、追踪弹失效为直线。</li>
+                            <li>增益加强 —— 道具效果提升；每发敌弹扣 2 点生命。</li>
                         </ul>
+                        <p class="introP">提示：每次选择随机给出 4 张（含当前卡）；同一张效果卡最多可连用 3 次，用满后不再出现。</p>
                     </section>
                 </div>
                 <button id="introBackButton" class="uiButton">返回</button>

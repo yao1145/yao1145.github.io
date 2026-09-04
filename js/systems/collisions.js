@@ -110,7 +110,7 @@ Game.checkCollisions = function() {
 
                 if (this.isColliding(bullet, this.player)) {
                     this.releaseObject('enemyBullets', bullet);
-                    this.applyPlayerHit();
+                    this.applyPlayerHit(this.activeCard === 'boost' ? CONFIG.cards.boostHitLoss : 1);
                     break;
                 }
             }
@@ -145,17 +145,17 @@ Game.checkCollisions = function() {
                 switch (item.type) {
                     case 0:
                         // 电光石火/玻璃大炮禁止回命时红心直接浪费，但依然会被消耗。
-                        if (this.canHeal()) this.applyLifeGain(1);
+                        if (this.canHeal()) this.applyLifeGain(this.activeCard === 'boost' ? CONFIG.cards.boostHeartHeal : 1);
                         else this.updateUI(true);
                         break;
                     case 1:
                         this.isDamageBoost = true;
-                        this.damageBoostTime = 10;
+                        this.damageBoostTime = this.activeCard === 'boost' ? CONFIG.cards.boostDamageTime : 10;
                         this.bulletDamage = 2;
                         this.updateAttackUI(true);
                         break;
                     case 2:
-                        this.player.shieldTime = 5;
+                        this.player.shieldTime = this.activeCard === 'boost' ? CONFIG.cards.boostShieldTime : 5;
                         this.updateShieldUI(true);
                         break;
                 }
@@ -207,8 +207,8 @@ Game.createShockwave = function(x, y, color = '#ffd166') {
 
 // 统一“玩家被击中”的收尾逻辑：扣 1 命、玩家中心爆炸、红闪、护盾重置，
 // 荆棘护甲反击与死亡判定。不负责释放撞击来源（由调用方自行处理）。
-Game.applyPlayerHit = function() {
-    this.lives--;
+Game.applyPlayerHit = function(damage = 1) {
+    this.lives -= damage;
     this.createExplosion(this.player.x + this.player.width/2, this.player.y + this.player.height/2, '#fff', 4);
 
     this.player.color = '#f00';
@@ -262,36 +262,32 @@ Game.killEnemy = function(enemy) {
     this.createExplosion(killX, killY, killColor, 4);
 };
 
-// 荆棘护甲: 玩家每次受击时，消灭离玩家最近的至多 thornsKillCount 个敌人，
-// 并对在场 Boss 削去 thornsBossFrac * maxHealth 的生命。
+// 荆棘护甲: 玩家每次受击时，以玩家为中心 thornsRadius 半径内的所有敌机一并
+// 秒杀并计分，每个击杀点附带一个扩散冲击环（类似连环爆炸），再对 Boss 削血。
 Game.onThornsHit = function() {
     const playerCX = this.player.x + this.player.width/2;
     const playerCY = this.player.y + this.player.height/2;
+    const radius = CONFIG.cards.thornsRadius;
+    const r2 = radius * radius;
 
-    // 只考虑仍存活在 active 池中的敌人：排除本帧已因撞击/击杀被释放但还留在
-    // 空间网格里的对象（例如刚撞上玩家、已被 release 的敌机），避免对其重复计分。
-    const activeSet = new Set(this.objectPools.enemies.active);
-    const candidates = [];
-    const nearby = this.spatialGrid.getNearby(this.player);
-    for (const entry of nearby) {
-        if (entry.poolType !== 'enemies') continue;
-        const enemy = entry.obj;
+    // 遍历 active 池的快照，避免 killEnemy 在遍历中改动数组；只处理仍在场的活敌。
+    const enemies = this.objectPools.enemies.active.slice();
+    for (const enemy of enemies) {
         if (!enemy || enemy._dead || enemy.health <= 0) continue;
-        if (!activeSet.has(enemy)) continue;
-        const dx = enemy.x + enemy.width/2 - playerCX;
-        const dy = enemy.y + enemy.height/2 - playerCY;
-        candidates.push({ enemy: enemy, distSq: dx * dx + dy * dy });
-    }
+        const cx = enemy.x + enemy.width/2;
+        const cy = enemy.y + enemy.height/2;
+        const dx = cx - playerCX;
+        const dy = cy - playerCY;
+        if (dx * dx + dy * dy > r2) continue;
 
-    candidates.sort((a, b) => a.distSq - b.distSq);
-
-    const killCount = Math.min(CONFIG.cards.thornsKillCount, candidates.length);
-    for (let i = 0; i < killCount; i++) {
-        const enemy = candidates[i].enemy;
         // 荆棘是“秒杀”：先把敌人打到致命状态，再走统一的 killEnemy 计分/爆炸。
         enemy.health = 0;
         this.killEnemy(enemy);
+        // 反杀冲击环：每个被秒杀的敌机补一个扩散环（类似连环爆炸）。
+        this.createShockwave(cx, cy);
     }
+    // 玩家中心再补一个大冲击环，标示整圈反杀范围。
+    this.createShockwave(playerCX, playerCY);
 
     // 荆棘护甲对 Boss 的伤害比例削血。
     if (this.boss && this.boss.health > 0) {

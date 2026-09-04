@@ -31,12 +31,18 @@ Game.spawnTrackingBullet = function(enemy) {
             bullet.y = enemy.y + enemy.height;
             bullet.width = 6;
             bullet.height = 6;
-            bullet.vx = vx;
-            bullet.vy = vy;
             bullet.speed = speed;
             bullet.color = '#ff0';
-            bullet.isTracking = true;
-            bullet.trackingPower = 0.05;
+            if (this.activeCard === 'fog') {
+                bullet.isStraight = true;
+                bullet.vx = 0;
+                bullet.vy = bullet.speed;
+            } else {
+                bullet.vx = vx;
+                bullet.vy = vy;
+                bullet.isTracking = true;
+                bullet.trackingPower = 0.05;
+            }
         }
 
         if (this.boss) {
@@ -154,24 +160,31 @@ Game.updateEnemyBullets = function() {
         const bullet = pool.active[i];
 
         if (bullet.isTracking) {
-            const dx = this.player.x + this.player.width/2 - bullet.x;
-            const dy = this.player.y + this.player.height/2 - bullet.y;
-            const distance = Math.sqrt(dx*dx + dy*dy);
+            if (this.activeCard === 'fog') {
+                bullet.isTracking = false;
+                bullet.isStraight = true;
+                bullet.vx = 0;
+                bullet.vy = bullet.speed;
+            } else {
+                const dx = this.player.x + this.player.width/2 - bullet.x;
+                const dy = this.player.y + this.player.height/2 - bullet.y;
+                const distance = Math.sqrt(dx*dx + dy*dy);
 
-            if (distance > 0) {
-                bullet.vx += (dx / distance) * bullet.trackingPower;
-                bullet.vy += (dy / distance) * bullet.trackingPower;
+                if (distance > 0) {
+                    bullet.vx += (dx / distance) * bullet.trackingPower;
+                    bullet.vy += (dy / distance) * bullet.trackingPower;
 
-                const currentSpeed = Math.sqrt(bullet.vx*bullet.vx + bullet.vy*bullet.vy);
-                if (currentSpeed > 0) {
-                    bullet.vx = (bullet.vx / currentSpeed) * bullet.speed;
-                    bullet.vy = (bullet.vy / currentSpeed) * bullet.speed;
+                    const currentSpeed = Math.sqrt(bullet.vx*bullet.vx + bullet.vy*bullet.vy);
+                    if (currentSpeed > 0) {
+                        bullet.vx = (bullet.vx / currentSpeed) * bullet.speed;
+                        bullet.vy = (bullet.vy / currentSpeed) * bullet.speed;
+                    }
                 }
             }
 
             bullet.x += bullet.vx;
             bullet.y += bullet.vy;
-        } else if (bullet.isRing || bullet.isScatter || bullet.isExplosion || bullet.isIce || bullet.isPoison) {
+        } else if (bullet.isRing || bullet.isScatter || bullet.isExplosion || bullet.isIce || bullet.isPoison || bullet.isStraight) {
             bullet.x += bullet.vx;
             bullet.y += bullet.vy;
         } else if (bullet.isWave) {
