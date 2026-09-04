@@ -61,7 +61,9 @@
     justify-content: center;
     align-items: center;
     gap: 6px;
-    padding: 14px 12px;
+    /* Extra top padding reserves the corner strip for the "当前效果" badge so
+       the vertically-centered title never slides under it on short cards. */
+    padding: 22px 12px 12px;
     min-width: 0;
     background: linear-gradient(180deg, rgba(86, 227, 255, 0.09), rgba(86, 227, 255, 0.03));
     border: 1px solid rgba(86, 227, 255, 0.45);
@@ -121,9 +123,10 @@
 .cardBadge {
     display: none;
     position: absolute;
-    top: 6px;
+    top: 4px;
     right: 8px;
     padding: 2px 5px;
+    line-height: 1;
     font-family: 'Consolas', 'Courier New', monospace;
     font-size: 10px;
     font-weight: bold;
@@ -179,7 +182,7 @@
     }
 
     .effectCard {
-        padding: 10px 8px;
+        padding: 20px 8px 8px;
         gap: 4px;
     }
 }
