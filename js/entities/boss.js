@@ -48,7 +48,9 @@ Game.spawnBoss = function() {
         centerY: 50,
         orbitAngle: 0,
         lastTrackingShot: 0,
-        trackingShotDelay: bossShotDelay * 2
+        trackingShotDelay: bossShotDelay * 2,
+        spawnTime: this.gameTime,
+        summonOpen: false
     };
 
     this.objectPools.enemies.active = [];
@@ -320,4 +322,39 @@ Game.poisonBossPattern3 = function(multiplier) {
             this.spawnScatterBullet(this.boss);
         }
     }, 400);
+};
+
+// Boss 召唤：第 minBossAppearCount 个 Boss 起，Boss 战期间周期性开窗召唤
+// 普通敌机。时间线由 gameTime（固定步长）驱动，暂停/选卡时自然冻结。
+Game.updateBossSummon = function() {
+    if (!this.boss || this.bossAppearCount < CONFIG.bossSummon.minBossAppearCount) return;
+    const cfg = CONFIG.bossSummon;
+    const cycle = cfg.windowMs + cfg.restMs;
+    const inCycle = this.gameTime - this.boss.spawnTime - cfg.graceMs;
+    const open = inCycle >= 0 && (inCycle % cycle) < cfg.windowMs;
+
+    if (open && !this.boss.summonOpen) {
+        this.boss.summonOpen = true;
+        this.summonIndicator.style.display = 'block';
+        this.bossWarning.textContent = 'Boss召唤敌机!';
+        this.bossWarning.style.display = 'block';
+        setTimeout(() => {
+            if (this.boss && this.boss.summonOpen) {
+                this.bossWarning.style.display = 'none';
+            }
+        }, 2000);
+    } else if (!open && this.boss.summonOpen) {
+        this.boss.summonOpen = false;
+        this.summonIndicator.style.display = 'none';
+        this.bossWarning.style.display = 'none';
+    }
+
+    if (open) {
+        const remaining = cfg.windowMs - (inCycle % cycle);
+        this.summonIndicator.textContent = `召唤: ${(remaining / 1000).toFixed(0)}s`;
+        // 召唤率：实际生成率的 30%（吃简单模式/效果卡全部倍率链）。
+        if (Math.random() < this.getEnemySpawnRate() * cfg.rateFrac) {
+            this.spawnEnemyUnit(Math.floor((this.level - 1) / CONFIG.enemyHpLevelInterval));
+        }
+    }
 };

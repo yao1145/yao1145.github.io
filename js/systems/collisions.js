@@ -314,6 +314,9 @@ Game.handleBossDeath = function() {
 
     this.isBossStage = false;
     this.bossHealthBar.style.display = 'none';
+    // Boss 可能在召唤窗口中途死亡：关掉召唤指示条与警告横幅。
+    this.summonIndicator.style.display = 'none';
+    this.bossWarning.style.display = 'none';
     // Next boss needs a bigger gap than the last one (+200 per kill):
     // thresholds 1000 → 2200 → 3600 …
     this.bossSpawnGap += CONFIG.bossSpawnThresholdIncrement;

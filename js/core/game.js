@@ -56,6 +56,7 @@ export const Game = {
     bossWarning: null,
     shieldIndicator: null,
     attackIndicator: null,
+    summonIndicator: null,
 
     bossAppearCount: 0,
     isDamageBoost: false,
@@ -107,6 +108,7 @@ export const Game = {
         this.bossWarning = document.getElementById('bossWarning');
         this.shieldIndicator = document.getElementById('shieldIndicator');
         this.attackIndicator = document.getElementById('attackIndicator');
+        this.summonIndicator = document.getElementById('summonIndicator');
 
         this.setupEventListeners();
         this.setupCards();
@@ -189,6 +191,7 @@ export const Game = {
         if (this.isBossStage) {
             this.updateBoss();
             this.bossShoot();
+            this.updateBossSummon();
         }
 
         this.checkCollisions();
@@ -246,6 +249,7 @@ export const Game = {
 
         this.bossHealthBar.style.display = 'none';
         this.bossWarning.style.display = 'none';
+        this.summonIndicator.style.display = 'none';
         this.shieldIndicator.style.display = 'none';
         this.attackIndicator.style.display = 'none';
         document.getElementById('hudStats').style.display = 'block';
@@ -372,6 +376,7 @@ export const Game = {
         // Hide in-game HUD elements and clear leftover entities so the menu is clean.
         this.bossHealthBar.style.display = 'none';
         this.bossWarning.style.display = 'none';
+        this.summonIndicator.style.display = 'none';
         this.shieldIndicator.style.display = 'none';
         this.attackIndicator.style.display = 'none';
         this.isBossStage = false;

@@ -28,6 +28,7 @@ python -m http.server 8000
 - **Power-up drops** — health, double-damage and shield pickups that spin and gently pulse as they fall.
 - **Crown progression** — earn crowns each run and unlock permanent achievement bonuses (see below).
 - **Persistence** — high score, highest crowns, last score and total crowns are saved to `localStorage`.
+- **App icons** — the source `icons/icon.png` is served as the favicon (pre-scaled 32×32) and iOS apple-touch-icon (pre-scaled 180×180).
 
 ## Controls
 
@@ -36,10 +37,11 @@ python -m http.server 8000
 
 ## Gameplay
 
-- **Goal** — survive and rack up score. Every hit (an enemy bullet, a ramming enemy, or touching a boss) costs 1 life and grants a brief 5 s shield; at 0 lives the run ends.
-- **Leveling** — the difficulty level rises every 500 points: enemies spawn faster, move faster, fire more often, and their bullets speed up.
+- **Goal** — survive and rack up score. Every hit (an enemy bullet, a ramming enemy, or touching a boss) costs 1 life and grants a brief 5 s shield; lives are capped at **20** (every life gain — pickups, boss rewards, card heals — respects the cap, though the 玻璃大炮 Glass card overrides it with a cap of 1); at 0 lives the run ends.
+- **Leveling** — the difficulty level rises every 500 points: enemies spawn faster, move faster, fire more often, and their bullets speed up. Speed and bullet-speed growth per level is intentionally gentle. Item density follows a level curve — sparse at first, densest around level 10 (about 5× the base rate), settling back to base from level 20.
 - **Enemies** — five types, each with its own behaviour: straight shooters, a slow 2 HP tank, homing shots, radial bullet rings, and a red kamikaze that detonates when it gets close.
-- **Bosses** — the first boss arrives at **1000 points**; each kill grants **+3 lives and +1 crown**, and raises the score gap to the next boss by **+200**, so bosses appear at 1000 → 2200 → 3600 … Each elemental boss (fire / ice / poison) has three attack patterns that escalate below 70% and 30% health.
+- **Bosses** — the first boss arrives at **1000 points**; each kill grants **+3 lives and +1 crown**, and raises the score gap to the next boss by **+200**, so bosses appear at 1000 → 2200 → 3600 … Each elemental boss (fire / ice / poison) has three attack patterns that escalate below 70% and 30% health. From the **4th boss onward**, bosses periodically summon waves of normal enemies: a 10 s quiet period after the boss appears, then repeating 30 s summon windows (with a top-right countdown chip) until the boss dies.
+- **Difficulty** — Two modes — 简单模式 Easy: enemy/boss movement and all enemy bullets ×0.7, spawn and enemy fire rates ×0.5, boss shot delay ×1.5; 困难模式 Hard: the reference balance.
 - **Effect cards** — when the run starts you pick 1 of 4 cards; after **every boss kill** you pick again. Keeping the current card is free, **switching to a different one costs 1 life** (the panel warns you). The active card is shown in the top-right HUD chip.
   | Card              | Effect                                                     |
   | ----------------- | ---------------------------------------------------------- |
@@ -47,7 +49,7 @@ python -m http.server 8000
   | 生存之道 Survival | Your damage halved; +1 life every 20 s                     |
   | 绝地反击 Comeback | While you have 1–2 lives: damage and attack speed doubled |
   | 平安无事 Peace    | No effect                                                  |
-- **Power-ups** — falling pickups: **+1 life**, **double damage for 10 s**, or a **5 s shield**.
+- **Power-ups** — falling pickups: **+1 life** (capped at 20), **double damage for 10 s**, or a **5 s shield**.
 - **Crowns** — every boss kill earns a crown; crown totals unlock the permanent achievements below and are never spent.
 
 ## Achievements
@@ -66,6 +68,10 @@ Crowns are never spent down — reaching a threshold unlocks its bonus permanent
 
 ```
 ├── index.html                 # thin shell: DOM + CSS <link> tags + module entry
+├── icons/
+│   ├── icon.png            # source game icon (1113×1113)
+│   ├── favicon-32.png      # browser-tab favicon (32×32)
+│   └── apple-touch-icon.png # iOS home-screen icon (180×180)
 ├── css/
 │   ├── base/
 │   │   └── reset.css
@@ -75,6 +81,7 @@ Crowns are never spent down — reaching a threshold unlocks its bonus permanent
 │   │   ├── hud.css
 │   │   ├── boss.css
 │   │   ├── achievements.css
+│   │   ├── intro.css
 │   │   └── cards.css
 │   └── responsive/
 │       ├── mobile.css

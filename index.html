@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
     <title>PKUfighter</title>
     <link rel="stylesheet" href="css/base/reset.css">
     <link rel="stylesheet" href="css/ui/layout.css">
@@ -30,6 +32,7 @@
             <div class="shieldIndicator" id="shieldIndicator">盾: 0.0</div>
             <div class="attackIndicator" id="attackIndicator">攻: 0.0</div>
             <div class="cardIndicator" id="cardIndicator">效果卡: 无</div>
+            <div class="summonIndicator" id="summonIndicator">召唤: 0s</div>
 
             <div id="gameStartPanel" class="uiPanel">
                 <div class="uiMeta">PKUer can fly</div>
@@ -167,14 +170,19 @@
                 <div class="uiTitle">游戏介绍</div>
                 <div class="introBody">
                     <section class="introSection">
-                        <div class="introH">游戏目标与节奏</div>
-                        <p class="introP">驾驶战机向上开火，躲避敌机与弹幕并得分；每击倒一名 Boss 可得 1 个皇冠、3 点生命并进入下一次效果卡选择。</p>
-                        <p class="introP">你的座机正是 <b>北京大学</b> 的校徽——拦路的敌机与 Boss 也全都顶着各高校的校徽，一决高下。</p>
-                        <p class="introP"><b>PKUer can fly!</b></p>
+                        <div class="introH">游戏目标</div>
+                        <p class="introP">驾驶战机向上开火：躲避弹幕、击落敌机、尽量生存，冲击更高分数。</p>
+                        <p class="introP">你的座机正是 <b>北京大学</b> 的校徽——拦路的敌机与 Boss 也全都顶着各高校的校徽，一决高下。加油，<b>PKUer can fly!</b></p>
+                        <p class="introP">主菜单可选 <b>简单模式</b> / <b>困难模式</b>：简单模式下敌机与敌弹减速 30%、出怪与敌机射速减半、Boss 射击间隔加长 50%；两种模式共用高分与皇冠记录。</p>
+                    </section>
+                    <section class="introSection">
+                        <div class="introH">升级与节奏</div>
                         <ul class="introList">
-                            <li>每 <b>500</b> 分提升 1 级：敌机更快、弹幕更密。</li>
-                            <li>生命被击中 −1（并进入 5 秒护盾）；归零则本局结束。</li>
-                            <li>击倒 Boss 后，下次 Boss 的分数门槛会 +200（1000 → 2200 → 3600 …）。</li>
+                            <li>每 <b>500</b> 分提升 1 级：出怪更快、弹幕更密；速度与弹速随等级放缓增长。</li>
+                            <li>道具密度随等级起伏：开局较稀，<b>10</b> 级前后最密（约为开局 5 倍），<b>20</b> 级起回落到开局水平。</li>
+                            <li>被击中 −1 生命并获得 5 秒护盾；生命上限 <b>20</b>，归零则本局结束。</li>
+                            <li>击倒 Boss：<b>+1 皇冠、+3 生命</b>，并进入下一次效果卡选择；下次 Boss 的分数门槛 +200（1000 → 2200 → 3600 …）。</li>
+                            <li>从第 <b>4</b> 个 Boss 起，Boss 战有召唤节奏：出场后前 <b>10</b> 秒无召唤，此后每 <b>30</b> 秒开启一个 <b>30</b> 秒召唤窗口（右上角紫色倒计时提示），窗口内 Boss 持续召唤敌机。</li>
                         </ul>
                     </section>
                     <section class="introSection">
@@ -199,7 +207,7 @@
                     <section class="introSection">
                         <div class="introH">道具与皇冠成就</div>
                         <ul class="introList">
-                            <li><span class="sw" style="background:#f00"></span>红色十字：+1 生命。</li>
+                            <li><span class="sw" style="background:#f00"></span>红色十字：+1 生命（不超过上限 20）。</li>
                             <li><span class="sw" style="background:#f90"></span>橙色光点：10 秒双倍伤害。</li>
                             <li><span class="sw" style="background:#0af"></span>青色圆环：5 秒护盾。</li>
                             <li>皇冠来自击倒 Boss；总皇冠永久累计，依次解锁开局加成：<b>10</b> 每 20 秒自动护盾 · <b>30</b> 开局 5 条命 · <b>50</b> 每次双发 · <b>80</b> 射速提升 · <b>100</b> 每次三发。</li>

@@ -15,6 +15,18 @@ export const CONFIG = {
         flatLevel: 20,
     },
 
+    // Boss summoning (第 4 个 Boss 起): during a boss fight the boss periodically
+    // opens a summon window and spawns normal enemies at a fraction of the current
+    // effective spawn rate. Timeline per fight: a grace period with no window,
+    // then repeating window/rest cycles until the boss dies.
+    bossSummon: {
+        minBossAppearCount: 4,  // 第几个 Boss 起开始召唤
+        graceMs: 10000,         // Boss 出场后的无召唤宽限期
+        windowMs: 30000,        // 每次召唤窗口时长
+        restMs: 30000,          // 窗口之间的休息时长
+        rateFrac: 0.3,          // 召唤率 = 当前等级实际 spawnRate 的比例
+    },
+
     bossSpawnThreshold: 1000,
     // After each boss kill, the score GAP to the next boss grows by this much.
     // Gaps run 1000 → 1200 → 1400 ..., so bosses appear at 1000 → 2200 → 3600.

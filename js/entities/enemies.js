@@ -4,68 +4,74 @@ import { CONFIG } from '../core/config.js';
 Game.spawnEnemies = function() {
     const hpBonus = Math.floor((this.level - 1) / CONFIG.enemyHpLevelInterval);
     if (!this.isBossStage && Math.random() < this.getEnemySpawnRate()) {
-        const type = Math.floor(Math.random() * 5);
-        let color, speed, canShoot, health, width, height;
+        this.spawnEnemyUnit(hpBonus);
+    }
+};
 
-        switch (type) {
-            case 0:
-                color = '#f00';
-                speed = this.enemySpeed;
-                canShoot = false;
-                health = 1;
-                width = 30;
-                height = 30;
-                break;
-            case 1:
-                color = '#00f';
-                speed = this.enemySpeed * 1.5;
-                canShoot = true;
-                health = 1;
-                width = 30;
-                height = 30;
-                break;
-            case 2:
-                color = '#a0f';
-                speed = this.enemySpeed * 0.7;
-                canShoot = true;
-                health = 2;
-                width = 35;
-                height = 35;
-                break;
-            case 3:
-                color = '#ff0';
-                speed = this.enemySpeed * 0.9;
-                canShoot = true;
-                health = 1;
-                width = 28;
-                height = 28;
-                break;
-            case 4:
-                color = '#0af';
-                speed = this.enemySpeed * 0.8;
-                canShoot = true;
-                health = 2;
-                width = 32;
-                height = 32;
-                break;
-        }
+// 单个敌机的类型 switch + 字段初始化，供正常出怪（spawnEnemies）与
+// Boss 召唤（updateBossSummon）共用：相同的类型表与血量加成。
+Game.spawnEnemyUnit = function(hpBonus) {
+    const type = Math.floor(Math.random() * 5);
+    let color, speed, canShoot, health, width, height;
 
-        const enemy = this.getObject('enemies');
-        if (enemy) {
-            enemy.x = Math.random() * (this.width - width);
-            enemy.y = -height;
-            enemy.width = width;
-            enemy.height = height;
-            enemy.speed = speed;
-            enemy.color = color;
-            enemy.type = type;
-            enemy.canShoot = canShoot;
-            enemy.health = health + hpBonus;
-            enemy.maxHealth = health + hpBonus;
-            enemy.lastShot = 0;
-            enemy.shotDelay = 1000 + Math.random() * 1000;
-            enemy.variant = this.rollEnemyVariant(type);
-        }
+    switch (type) {
+        case 0:
+            color = '#f00';
+            speed = this.enemySpeed;
+            canShoot = false;
+            health = 1;
+            width = 30;
+            height = 30;
+            break;
+        case 1:
+            color = '#00f';
+            speed = this.enemySpeed * 1.5;
+            canShoot = true;
+            health = 1;
+            width = 30;
+            height = 30;
+            break;
+        case 2:
+            color = '#a0f';
+            speed = this.enemySpeed * 0.7;
+            canShoot = true;
+            health = 2;
+            width = 35;
+            height = 35;
+            break;
+        case 3:
+            color = '#ff0';
+            speed = this.enemySpeed * 0.9;
+            canShoot = true;
+            health = 1;
+            width = 28;
+            height = 28;
+            break;
+        case 4:
+            color = '#0af';
+            speed = this.enemySpeed * 0.8;
+            canShoot = true;
+            health = 2;
+            width = 32;
+            height = 32;
+            break;
+    }
+
+    const enemy = this.getObject('enemies');
+    if (enemy) {
+        enemy.x = Math.random() * (this.width - width);
+        enemy.y = -height;
+        enemy.width = width;
+        enemy.height = height;
+        enemy.speed = speed;
+        enemy.color = color;
+        enemy.type = type;
+        enemy.canShoot = canShoot;
+        enemy.health = health + hpBonus;
+        enemy.maxHealth = health + hpBonus;
+        enemy.lastShot = 0;
+        enemy.shotDelay = 1000 + Math.random() * 1000;
+        enemy.variant = this.rollEnemyVariant(type);
     }
 };
 
