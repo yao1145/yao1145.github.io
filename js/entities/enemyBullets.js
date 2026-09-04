@@ -6,8 +6,12 @@ import { CONFIG } from '../core/config.js';
 // Anchored so the level-1 speed (patternSpacingRef) reproduces the authored
 // count; the count never drops below baseCount (keeps low levels / first boss
 // the same) and caps at patternSpacingMax (pool & perf safety).
+// Easy mode scales every bullet speed down by the same slowMult, so the anchor
+// is scaled too — counts then progress identically to hard at each level and
+// the consistent-spacing design survives the global slowdown.
 Game.scaledBulletCount = function(baseCount, speed) {
-    let count = Math.round(baseCount * (speed / CONFIG.patternSpacingRef));
+    const ref = CONFIG.patternSpacingRef * this.getEnemySpeedMult();
+    let count = Math.round(baseCount * (speed / ref));
     return Math.max(baseCount, Math.min(count, CONFIG.patternSpacingMax));
 };
 

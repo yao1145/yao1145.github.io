@@ -97,11 +97,12 @@ Game.enemiesShoot = function() {
 };
 
 Game.updateEnemies = function(deltaTime) {
+    const speedMult = this.getEnemySpeedMult();
     const pool = this.objectPools.enemies;
     for (let i = pool.active.length - 1; i >= 0; i--) {
         const enemy = pool.active[i];
 
-        enemy.y += enemy.speed;
+        enemy.y += enemy.speed * speedMult;
 
         if (enemy.type === 0) {
             const dx = this.player.x + this.player.width/2 - (enemy.x + enemy.width/2);

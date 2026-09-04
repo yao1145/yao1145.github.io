@@ -123,7 +123,31 @@ Game.setupEventListeners = function() {
         this.closeIntro();
     });
 
+    document.getElementById('easyModeButton').addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.setDifficulty('easy');
+    });
+
+    document.getElementById('hardModeButton').addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.setDifficulty('hard');
+    });
+
+    // Sync the difficulty buttons' highlight with the current preset.
+    this.setDifficulty(this.difficulty);
+
     this.enableControlArea(false);
+};
+
+// Difficulty selector: 'hard' keeps the authored tuning, 'easy' multiplies the
+// enemy-side values via CONFIG.difficulty.easy (read through the cards.js get* helpers).
+Game.setDifficulty = function(difficulty) {
+    if (difficulty !== 'easy' && difficulty !== 'hard') return;
+    this.difficulty = difficulty;
+    document.getElementById('easyModeButton').classList.toggle('selected', difficulty === 'easy');
+    document.getElementById('hardModeButton').classList.toggle('selected', difficulty === 'hard');
 };
 
 Game.enableControlArea = function(enable) {

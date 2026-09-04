@@ -83,28 +83,30 @@ Game.updateBoss = function() {
 };
 
 Game.updateFireBoss = function() {
-    this.boss.x += this.boss.speed * this.boss.moveDirection;
+    const speedMult = this.getEnemySpeedMult();
+    this.boss.x += this.boss.speed * speedMult * this.boss.moveDirection;
 
     if (this.boss.x <= 0 || this.boss.x >= this.width - this.boss.width) {
         this.boss.moveDirection *= -1;
     }
 
-    this.boss.waveOffset += 0.05;
+    this.boss.waveOffset += 0.05 * speedMult;
 };
 
 Game.updateIceBoss = function() {
-    this.boss.x += this.boss.speed * this.boss.moveDirection;
+    const speedMult = this.getEnemySpeedMult();
+    this.boss.x += this.boss.speed * speedMult * this.boss.moveDirection;
     this.boss.y += Math.sin(this.boss.waveOffset) * 2;
 
     if (this.boss.x <= 0 || this.boss.x >= this.width - this.boss.width) {
         this.boss.moveDirection *= -1;
     }
 
-    this.boss.waveOffset += 0.03;
+    this.boss.waveOffset += 0.03 * speedMult;
 };
 
 Game.updatePoisonBoss = function() {
-    this.boss.movePhase += 0.02;
+    this.boss.movePhase += 0.02 * this.getEnemySpeedMult();
     const radius = 100;
     this.boss.x = this.boss.centerX + Math.cos(this.boss.movePhase) * radius;
     this.boss.y = this.boss.centerY + Math.sin(this.boss.movePhase * 0.5) * 50;

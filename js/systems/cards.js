@@ -215,6 +215,8 @@ Game.getEnemyShotRate = function() {
     let rate = this.enemyShotRate;
     if (this.activeCard === 'passion') rate *= CONFIG.cards.speedMult;
     if (this.activeCard === 'supply') rate *= CONFIG.cards.supplyEnemyShotMult;
+    // 简单模式：敌机发射子弹频率 ×0.5。
+    if (this.difficulty === 'easy') rate *= CONFIG.difficulty.easy.enemyFireRateMult;
     return rate;
 };
 
@@ -223,7 +225,9 @@ Game.getItemSpawnRate = function() {
 };
 
 Game.getBossShotDelay = function() {
-    return this.boss.shotDelay / (this.activeCard === 'passion' ? CONFIG.cards.speedMult : 1);
+    const delay = this.boss.shotDelay / (this.activeCard === 'passion' ? CONFIG.cards.speedMult : 1);
+    // 简单模式：Boss 射击间隔 ×1.5。
+    return this.difficulty === 'easy' ? delay * CONFIG.difficulty.easy.bossShotDelayMult : delay;
 };
 
 // 电光石火: 每次射击额外发射的子弹数（在 baseBulletCount 之上）。
@@ -238,12 +242,23 @@ Game.getBulletSpeedMult = function() {
 
 // 连环爆炸: 敌人刷新速率倍率。
 Game.getEnemySpawnRate = function() {
-    return this.enemySpawnRate * (this.activeCard === 'chain' ? CONFIG.cards.chainSpawnMult : 1);
+    let rate = this.enemySpawnRate * (this.activeCard === 'chain' ? CONFIG.cards.chainSpawnMult : 1);
+    // 简单模式：出敌机频率 ×0.7。
+    if (this.difficulty === 'easy') rate *= CONFIG.difficulty.easy.spawnRateMult;
+    return rate;
 };
 
 // 荆棘护甲: 敌方子弹速度倍率。
 Game.getEnemyBulletSpeed = function() {
-    return this.enemyBulletSpeed * (this.activeCard === 'thorns' ? CONFIG.cards.thornsBulletSpeedMult : 1);
+    let speed = this.enemyBulletSpeed * (this.activeCard === 'thorns' ? CONFIG.cards.thornsBulletSpeedMult : 1);
+    // 简单模式：全部敌弹速度 ×0.7。
+    if (this.difficulty === 'easy') speed *= CONFIG.difficulty.easy.slowMult;
+    return speed;
+};
+
+// 简单模式：敌机/Boss 移动速度倍率（除玩家外所有移动统一减慢）。
+Game.getEnemySpeedMult = function() {
+    return this.difficulty === 'easy' ? CONFIG.difficulty.easy.slowMult : 1;
 };
 
 // 血之渴望: 击杀普通敌人回 1 命的概率（Boss 概率见 lifeStealBoss，由碰撞层使用）。

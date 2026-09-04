@@ -13,6 +13,19 @@ export const CONFIG = {
     // Every this many levels, ALL normal enemies gain +1 HP (levels 5/9/13 → +1/+2/+3).
     enemyHpLevelInterval: 4,
 
+    // Difficulty presets. 'hard' keeps the authored tuning above untouched; 'easy'
+    // uniformly slows the enemy side — plane/boss movement, ALL enemy-bullet speeds
+    // and the spawn frequency — and lengthens firing intervals. Player-side stats
+    // are never multiplied.
+    difficulty: {
+        easy: {
+            slowMult: 0.7,          // 敌机/Boss移动速度与全部敌弹速度 ×0.7（-30%）
+            spawnRateMult: 0.5,     // 出敌机频率 ×0.5（-50%）
+            enemyFireRateMult: 0.5, // 敌机发射子弹频率 ×0.5（-50%）
+            bossShotDelayMult: 1.5, // Boss射击间隔 ×1.5（+50%）
+        },
+    },
+
     // Consistent bullet spacing: a pattern's bullet count scales up with its bullet
     // speed so the gap between adjacent bullets stays roughly constant across levels.
     patternSpacingRef: 4,    // reference speed = level-1 enemyBulletSpeed, where count is "as authored"

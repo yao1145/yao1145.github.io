@@ -62,6 +62,8 @@ export const Game = {
     damageBoostTime: 0,
     // Effect card (see js/systems/cards.js): null until picked.
     activeCard: null,
+    // Difficulty preset ('hard' = authored tuning, 'easy' = relaxed, see CONFIG.difficulty).
+    difficulty: 'hard',
     cardRegenTimer: 0,
     isCardSelectionOpen: false,
     lastUIUpdateTime: 0,

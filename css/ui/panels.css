@@ -125,6 +125,39 @@
     outline-offset: 2px;
 }
 
+/* Difficulty segmented selector on the start panel ('简单模式' / '困难模式'). */
+.difficultyRow {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.difficultyButton {
+    flex: 1;
+    background: rgba(8, 18, 28, 0.6);
+    color: #6e93a6;
+    border: 1px solid rgba(86, 227, 255, 0.28);
+    border-radius: 2px;
+    padding: 9px 0;
+    font-size: 14px;
+    font-weight: bold;
+    letter-spacing: 0.15em;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.difficultyButton:hover {
+    color: #bdf3ff;
+}
+
+.difficultyButton.selected {
+    background: linear-gradient(180deg, rgba(86, 227, 255, 0.16), rgba(86, 227, 255, 0.05));
+    color: #bdf3ff;
+    border-color: rgba(86, 227, 255, 0.55);
+    box-shadow: 0 0 12px rgba(86, 227, 255, 0.25);
+}
+
 .uiStatsBox {
     background: rgba(8, 18, 28, 0.6);
     border: 1px solid rgba(86, 227, 255, 0.28);
