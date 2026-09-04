@@ -18,6 +18,8 @@ export const Game = {
     lastScore: 0,
     totalCrowns: 0,
     lives: 3,
+    // Max-life cap (glass card caps lives at 1; Infinity = no cap).
+    maxLives: Infinity,
     baseBulletCount: 1,
     autoShieldTimer: 0,
     bulletDamage: 1,
@@ -205,6 +207,8 @@ export const Game = {
             : this.totalCrowns >= ach.doubleBulletCrowns ? 2 : 1;
         this.bulletDamage = 1;
         this.autoShieldTimer = this.totalCrowns >= ach.autoShieldCrowns ? ach.autoShieldIntervalMs : 0;
+        // 新一局不继承上一局玻璃卡的生命上限 / fresh run never inherits a stale glass cap.
+        this.maxLives = Infinity;
 
         this.level = 1;
         this.crowns = 0;
@@ -347,6 +351,8 @@ export const Game = {
         document.getElementById('cardPanel').style.display = 'none';
         this.cardIndicator.style.display = 'none';
         this.activeCard = null;
+        // 回到主菜单同样清除玻璃卡的生命上限 / drop the glass cap on the way back to the menu.
+        this.maxLives = Infinity;
         this.isCardSelectionOpen = false;
 
         // Reset the start panel to its default idle look (in case it was in pause state).

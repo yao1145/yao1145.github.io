@@ -74,10 +74,21 @@ Game.render = function() {
 
     const particlePool = this.objectPools.particles;
     for (const particle of particlePool.active) {
-        const alpha = particle.life / 10;
-        ctx.fillStyle = particle.color;
-        ctx.globalAlpha = alpha;
-        ctx.fillRect(particle.x, particle.y, 2, 2);
+        if (particle.isRing) {
+            // 扩散冲击环：以粒子中心为圆心描一个随帧扩大的淡出圆环。
+            const alpha = particle.life / 14;
+            ctx.strokeStyle = particle.color;
+            ctx.globalAlpha = alpha;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+            ctx.stroke();
+        } else {
+            const alpha = particle.life / 10;
+            ctx.fillStyle = particle.color;
+            ctx.globalAlpha = alpha;
+            ctx.fillRect(particle.x, particle.y, 2, 2);
+        }
     }
     ctx.globalAlpha = 1.0;
 };

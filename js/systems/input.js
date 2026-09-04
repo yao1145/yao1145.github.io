@@ -111,6 +111,18 @@ Game.setupEventListeners = function() {
         this.closeAchievements();
     });
 
+    document.getElementById('introButton').addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.openIntro();
+    });
+
+    document.getElementById('introBackButton').addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.closeIntro();
+    });
+
     this.enableControlArea(false);
 };
 

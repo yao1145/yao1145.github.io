@@ -21,7 +21,7 @@ Game.spawnTrackingBullet = function(enemy) {
     const distance = Math.sqrt(dx*dx + dy*dy);
 
     if (distance > 0) {
-        const speed = this.enemyBulletSpeed * 0.8;
+        const speed = this.getEnemyBulletSpeed() * 0.8;
         const vx = (dx / distance) * speed;
         const vy = (dy / distance) * speed;
 
@@ -46,7 +46,7 @@ Game.spawnTrackingBullet = function(enemy) {
 };
 
 Game.spawnRingBullet = function(enemy, count = 8, speedMulti = 0.7) {
-    const speed = this.enemyBulletSpeed * speedMulti;
+    const speed = this.getEnemyBulletSpeed() * speedMulti;
     const bulletCount = this.scaledBulletCount(count, speed);
 
     for (let i = 0; i < bulletCount; i++) {
@@ -70,7 +70,7 @@ Game.spawnRingBullet = function(enemy, count = 8, speedMulti = 0.7) {
 
 Game.spawnWaveBullet = function(enemy, offset = 0) {
     const bulletCount = 4;
-    const baseSpeed = this.enemyBulletSpeed * 0.6;
+    const baseSpeed = this.getEnemyBulletSpeed() * 0.6;
     const waveAmplitude = 2.0;
     const waveFrequency = 0.1;
 
@@ -99,7 +99,7 @@ Game.spawnWaveBullet = function(enemy, offset = 0) {
 };
 
 Game.spawnScatterBullet = function(enemy) {
-    const baseSpeed = this.enemyBulletSpeed * 0.5;
+    const baseSpeed = this.getEnemyBulletSpeed() * 0.5;
     const bulletCount = this.scaledBulletCount(7, baseSpeed);
     // Keep the fan's total angular spread constant while the bullet count grows,
     // so the gap between adjacent bullet tracks stays the same at any speed.
@@ -126,7 +126,7 @@ Game.spawnScatterBullet = function(enemy) {
 };
 
 Game.spawnExplosionBullet = function(x, y, count = 16) {
-    const speed = this.enemyBulletSpeed * 0.8;
+    const speed = this.getEnemyBulletSpeed() * 0.8;
     const bulletCount = this.scaledBulletCount(count, speed);
 
     for (let i = 0; i < bulletCount; i++) {
@@ -183,7 +183,7 @@ Game.updateEnemyBullets = function() {
         } else if (bullet.isIceBeam) {
             bullet.y += bullet.speed;
         } else {
-            bullet.y += this.enemyBulletSpeed;
+            bullet.y += this.getEnemyBulletSpeed();
         }
 
         if (bullet.y > this.height || bullet.y < -20 ||
@@ -200,9 +200,9 @@ Game.spawnEnemyBullet = function(enemy) {
         bullet.y = enemy.y + enemy.height;
         bullet.width = 4;
         bullet.height = 12;
-        bullet.speed = this.enemyBulletSpeed;
+        bullet.speed = this.getEnemyBulletSpeed();
         bullet.color = '#f0f';
         bullet.vx = 0;
-        bullet.vy = this.enemyBulletSpeed;
+        bullet.vy = this.getEnemyBulletSpeed();
     }
 };

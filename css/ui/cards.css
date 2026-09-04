@@ -3,13 +3,37 @@
    PKU-crimson "equipped" state, amber warnings. Extends .uiPanel. */
 
 /* Wider variant of the shared .uiPanel plate, laid out as a column once the
-   game JS flips the inline style to `display: flex`. */
+   game JS flips the inline style to `display: flex`. Widened from the default
+   so the ten cards can sit across several columns instead of a tall list. */
 #cardPanel {
     display: none;
     flex-direction: column;
     gap: 12px;
     width: 88%;
-    max-width: 500px;
+    max-width: 720px;
+
+    /* Ten cards can outgrow a short viewport (portrait phones, landscape
+       phones): cap the height and let the panel scroll rather than clip.
+       88vh keeps the centered plate (translate -50%) inside the screen. */
+    max-height: 88vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(86, 227, 255, 0.35) transparent;
+}
+
+/* Slim HUD-styled scrollbar (WebKit) for the card panel. */
+#cardPanel::-webkit-scrollbar {
+    width: 6px;
+}
+
+#cardPanel::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#cardPanel::-webkit-scrollbar-thumb {
+    background: rgba(86, 227, 255, 0.35);
+    border-radius: 3px;
 }
 
 /* The .uiMeta/.uiTitle have their own bottom margins for the stacked panels;
@@ -21,7 +45,11 @@
 
 .cardGrid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    /* Auto-wrap by available width: ~2 columns on narrow phones and more on
+       wider screens, so ten cards form a compact multi-row grid rather than a
+       single over-long column. The 120px floor keeps two columns usable even
+       at 320px-wide viewports. */
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     gap: 10px;
     width: 100%;
 }
@@ -34,6 +62,7 @@
     align-items: center;
     gap: 6px;
     padding: 14px 12px;
+    min-width: 0;
     background: linear-gradient(180deg, rgba(86, 227, 255, 0.09), rgba(86, 227, 255, 0.03));
     border: 1px solid rgba(86, 227, 255, 0.45);
     border-radius: 2px;
@@ -141,9 +170,16 @@
     display: none;
 }
 
-/* Narrow screens: stack the four cards in a single column. */
+/* Narrow screens: keep ~2 columns (a single column would turn ten cards into a
+   very tall list) and tighten spacing so the grid stays compact. Readability at
+   >= 320px is preserved via the 120px min track width above. */
 @media (max-width: 520px) {
     .cardGrid {
-        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .effectCard {
+        padding: 10px 8px;
+        gap: 4px;
     }
 }

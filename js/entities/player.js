@@ -65,7 +65,7 @@ Game.updateAttackUI = function(force = false) {
 };
 
 Game.spawnBullet = function() {
-    const count = this.baseBulletCount;
+    const count = this.getBulletCount();
     const color = this.isDamageBoost ? '#f90' : '#ff0';
     const gap = 6;
 
@@ -76,7 +76,7 @@ Game.spawnBullet = function() {
         bullet.y = this.player.y;
         bullet.width = 4;
         bullet.height = 12;
-        bullet.speed = 8;
+        bullet.speed = 8 * this.getBulletSpeedMult();
         bullet.color = color;
     }
 };

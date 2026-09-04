@@ -60,6 +60,21 @@ export const CONFIG = {
         comebackMaxLives: 2,      // 绝地反击: active while lives <= this
         speedMult: 2,             // 激情岁月: attack-speed multiplier (shot delays divide by it)
         switchCost: 1,            // lives lost when changing to a different card
+        bulletCountBonus: 1,      // 电光石火: extra bullets per shot
+        bulletSpeedMult: 1.5,     // 电光石火: player bullet speed multiplier
+        lifeStealEnemy: 0.12,     // 血之渴望: chance per enemy kill to gain 1 life
+        lifeStealBoss: 0.6,       // 血之渴望: chance per boss kill to gain 1 life
+        bloodlustDamageMult: 0.5, // 血之渴望: player damage multiplier (tradeoff)
+        chainRadius: 200,         // 连环爆炸: explosion radius
+        chainDamage: 0.5,         // 连环爆炸: splash damage to nearby enemies
+        chainSpawnMult: 1.3,      // 连环爆炸: enemy spawn-rate multiplier
+        glassDamageMult: 2,       // 玻璃大炮: player damage multiplier
+        glassShotSpeedMult: 1.5,  // 玻璃大炮: shot-speed multiplier (divides shot delay)
+        bossDamageMult: 3,        // Boss猎手: damage vs the Boss entity
+        mobDamageMult: 0.5,       // Boss猎手: damage vs normal enemies
+        thornsKillCount: 3,       // 荆棘护甲: enemies killed per player hit
+        thornsBossFrac: 0.1,      // 荆棘护甲: Boss loses maxHealth*this on each player hit
+        thornsBulletSpeedMult: 2, // 荆棘护甲: enemy-bullet speed multiplier
     },
 
     // Crown-threshold achievement bonuses, unlocked permanently once totalCrowns reaches these.

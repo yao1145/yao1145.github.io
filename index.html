@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="css/responsive/mobile.css">
     <link rel="stylesheet" href="css/responsive/responsive.css">
     <link rel="stylesheet" href="css/ui/achievements.css">
+    <link rel="stylesheet" href="css/ui/intro.css">
     <link rel="stylesheet" href="css/ui/cards.css">
 </head>
 <body>
@@ -41,6 +42,7 @@
                 </div>
                 <button id="startButton" class="uiButton">开始游戏</button>
                 <button id="achievementsButton" class="uiButton uiButtonSecondary">成就</button>
+                <button id="introButton" class="uiButton uiButtonSecondary">游戏介绍</button>
             </div>
 
             <div id="gameOverPanel" class="uiPanel">
@@ -77,6 +79,36 @@
                         <span class="cardDesc">无效果</span>
                         <span class="cardBadge">当前效果</span>
                     </button>
+                    <button type="button" class="effectCard" data-card="blitz">
+                        <span class="cardName">电光石火</span>
+                        <span class="cardDesc">弹数+1，子弹速度提高50%；无法回复生命</span>
+                        <span class="cardBadge">当前效果</span>
+                    </button>
+                    <button type="button" class="effectCard" data-card="bloodlust">
+                        <span class="cardName">血之渴望</span>
+                        <span class="cardDesc">击杀敌机有概率回复1点生命；子弹伤害减半</span>
+                        <span class="cardBadge">当前效果</span>
+                    </button>
+                    <button type="button" class="effectCard" data-card="chain">
+                        <span class="cardName">连环爆炸</span>
+                        <span class="cardDesc">击毁敌机触发范围爆炸；敌机生成率提升30%</span>
+                        <span class="cardBadge">当前效果</span>
+                    </button>
+                    <button type="button" class="effectCard" data-card="glass">
+                        <span class="cardName">玻璃大炮</span>
+                        <span class="cardDesc">伤害翻倍，射速提升50%；生命上限锁定为1</span>
+                        <span class="cardBadge">当前效果</span>
+                    </button>
+                    <button type="button" class="effectCard" data-card="boss">
+                        <span class="cardName">Boss猎手</span>
+                        <span class="cardDesc">对Boss伤害×3；对小兵伤害减半</span>
+                        <span class="cardBadge">当前效果</span>
+                    </button>
+                    <button type="button" class="effectCard" data-card="thorns">
+                        <span class="cardName">荆棘护甲</span>
+                        <span class="cardDesc">受伤时击杀附近3个敌机并令Boss掉血；敌弹速度翻倍</span>
+                        <span class="cardBadge">当前效果</span>
+                    </button>
                 </div>
             </div>
 
@@ -109,6 +141,69 @@
                     <div class="achievementStatus" id="achStatus-bullets3">未解锁</div>
                 </div>
                 <button id="achievementsBackButton" class="uiButton">返回</button>
+            </div>
+
+            <div id="introPanel" class="uiPanel">
+                <div class="uiMeta">PKUfighter</div>
+                <div class="uiTitle">游戏介绍</div>
+                <div class="introBody">
+                    <section class="introSection">
+                        <div class="introH">游戏目标与节奏</div>
+                        <p class="introP">驾驶战机向上开火，躲避敌机与弹幕并得分；每击倒一名 Boss 可得 1 个皇冠、3 点生命并进入下一次效果卡选择。</p>
+                        <p class="introP">你的座机正是 <b>北京大学</b> 的校徽——拦路的敌机与 Boss 也全都顶着各高校的校徽，一决高下。</p>
+                        <p class="introP"><b>PKUer can fly!</b></p>
+                        <ul class="introList">
+                            <li>每 <b>500</b> 分提升 1 级：敌机更快、弹幕更密。</li>
+                            <li>生命被击中 −1（并进入 5 秒护盾）；归零则本局结束。</li>
+                            <li>击倒 Boss 后，下次 Boss 的分数门槛会 +200（1000 → 2200 → 3600 …）。</li>
+                        </ul>
+                    </section>
+                    <section class="introSection">
+                        <div class="introH">操作方式</div>
+                        <ul class="introList">
+                            <li><b>桌面</b>：<kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> 或方向键移动，<kbd>空格</kbd> 暂停 / 继续。</li>
+                            <li><b>移动端 / 鼠标</b>：按住画面任意处并拖动即可移动战机。</li>
+                        </ul>
+                    </section>
+                    <section class="introSection">
+                        <div class="introH">敌机与 Boss（按校徽）</div>
+                        <p class="introP">敌机按类型对应 1~2 所高校，出场时随机披上其中一枚校徽；Boss 则由固定的三枚校徽镇守。</p>
+                        <ul class="introList">
+                            <li><span class="sw" style="background:#f00"></span>红 · <b>南开大学 / 武汉大学</b> —— 近身自爆并放射弹幕。</li>
+                            <li><span class="sw" style="background:#00f"></span>蓝 · <b>复旦大学 / 西安交通大学</b> —— 高速直线弹。</li>
+                            <li><span class="sw" style="background:#a0f"></span>紫 · <b>中国人民大学 / 华中科技大学</b> —— 2 点生命，直线弹。</li>
+                            <li><span class="sw" style="background:#ff0"></span>黄 · <b>中国科学技术大学 / 哈尔滨工业大学</b> —— 发射追踪弹。</li>
+                            <li><span class="sw" style="background:#0af"></span>青 · <b>中国科学院大学</b> —— 环形散射。</li>
+                            <li>Boss：<b>火焰 · 清华大学</b> / <b>冰霜 · 浙江大学</b> / <b>毒液 · 上海交通大学</b>，血量越低弹幕越凶（&gt;70% / &gt;30% / 更低）。</li>
+                        </ul>
+                    </section>
+                    <section class="introSection">
+                        <div class="introH">道具与皇冠成就</div>
+                        <ul class="introList">
+                            <li><span class="sw" style="background:#f00"></span>红色十字：+1 生命。</li>
+                            <li><span class="sw" style="background:#f90"></span>橙色光点：10 秒双倍伤害。</li>
+                            <li><span class="sw" style="background:#0af"></span>青色圆环：5 秒护盾。</li>
+                            <li>皇冠来自击倒 Boss；总皇冠永久累计，依次解锁开局加成：<b>10</b> 每 20 秒自动护盾 · <b>30</b> 开局 5 条命 · <b>50</b> 每次双发 · <b>80</b> 射速提升 · <b>100</b> 每次三发。</li>
+                        </ul>
+                    </section>
+                    <section class="introSection">
+                        <div class="introH">效果卡</div>
+                        <p class="introP">开局与每次击倒 Boss 后选 1 张效果卡；保持当前卡免费，更换扣 1 点生命（玻璃大炮进出均免费）。</p>
+                        <ul class="introList">
+                            <li>激情岁月 —— 敌我攻速翻倍。</li>
+                            <li>生存之道 —— 伤害减半，每 20 秒 +1 生命。</li>
+                            <li>绝地反击 —— 生命 1~2 时，伤害与攻速翻倍。</li>
+                            <li>平安无事 —— 无效果。</li>
+                            <li>电光石火 —— 弹数 +1、弹速 +50%，无法回复生命。</li>
+                            <li>血之渴望 —— 击杀概率回复 1 生命，但伤害减半。</li>
+                            <li>连环爆炸 —— 击毁敌机引发大范围连锁爆炸，敌机生成 +30%。</li>
+                            <li>玻璃大炮 —— 伤害 ×2、射速 +50%，生命上限锁定为 1。</li>
+                            <li>Boss猎手 —— 对 Boss 伤害 ×3、对小兵 ×0.5。</li>
+                            <li>荆棘护甲 —— 受击反杀附近敌机并削 Boss 血，敌弹速度 ×2。</li>
+                        </ul>
+                    </section>
+                </div>
+                <button id="introBackButton" class="uiButton">返回</button>
             </div>
 
             <div class="bossWarning" id="bossWarning">BOSS来袭!</div>

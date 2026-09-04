@@ -1,7 +1,7 @@
 import { Game } from '../core/game.js';
 
 Game.spawnEnemies = function() {
-    if (!this.isBossStage && Math.random() < this.enemySpawnRate) {
+    if (!this.isBossStage && Math.random() < this.getEnemySpawnRate()) {
         const type = Math.floor(Math.random() * 5);
         let color, speed, canShoot, health, width, height;
 
@@ -109,8 +109,10 @@ Game.updateEnemies = function(deltaTime) {
             if (distance < 150 && Math.random() < 0.005) {
                 this.createExplosion(enemy.x + enemy.width/2, enemy.y + enemy.height/2, '#f00', 8);
                 this.spawnExplosionBullet(enemy.x + enemy.width/2, enemy.y + enemy.height/2, 16);
-                this.score += 10;
-                this.releaseObject('enemies', enemy);
+                // 自杀式自爆也统一走 killEnemy（计分/释放/_dead/血之渴望吸血），
+                // 与子弹击杀共用同一套死亡结算，避免 type-0 计分出现两个来源。
+                enemy.health = 0;
+                this.killEnemy(enemy);
                 continue;
             }
         }

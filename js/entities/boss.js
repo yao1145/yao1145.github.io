@@ -203,7 +203,7 @@ Game.iceBossPattern1 = function(multiplier) {
     for (let i = 0; i < 2; i++) {
         setTimeout(() => {
             if (this.boss) {
-                const speed = this.enemyBulletSpeed * 0.5 * multiplier;
+                const speed = this.getEnemyBulletSpeed() * 0.5 * multiplier;
                 const bulletCount = this.scaledBulletCount(3, speed);
                 const ICE1_SPREAD = Math.PI / 6; // total fan angle = the original 3-at-π/12 spray
 
@@ -250,7 +250,7 @@ Game.iceBossPattern3 = function(multiplier) {
                     bullet.y = this.boss.y + this.boss.height;
                     bullet.width = 6;
                     bullet.height = 15;
-                    bullet.speed = this.enemyBulletSpeed * 0.7 * multiplier;
+                    bullet.speed = this.getEnemyBulletSpeed() * 0.7 * multiplier;
                     bullet.color = '#00f';
                     bullet.isIceBeam = true;
                 }
@@ -266,7 +266,7 @@ Game.iceBossPattern3 = function(multiplier) {
 };
 
 Game.poisonBossPattern1 = function(multiplier) {
-    const speed = this.enemyBulletSpeed * 0.5 * multiplier;
+    const speed = this.getEnemyBulletSpeed() * 0.5 * multiplier;
     const bulletCount = this.scaledBulletCount(12, speed);
 
     for (let i = 0; i < bulletCount; i++) {

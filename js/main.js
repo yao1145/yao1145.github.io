@@ -16,6 +16,7 @@ import './systems/badges.js';
 import './systems/input.js';
 import './systems/achievements.js';
 import './systems/cards.js';
+import './systems/intro.js';
 
 window.addEventListener('load', () => {
     Game.init();

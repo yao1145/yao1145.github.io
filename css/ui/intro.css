@@ -1,0 +1,104 @@
+/* Game-introduction panel — reuses the .uiPanel HUD plate, widened for prose. */
+
+#introPanel {
+    display: none;
+    width: min(620px, 92%);
+    max-width: 620px;
+    max-height: 84vh;
+    overflow-y: auto;
+    text-align: left;
+    padding: 22px 20px 20px;
+}
+
+#introPanel .uiTitle,
+#introPanel .uiMeta {
+    text-align: center;
+}
+
+/* Slim scrollbar inside the frosted plate. */
+#introPanel::-webkit-scrollbar {
+    width: 8px;
+}
+#introPanel::-webkit-scrollbar-thumb {
+    background: rgba(86, 227, 255, 0.3);
+}
+#introPanel::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.introSection {
+    margin: 16px 0 2px;
+}
+
+.introH {
+    color: #7ee9ff;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+}
+
+.introH::before {
+    content: '▸ ';
+    color: #e6394f;
+}
+
+.introP {
+    color: #b8d6e2;
+    font-size: 13px;
+    line-height: 1.7;
+    margin: 4px 0 6px;
+}
+
+.introList {
+    list-style: none;
+    margin: 4px 0 8px;
+    padding: 0;
+}
+
+.introList li {
+    color: #cfe3ec;
+    font-size: 13px;
+    line-height: 1.65;
+    padding: 3px 0;
+    border-bottom: 1px dashed rgba(86, 227, 255, 0.12);
+}
+
+.introList li:last-child {
+    border-bottom: none;
+}
+
+#introPanel b {
+    color: #ffd166;
+    font-weight: 700;
+}
+
+#introPanel kbd {
+    display: inline-block;
+    min-width: 18px;
+    padding: 0 5px;
+    margin: 0 2px;
+    text-align: center;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 12px;
+    color: #dff6ff;
+    background: rgba(86, 227, 255, 0.12);
+    border: 1px solid rgba(86, 227, 255, 0.4);
+    border-bottom-width: 2px;
+    border-radius: 3px;
+}
+
+/* Small colored swatch for the per-type lists (enemies / pickups). */
+.sw {
+    display: inline-block;
+    width: 11px;
+    height: 11px;
+    margin-right: 7px;
+    border-radius: 2px;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    vertical-align: middle;
+}
+
+#introButton {
+    margin-top: 10px;
+}
