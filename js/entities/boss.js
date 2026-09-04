@@ -19,7 +19,7 @@ Game.spawnBoss = function() {
         const bossLevelMultiplier = Math.min(8, 1 + this.level * 0.25);
 
         bossHealth = Math.floor(bossType.baseHealth * bossLevelMultiplier);
-        bossSpeed = bossType.baseSpeed + (this.level - 1) * 0.1;
+        bossSpeed = bossType.baseSpeed + (this.level - 1) * 0.05;
         bossShotDelay = Math.max(250, bossType.baseShotDelay - (this.level - 1) * 15);
         bossPatternChangeDelay = Math.max(1500, 3000 - (this.level - 1) * 100);
     }
@@ -130,7 +130,7 @@ Game.bossShoot = function() {
     let levelMultiplier = 1;
 
     if (this.bossAppearCount > 1) {
-        levelMultiplier = Math.min(8, 1 + (this.boss.level - 1) * 0.08);
+        levelMultiplier = Math.min(8, 1 + (this.boss.level - 1) * 0.04);
     }
 
     if (currentTime - this.boss.lastShot > this.getBossShotDelay()) {

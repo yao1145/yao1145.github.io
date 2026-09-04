@@ -18,8 +18,8 @@ export const Game = {
     lastScore: 0,
     totalCrowns: 0,
     lives: 3,
-    // Max-life cap (glass card caps lives at 1; Infinity = no cap).
-    maxLives: Infinity,
+    // Max-life cap (the glass card temporarily overrides it with 1).
+    maxLives: CONFIG.player.maxLives,
     baseBulletCount: 1,
     autoShieldTimer: 0,
     bulletDamage: 1,
@@ -210,7 +210,7 @@ export const Game = {
         this.bulletDamage = 1;
         this.autoShieldTimer = this.totalCrowns >= ach.autoShieldCrowns ? ach.autoShieldIntervalMs : 0;
         // 新一局不继承上一局玻璃卡的生命上限 / fresh run never inherits a stale glass cap.
-        this.maxLives = Infinity;
+        this.maxLives = CONFIG.player.maxLives;
 
         this.level = 1;
         this.crowns = 0;
@@ -286,10 +286,16 @@ export const Game = {
         if (newLevel > this.level) {
             this.level = newLevel;
             this.enemySpawnRate = 0.02 + (this.level - 1) * 0.005;
-            this.enemySpeed = 2 + (this.level - 1) * 0.15;
+            this.enemySpeed = 2 + (this.level - 1) * 0.075;
             this.enemyShotRate = 0.01 + (this.level - 1) * 0.0005;
-            this.enemyBulletSpeed = 4 + (this.level - 1) * 0.25;
-            this.itemSpawnRate = 0.001 + (this.level - 1) * 0.00025;
+            this.enemyBulletSpeed = 4 + (this.level - 1) * 0.125;
+            // 道具生成率走对称二次曲线：1→peakLevel 二次升到峰值，peakLevel→flatLevel
+            // 镜像降回基准，flatLevel 之后恒为基准。d 是到两端(1级/flatLevel)的较近距离，
+            // 在 peakLevel 处恰为 peakLevel-1，故峰值精确命中。
+            const curve = CONFIG.itemSpawnCurve;
+            const d = Math.min(Math.max(this.level - 1, 0), Math.max(curve.flatLevel - this.level, 0));
+            const rise = (curve.peak - CONFIG.itemSpawnRate) / Math.pow(curve.peakLevel - 1, 2);
+            this.itemSpawnRate = CONFIG.itemSpawnRate + rise * d * d;
         }
         this.updateUI();
     },
@@ -356,7 +362,7 @@ export const Game = {
         this.cardIndicator.style.display = 'none';
         this.activeCard = null;
         // 回到主菜单同样清除玻璃卡的生命上限 / drop the glass cap on the way back to the menu.
-        this.maxLives = Infinity;
+        this.maxLives = CONFIG.player.maxLives;
         this.isCardSelectionOpen = false;
 
         // Reset the start panel to its default idle look (in case it was in pause state).

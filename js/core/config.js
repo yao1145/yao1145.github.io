@@ -5,6 +5,16 @@ export const CONFIG = {
     enemyShotRate: 0.01,
     enemyBulletSpeed: 4,
     itemSpawnRate: 0.001,
+
+    // Item spawn-rate curve (symmetric quadratic, applied in updateGameState):
+    // rises quadratically from itemSpawnRate to `peak` at `peakLevel`, mirrors
+    // back down to itemSpawnRate by `flatLevel`, then stays flat forever after.
+    itemSpawnCurve: {
+        peak: 0.005,      // 峰值：第 10 级道具密度 = 5× 基准
+        peakLevel: 10,
+        flatLevel: 20,
+    },
+
     bossSpawnThreshold: 1000,
     // After each boss kill, the score GAP to the next boss grows by this much.
     // Gaps run 1000 → 1200 → 1400 ..., so bosses appear at 1000 → 2200 → 3600.
@@ -49,6 +59,8 @@ export const CONFIG = {
         speed: 7,
         shotDelay: 300,
         color: '#0f0',
+        // Player max lives; the glass card temporarily overrides this with 1.
+        maxLives: 20,
     },
 
     // Object pool capacities

@@ -140,12 +140,12 @@ Game.selectCard = function(cardId) {
     }
 
     this.activeCard = cardId;
-    // 玻璃大炮: 进入玻璃锁定 maxLives=1，离开玻璃恢复无限生命上限。
+    // 玻璃大炮: 进入玻璃锁定 maxLives=1，离开玻璃恢复默认生命上限。
     if (cardId === 'glass') {
         this.maxLives = 1;
         this.lives = 1;
     } else if (previousCard === 'glass') {
-        this.maxLives = Infinity;
+        this.maxLives = CONFIG.player.maxLives;
     }
 
     // 每种卡每局最多装备 cardMaxPicks 次；保持当前卡也被计为一次使用。
