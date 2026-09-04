@@ -47,19 +47,20 @@ Game.render = function() {
     for (const enemy of enemyPool.active) {
         this.drawEnemySprite(enemy);
 
-        if (enemy.maxHealth > 1) {
-            const healthBarWidth = 20;
-            const healthBarHeight = 3;
-            const healthBarX = enemy.x + (enemy.width - healthBarWidth) / 2;
-            const healthBarY = enemy.y - 5;
+        // Force-show the health bar for every enemy regardless of type or
+        // level. Uniform color rule: green above half health, red at half
+        // or below — so full-health (including 1-HP) enemies show green.
+        const healthBarWidth = 20;
+        const healthBarHeight = 3;
+        const healthBarX = enemy.x + (enemy.width - healthBarWidth) / 2;
+        const healthBarY = enemy.y - 5;
 
-            ctx.fillStyle = '#333';
-            ctx.fillRect(healthBarX, healthBarY, healthBarWidth, healthBarHeight);
+        ctx.fillStyle = '#333';
+        ctx.fillRect(healthBarX, healthBarY, healthBarWidth, healthBarHeight);
 
-            const healthPercent = enemy.health / enemy.maxHealth;
-            ctx.fillStyle = enemy.health > 1 ? '#0f0' : '#f00';
-            ctx.fillRect(healthBarX, healthBarY, healthBarWidth * healthPercent, healthBarHeight);
-        }
+        const healthPercent = enemy.health / enemy.maxHealth;
+        ctx.fillStyle = healthPercent > 0.5 ? '#0f0' : '#f00';
+        ctx.fillRect(healthBarX, healthBarY, healthBarWidth * healthPercent, healthBarHeight);
     }
 
     const itemPool = this.objectPools.items;
