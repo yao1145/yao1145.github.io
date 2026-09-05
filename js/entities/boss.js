@@ -187,7 +187,7 @@ Game.fireBossPattern2 = function(multiplier) {
     this.spawnWaveBullet(this.boss, this.boss.waveOffset);
     setTimeout(() => {
         if (this.boss) {
-            this.spawnRingBullet(this.boss, 4, 0.5 * multiplier);
+            this.spawnRingBullet(this.boss, 8, 0.5 * multiplier);
         }
     }, 500);
 };

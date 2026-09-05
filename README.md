@@ -43,12 +43,6 @@ python -m http.server 8000
 - **Bosses** — the first boss arrives at **1000 points**; each kill grants **+3 lives and +1 crown**, and raises the score gap to the next boss by **+200**, so bosses appear at 1000 → 2200 → 3600 … Each elemental boss (fire / ice / poison) has three attack patterns that escalate below 70% and 30% health. From the **4th boss onward**, bosses periodically summon waves of normal enemies: a 10 s quiet period after the boss appears, then repeating 30 s summon windows (with a top-right countdown chip) until the boss dies.
 - **Difficulty** — Two modes — 简单模式 Easy: enemy/boss movement and all enemy bullets ×0.7, spawn and enemy fire rates ×0.5, boss shot delay ×1.5; 困难模式 Hard: the reference balance.
 - **Effect cards** — when the run starts you pick 1 of 4 cards; after **every boss kill** you pick again. Keeping the current card is free, **switching to a different one costs 1 life** (the panel warns you). The active card is shown in the top-right HUD chip.
-  | Card              | Effect                                                     |
-  | ----------------- | ---------------------------------------------------------- |
-  | 激情岁月 Passion  | Enemy**and** player attack speed doubled             |
-  | 生存之道 Survival | Your damage halved; +1 life every 20 s                     |
-  | 绝地反击 Comeback | While you have 1–2 lives: damage and attack speed doubled |
-  | 平安无事 Peace    | No effect                                                  |
 - **Power-ups** — falling pickups: **+1 life** (capped at 20), **double damage for 10 s**, or a **5 s shield**.
 - **Crowns** — every boss kill earns a crown; crown totals unlock the permanent achievements below and are never spent.
 
