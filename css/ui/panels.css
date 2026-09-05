@@ -116,6 +116,15 @@
     box-shadow: 0 0 18px rgba(86, 227, 255, 0.35);
 }
 
+/* Disabled (readiness gate on the start button) — dimmed, no hover glow. */
+.uiButton:disabled {
+    background: rgba(8, 18, 28, 0.5);
+    color: #5b7f92;
+    border-color: rgba(86, 227, 255, 0.2);
+    cursor: default;
+    box-shadow: none;
+}
+
 .uiButton:active {
     transform: translateY(1px);
 }
@@ -125,7 +134,7 @@
     outline-offset: 2px;
 }
 
-/* Difficulty segmented selector on the start panel ('简单模式' / '困难模式'). */
+/* Difficulty segmented selector on the start panel (easy / hard buttons). */
 .difficultyRow {
     display: flex;
     gap: 8px;

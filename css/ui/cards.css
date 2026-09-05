@@ -61,7 +61,7 @@
     justify-content: center;
     align-items: center;
     gap: 6px;
-    /* Extra top padding reserves the corner strip for the "当前效果" badge so
+    /* Extra top padding reserves the corner strip for the "equipped" badge so
        the vertically-centered title never slides under it on short cards. */
     padding: 22px 12px 12px;
     min-width: 0;

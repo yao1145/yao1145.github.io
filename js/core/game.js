@@ -199,6 +199,8 @@ export const Game = {
     },
 
     startGame: function() {
+        // Ready gate: no start until all badges are loaded (badgeLoad, maintained by badges.js).
+        if (!this.badgeLoad || this.badgeLoad.status !== 'ready') return;
         this.isRunning = true;
         this.isGameOver = false;
         this.isMenu = false;
@@ -212,7 +214,7 @@ export const Game = {
             : this.totalCrowns >= ach.doubleBulletCrowns ? 2 : 1;
         this.bulletDamage = 1;
         this.autoShieldTimer = this.totalCrowns >= ach.autoShieldCrowns ? ach.autoShieldIntervalMs : 0;
-        // 新一局不继承上一局玻璃卡的生命上限 / fresh run never inherits a stale glass cap.
+        // Fresh run never inherits a stale glass-card life cap.
         this.maxLives = CONFIG.player.maxLives;
 
         this.level = 1;
@@ -232,7 +234,7 @@ export const Game = {
         this.damageBoostTime = 0;
         this.activeCard = null;
         this.cardRegenTimer = 0;
-        // 新一局清空每张效果卡的已选次数 / fresh run resets per-card pick counts.
+        // Fresh run resets per-card pick counts.
         this.cardPickCount = {};
         this.cardIndicator.style.display = 'none';
 
@@ -293,9 +295,8 @@ export const Game = {
             this.enemySpeed = 2 + (this.level - 1) * 0.075;
             this.enemyShotRate = 0.01 + (this.level - 1) * 0.0005;
             this.enemyBulletSpeed = 4 + (this.level - 1) * 0.125;
-            // 道具生成率走对称二次曲线：1→peakLevel 二次升到峰值，peakLevel→flatLevel
-            // 镜像降回基准，flatLevel 之后恒为基准。d 是到两端(1级/flatLevel)的较近距离，
-            // 在 peakLevel 处恰为 peakLevel-1，故峰值精确命中。
+            // Symmetric quadratic item-spawn curve. d = distance to the nearer
+            // endpoint (level 1 / flatLevel), so d = peakLevel-1 at the peak — exact hit.
             const curve = CONFIG.itemSpawnCurve;
             const d = Math.min(Math.max(this.level - 1, 0), Math.max(curve.flatLevel - this.level, 0));
             const rise = (curve.peak - CONFIG.itemSpawnRate) / Math.pow(curve.peakLevel - 1, 2);
@@ -365,7 +366,7 @@ export const Game = {
         document.getElementById('cardPanel').style.display = 'none';
         this.cardIndicator.style.display = 'none';
         this.activeCard = null;
-        // 回到主菜单同样清除玻璃卡的生命上限 / drop the glass cap on the way back to the menu.
+        // Drop the glass-card life cap when returning to the menu.
         this.maxLives = CONFIG.player.maxLives;
         this.isCardSelectionOpen = false;
 

@@ -1,15 +1,17 @@
 import { Game } from '../core/game.js';
 
-// School-badge (校徽) skin. The SVGs in /校徽 are loaded as images and kept as
-// raw vectors; every consumer rasterizes them at its FINAL on-screen size via
-// Game.drawBadge, so a seal drawn at 30px is rendered from vectors at 30px
-// instead of being downscaled from a shared bitmap (which turned the fine
-// linework muddy). University seals are inked in dark school colours on
+// School-badge skin. The SVGs in the badge folder (BADGE_DIR) are loaded as
+// images and kept as raw vectors; every consumer rasterizes them at its FINAL
+// on-screen size via Game.drawBadge, so a seal drawn at 30px is rendered from
+// vectors at 30px instead of being downscaled from a shared bitmap (which
+// turned the fine linework muddy). Seals are inked in dark school colours on
 // transparent ground, which would vanish against the black starfield, hence
 // the white backing disc drawn under each logo.
 //
-// Every consumer falls back to the original procedural drawing until (or unless)
-// its badge finishes loading, so a missing /校徽 folder degrades gracefully.
+// Loading is a hard readiness gate on the main menu: the start button stays
+// disabled until every badge settles (Game.badgeLoad), a failed badge offers
+// a retry instead of a procedural fallback, and only after the whole set is
+// in does Game.prebakeSprites() bake the sprites once, up front.
 
 const BADGE_DIR = '校徽';
 const DISC_INSET = 0.035;  // backing-disc padding, as a fraction of badge size
@@ -26,7 +28,8 @@ const BOSS_BADGES = [
 
 // The remaining nine badges, split across the five enemy types. Each enemy
 // rolls a random variant from its type's list on spawn, so all nine appear.
-const ENEMY_BADGES = [
+// Public (Game.ENEMY_BADGES) so other modules can enumerate the enemy seals.
+Game.ENEMY_BADGES = [
     ['南开大学-logo.svg', '武汉大学-logo.svg'],                // kamikaze
     ['复旦大学-logo.svg', '西安交通大学-logo.svg'],            // fast shooter
     ['中国人民大学-logo.svg', '华中科技大学-logo.svg'],        // tank
@@ -37,10 +40,15 @@ const ENEMY_BADGES = [
 // Rasterize the badge `key` centered at (cx, cy) at `size` logical px into any
 // 2D context: white backing disc, thin edge ring, logo contain-fitted inside.
 // Vector source means the result is crisp at every size. Returns false when
-// the image hasn't loaded, so the caller can fall back to procedural drawing.
+// the image hasn't loaded; callers then skip drawing that entity (loading is
+// gated upstream by Game.badgeLoad, so this is a defensive path only).
 Game.drawBadge = function(ctx, key, cx, cy, size) {
     const img = Game.badgeImages[key];
-    if (!img) return false;
+    if (!img) {
+        // Unreachable past the readiness gate; diagnostics only.
+        console.warn('校徽未加载:', key);
+        return false;
+    }
 
     const discR = size / 2 * (1 - DISC_INSET);
     ctx.fillStyle = '#fff';
@@ -67,18 +75,123 @@ Game.drawBadge = function(ctx, key, cx, cy, size) {
 Game.badgeImages = {};
 Game.bossBadgeSprites = {};
 
+// Load state machine doubling as the main-menu readiness gate.
+// status: 'loading' | 'ready' | 'error'; total = file count, failed collects
+// the names of files that failed to load, for retry.
+Game.badgeLoad = { status: 'loading', loaded: 0, total: 0, failed: [] };
+
+// Load one badge file; success or not, it settles into the state machine and
+// refreshes the load UI.
+Game.loadBadgeFile = function(file) {
+    const img = new Image();
+    img.onload = () => {
+        Game.badgeImages[file] = img;
+        // Re-bake lazily: anything already stamped procedurally picks the
+        // badge up on the next frame.
+        Game.spriteCache.player = null;
+        Game.spriteCache.enemies = {};
+        Game.badgeLoad.loaded++;
+        Game.onBadgeSettled();
+    };
+    img.onerror = () => {
+        Game.badgeLoad.failed.push(file);
+        Game.onBadgeSettled();
+    };
+    img.src = encodeURI(`${BADGE_DIR}/${file}`);
+};
+
+// Per-settle step: refresh UI until every file has settled, then finalize by
+// outcome — on success call the sprites.js prebake contract (no args/return)
+// before opening the readiness gate.
+Game.onBadgeSettled = function() {
+    const load = Game.badgeLoad;
+    Game.updateLoadUI();
+    if (load.loaded + load.failed.length < load.total) return;
+
+    if (load.failed.length > 0) {
+        load.status = 'error';
+    } else {
+        Game.prebakeSprites();
+        load.status = 'ready';
+    }
+    Game.updateLoadUI();
+};
+
 Game.loadBadges = function() {
-    const files = [PLAYER_BADGE, ...BOSS_BADGES, ...ENEMY_BADGES.flat()];
-    for (const file of files) {
-        const img = new Image();
-        img.onload = () => {
-            Game.badgeImages[file] = img;
-            // Re-bake lazily: anything already stamped procedurally picks the
-            // badge up on the next frame.
-            Game.spriteCache.player = null;
-            Game.spriteCache.enemies = {};
-        };
-        img.src = encodeURI(`${BADGE_DIR}/${file}`);
+    const files = [PLAYER_BADGE, ...BOSS_BADGES, ...Game.ENEMY_BADGES.flat()];
+    const load = Game.badgeLoad;
+    load.total = files.length;
+    load.loaded = 0;
+    load.failed = [];
+    load.status = 'loading';
+
+    // Wire the retry click here (precedent: cards.js wires its own cardPanel
+    // delegated click); bound only once.
+    const retryButton = document.getElementById('retryLoadButton');
+    if (retryButton && !retryButton.dataset.badgeRetryBound) {
+        retryButton.dataset.badgeRetryBound = '1';
+        retryButton.addEventListener('click', () => this.retryBadges());
+    }
+
+    for (const file of files) Game.loadBadgeFile(file);
+};
+
+// Retry failed loads: return early while loading (guards double clicks);
+// otherwise reset the counters and re-issue loads for only the failed files
+// (same URLs, no cache-buster), through the identical settle chain.
+Game.retryBadges = function() {
+    const load = Game.badgeLoad;
+    if (load.status === 'loading') return;
+
+    const retryFiles = load.failed.slice();
+    load.total = retryFiles.length;
+    load.loaded = 0;
+    load.failed = [];
+    load.status = 'loading';
+
+    Game.updateLoadUI();
+    for (const file of retryFiles) Game.loadBadgeFile(file);
+};
+
+// Start-panel loading UI: visibility and labels of the status line
+// (#loadStatus), retry button (#retryLoadButton) and start button
+// (#startButton), refreshed on every badgeLoad advance.
+Game.updateLoadUI = function() {
+    const load = Game.badgeLoad;
+    const statusEl = document.getElementById('loadStatus');
+    const retryButton = document.getElementById('retryLoadButton');
+    const startButton = document.getElementById('startButton');
+
+    if (statusEl) {
+        if (load.status === 'ready') {
+            statusEl.style.display = 'none';
+        } else if (load.status === 'error') {
+            statusEl.style.display = '';
+            statusEl.textContent = `资源加载失败（${load.failed.length} 张校徽未就绪）`;
+        } else {
+            statusEl.style.display = '';
+            statusEl.textContent = `资源加载中 ${load.loaded}/${load.total}…`;
+        }
+    }
+
+    // Retry entry offered only in the error state.
+    if (retryButton) {
+        retryButton.style.display = load.status === 'error' ? '' : 'none';
+    }
+
+    // Loading only happens on the pre-game main menu; this is never called
+    // after ready, so no pause-flow (resume) states are handled here.
+    if (startButton) {
+        if (load.status === 'ready') {
+            startButton.disabled = false;
+            startButton.textContent = '开始游戏';
+        } else if (load.status === 'error') {
+            startButton.disabled = true;
+            startButton.textContent = '资源未就绪';
+        } else {
+            startButton.disabled = true;
+            startButton.textContent = '加载中…';
+        }
     }
 };
 
@@ -116,11 +229,11 @@ Game.getMenuEmblemCanvas = function() {
 };
 Game.getBossBadgeKey = type => BOSS_BADGES[type];
 Game.getEnemyBadgeKey = (type, variant) => {
-    const list = ENEMY_BADGES[type] || [];
+    const list = Game.ENEMY_BADGES[type] || [];
     return list[variant % list.length] || null;
 };
 
 Game.rollEnemyVariant = function(type) {
-    const list = ENEMY_BADGES[type] || [];
+    const list = Game.ENEMY_BADGES[type] || [];
     return Math.floor(Math.random() * list.length);
 };

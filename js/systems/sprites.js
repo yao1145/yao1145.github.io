@@ -6,10 +6,13 @@ import { CONFIG } from '../core/config.js';
 // drawImage each frame. This avoids re-running the path fills (arcs, bezier
 // curves, triangles) that make up their shapes during the hot render loop.
 //
-// Sprites are baked lazily on first use (in buildSprites-methods below) so only
-// the variants actually seen on screen pay the one-time cost. The animated
-// bosses are intentionally NOT pre-rendered — they rotate / pulse / drift, and
-// there is only ever one of them.
+// Sprites can only bake once their badge SVGs have loaded, so
+// Game.prebakeSprites() warms the whole cache in one pass the moment every
+// image is ready; the getters below stay lazy so anything missed still bakes
+// on first use, and a getter whose badge image is missing returns null (the
+// blit helpers then simply skip that entity). The animated bosses are
+// intentionally NOT pre-rendered — they rotate / pulse / drift, and there is
+// only ever one of them.
 //
 // Every bake goes through makeSpriteCanvas, which scales the canvas backing
 // store by Game.dpr and pre-scales its context, so bake code draws in logical
@@ -21,15 +24,6 @@ Game.spriteCache = {
     bullets: {},
     items: {},
     player: null,
-};
-
-// Map enemy type -> render.js draw method used to bake its sprite.
-const ENEMY_DRAW = {
-    0: 'drawDiamondEnemy',
-    1: 'drawTriangleEnemy',
-    2: 'drawHexagonEnemy',
-    3: 'drawPlaneEnemy',
-    4: 'drawCircleEnemy',
 };
 
 // Create an offscreen canvas at `width` x `height` LOGICAL pixels, backed at
@@ -44,18 +38,6 @@ Game.makeSpriteCanvas = function(width, height) {
     ctx.scale(dpr, dpr);
     return { canvas, ctx };
 };
-
-// Render one of Game's draw* methods into an offscreen canvas at (0, 0).
-// The draw methods read `this.ctx`, so we swap it for the sprite context for
-// the duration of the bake, then restore.
-function bakeFromMethod(method, width, height, color) {
-    const { canvas, ctx } = Game.makeSpriteCanvas(width, height);
-    const realCtx = Game.ctx;
-    Game.ctx = ctx;
-    Game[method](0, 0, width, height, color);
-    Game.ctx = realCtx;
-    return canvas;
-}
 
 // Bake a plain solid rectangle (used for every bullet variant).
 function bakeRect(width, height, color) {
@@ -78,9 +60,8 @@ Game.getEnemySprite = function(enemy) {
     let sprite = this.spriteCache.enemies[key];
     if (!sprite) {
         const badgeKey = this.getEnemyBadgeKey(enemy.type, variant);
-        sprite = badgeKey
-            ? bakeBadgeSprite(badgeKey, enemy.width, enemy.height)
-            : bakeFromMethod(ENEMY_DRAW[enemy.type], enemy.width, enemy.height, enemy.color);
+        if (!badgeKey) return null; // badge not loaded: don't bake or cache; renderer skips
+        sprite = bakeBadgeSprite(badgeKey, enemy.width, enemy.height);
         this.spriteCache.enemies[key] = sprite;
     }
     return sprite;
@@ -113,25 +94,10 @@ Game.getItemSprite = function(type, width, height, color) {
 
 Game.getPlayerSprite = function() {
     if (!this.spriteCache.player) {
-        const w = this.player.width;
-        const shipH = this.player.height;
         const badgeKey = this.getPlayerBadgeKey();
-        if (Game.badgeImages[badgeKey]) {
-            // The school seal flies as-is; no hull or engine pods to bake around.
-            this.spriteCache.player = bakeBadgeSprite(badgeKey, w, shipH);
-        } else {
-            // The hull is player.height tall, but the engine pods and exhaust flames
-            // render BELOW the hull. The sprite canvas must be tall enough to hold
-            // them, or they get clipped off the bottom edge. Bake with the ship's
-            // true hull height so proportions stay correct, on a taller canvas.
-            const ENGINE_EXTRA = 12; // engine pods (6) + exhaust flames (7) below the hull
-            const { canvas: baked, ctx } = Game.makeSpriteCanvas(w, shipH + ENGINE_EXTRA);
-            const realCtx = Game.ctx;
-            Game.ctx = ctx;
-            Game.drawTrianglePlayer(0, 0, w, shipH, this.player.color);
-            Game.ctx = realCtx;
-            this.spriteCache.player = baked;
-        }
+        if (!Game.badgeImages[badgeKey]) return null; // badge not loaded: renderer skips
+        // The school seal flies as-is; no hull or engine pods to bake around.
+        this.spriteCache.player = bakeBadgeSprite(badgeKey, this.player.width, this.player.height);
     }
     return this.spriteCache.player;
 };
@@ -140,7 +106,9 @@ Game.getPlayerSprite = function() {
 // at the entity's current position; the logical destination size keeps the
 // device-resolution backing store scaled correctly on high-DPI displays.
 Game.drawEnemySprite = function(enemy) {
-    this.ctx.drawImage(this.getEnemySprite(enemy), enemy.x, enemy.y, enemy.width, enemy.height);
+    const sprite = this.getEnemySprite(enemy);
+    if (!sprite) return; // unreachable after prebake; pure defense
+    this.ctx.drawImage(sprite, enemy.x, enemy.y, enemy.width, enemy.height);
 };
 
 Game.drawBulletSprite = function(bullet) {
@@ -170,5 +138,40 @@ Game.drawItemSprite = function(item) {
 };
 
 Game.drawPlayerSprite = function() {
-    this.ctx.drawImage(this.getPlayerSprite(), this.player.x, this.player.y, this.player.width, this.player.height);
+    const sprite = this.getPlayerSprite();
+    if (!sprite) return; // unreachable after prebake; pure defense
+    this.ctx.drawImage(sprite, this.player.x, this.player.y, this.player.width, this.player.height);
+};
+
+// One-shot prebake: badges.js calls this once every badge image is ready,
+// filling the cache up front (player, all enemy variants, all bullet specs,
+// items, boss badges) so gameplay never pays a first-use bake cost. Everything
+// routes through the bake getters above; nothing is drawn here directly.
+Game.prebakeSprites = function() {
+    this.getPlayerSprite();
+    for (let type = 0; type < CONFIG.enemyTypes.length; type++) {
+        const t = CONFIG.enemyTypes[type];
+        const variants = (Game.ENEMY_BADGES[type] || []).length;
+        for (let v = 0; v < variants; v++) {
+            this.getEnemySprite({ type: type, variant: v, width: t.width, height: t.height, color: t.color });
+        }
+    }
+    // (w, h, color) specs match every bullet combination used in enemyBullets.js/boss.js/player.js
+    const bulletSpecs = [
+        [4, 12, '#ff0'], [4, 12, '#f90'],  // player normal / boosted
+        [4, 12, '#f0f'],                   // enemy straight bullet
+        [6, 6, '#ff0'],                    // tracking bullet
+        [5, 5, '#0af'], [6, 6, '#0af'],    // ring bullet / ice fan
+        [6, 6, '#f0f'],                    // wave bullet
+        [5, 5, '#f90'],                    // scatter bullet
+        [6, 6, '#f00'],                    // explosion bullet
+        [6, 15, '#00f'],                   // ice pillar bullet
+        [5, 5, '#a0f'],                    // poison ring bullet
+    ];
+    for (const [w, h, c] of bulletSpecs) this.getBulletSprite(w, h, c);
+    this.getItemSprite(0, 20, 20, '#f00');
+    this.getItemSprite(1, 20, 20, '#f90');
+    this.getItemSprite(2, 20, 20, '#0af');
+    for (let type = 0; type < CONFIG.bossTypes.length; type++) this.getBossBadgeSprite(type, 100);
+    this.getMenuEmblemCanvas();
 };

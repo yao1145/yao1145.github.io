@@ -179,7 +179,7 @@ Game.bossShoot = function() {
 
 Game.fireBossPattern1 = function(multiplier) {
     // spawnRingBullet scales the count with bullet speed, so pass a fixed base.
-    this.spawnRingBullet(this.boss, 8, 0.6 * multiplier);
+    this.spawnRingBullet(this.boss, 8, 0.5 * multiplier);
 };
 
 Game.fireBossPattern2 = function(multiplier) {
@@ -187,7 +187,7 @@ Game.fireBossPattern2 = function(multiplier) {
     this.spawnWaveBullet(this.boss, this.boss.waveOffset);
     setTimeout(() => {
         if (this.boss) {
-            this.spawnRingBullet(this.boss, 4, 0.8 * multiplier);
+            this.spawnRingBullet(this.boss, 4, 0.5 * multiplier);
         }
     }, 500);
 };
@@ -324,8 +324,9 @@ Game.poisonBossPattern3 = function(multiplier) {
     }, 400);
 };
 
-// Boss 召唤：第 minBossAppearCount 个 Boss 起，Boss 战期间周期性开窗召唤
-// 普通敌机。时间线由 gameTime（固定步长）驱动，暂停/选卡时自然冻结。
+// Boss summon: from the minBossAppearCount-th boss on, periodically open windows
+// to spawn normal enemies during boss fights. Driven by gameTime (fixed step),
+// so it freezes naturally while paused or picking a card.
 Game.updateBossSummon = function() {
     if (!this.boss || this.bossAppearCount < CONFIG.bossSummon.minBossAppearCount) return;
     const cfg = CONFIG.bossSummon;
@@ -352,7 +353,8 @@ Game.updateBossSummon = function() {
     if (open) {
         const remaining = cfg.windowMs - (inCycle % cycle);
         this.summonIndicator.textContent = `召唤: ${(remaining / 1000).toFixed(0)}s`;
-        // 召唤率：实际生成率的 30%（吃简单模式/效果卡全部倍率链）。
+        // Summon rate: rateFrac of the normal spawn rate (easy-mode and card
+        // multipliers all apply).
         if (Math.random() < this.getEnemySpawnRate() * cfg.rateFrac) {
             this.spawnEnemyUnit(Math.floor((this.level - 1) / CONFIG.enemyHpLevelInterval));
         }

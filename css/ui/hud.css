@@ -39,7 +39,7 @@
 
 .summonIndicator {
     position: absolute;
-    top: 100px;   /* 右上角第四个筹码：盾(10px)/攻(40px)/效果卡(70px)之下 */
+    top: 100px;   /* Fourth chip in the top-right stack: below shield (10px) / attack (40px) / card (70px) */
     right: 10px;
     background: rgba(0, 0, 0, 0.7);
     padding: 4px 8px;

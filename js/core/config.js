@@ -10,21 +10,21 @@ export const CONFIG = {
     // rises quadratically from itemSpawnRate to `peak` at `peakLevel`, mirrors
     // back down to itemSpawnRate by `flatLevel`, then stays flat forever after.
     itemSpawnCurve: {
-        peak: 0.005,      // 峰值：第 10 级道具密度 = 5× 基准
+        peak: 0.005,      // peak: level-10 item density = 5x base
         peakLevel: 10,
         flatLevel: 20,
     },
 
-    // Boss summoning (第 4 个 Boss 起): during a boss fight the boss periodically
+    // Boss summoning (from the 4th boss on): during a boss fight the boss periodically
     // opens a summon window and spawns normal enemies at a fraction of the current
     // effective spawn rate. Timeline per fight: a grace period with no window,
     // then repeating window/rest cycles until the boss dies.
     bossSummon: {
-        minBossAppearCount: 4,  // 第几个 Boss 起开始召唤
-        graceMs: 10000,         // Boss 出场后的无召唤宽限期
-        windowMs: 30000,        // 每次召唤窗口时长
-        restMs: 30000,          // 窗口之间的休息时长
-        rateFrac: 0.3,          // 召唤率 = 当前等级实际 spawnRate 的比例
+        minBossAppearCount: 4,  // first boss that can summon
+        graceMs: 10000,         // no-summon grace period after the boss spawns
+        windowMs: 30000,        // summon window duration
+        restMs: 30000,          // rest between windows
+        rateFrac: 0.3,          // summon rate as a fraction of the current effective spawn rate
     },
 
     bossSpawnThreshold: 1000,
@@ -41,10 +41,10 @@ export const CONFIG = {
     // are never multiplied.
     difficulty: {
         easy: {
-            slowMult: 0.7,          // 敌机/Boss移动速度与全部敌弹速度 ×0.7（-30%）
-            spawnRateMult: 0.5,     // 出敌机频率 ×0.5（-50%）
-            enemyFireRateMult: 0.5, // 敌机发射子弹频率 ×0.5（-50%）
-            bossShotDelayMult: 1.5, // Boss射击间隔 ×1.5（+50%）
+            slowMult: 0.7,          // enemy/boss movement and all enemy-bullet speeds x0.7
+            spawnRateMult: 0.5,     // enemy spawn rate x0.5
+            enemyFireRateMult: 0.5, // enemy fire rate x0.5
+            bossShotDelayMult: 1.5, // boss shot delay x1.5
         },
     },
 
@@ -84,6 +84,16 @@ export const CONFIG = {
         items: 20,
     },
 
+    // Fixed params for the 5 normal enemy types (index = enemy type 0-4).
+    // Shared by spawning, hit-flash tinting (collisions.js) and sprite pre-baking (sprites.js).
+    enemyTypes: [
+        { color: '#f00', speedFactor: 1,   canShoot: false, health: 1, width: 30, height: 30 }, // 0 kamikaze
+        { color: '#00f', speedFactor: 1.5, canShoot: true,  health: 1, width: 30, height: 30 }, // 1 fast shooter
+        { color: '#a0f', speedFactor: 0.7, canShoot: true,  health: 2, width: 35, height: 35 }, // 2 heavy tank
+        { color: '#ff0', speedFactor: 0.9, canShoot: true,  health: 1, width: 28, height: 28 }, // 3 tracker
+        { color: '#0af', speedFactor: 0.8, canShoot: true,  health: 2, width: 32, height: 32 }, // 4 ring shooter
+    ],
+
     // Boss archetypes (base stats; scaled up on repeat appearances)
     bossTypes: [
         { name: '火焰BOSS', color: '#f00', baseHealth: 100, baseSpeed: 1, baseShotDelay: 500 },
@@ -94,32 +104,32 @@ export const CONFIG = {
     // Effect-card system (one card picked at game start and re-picked after
     // each boss; switching cards mid-run costs switchCost lives).
     cards: {
-        regenIntervalMs: 20000,   // 生存之道: +1 life per interval of game time
-        damageMult: 0.5,          // 生存之道: player damage multiplier
-        comebackMult: 2,          // 绝地反击: damage/attack-speed multiplier
-        comebackMaxLives: 2,      // 绝地反击: active while lives <= this
-        speedMult: 2,             // 激情岁月: attack-speed multiplier (shot delays divide by it)
+        regenIntervalMs: 20000,   // survival: +1 life per interval of game time
+        damageMult: 0.5,          // survival: player damage multiplier
+        comebackMult: 2,          // comeback: damage/attack-speed multiplier
+        comebackMaxLives: 2,      // comeback: active while lives <= this
+        speedMult: 2,             // passion: attack-speed multiplier (shot delays divide by it)
         switchCost: 1,            // lives lost when changing to a different card
-        bulletCountBonus: 1,      // 电光石火: extra bullets per shot
-        bulletSpeedMult: 1.5,     // 电光石火: player bullet speed multiplier
-        lifeStealEnemy: 0.12,     // 血之渴望: chance per enemy kill to gain 1 life
-        lifeStealBoss: 0.6,       // 血之渴望: chance per boss kill to gain 1 life
-        bloodlustDamageMult: 0.5, // 血之渴望: player damage multiplier (tradeoff)
-        chainRadius: 200,         // 连环爆炸: explosion radius
-        chainDamage: 0.5,         // 连环爆炸: splash damage to nearby enemies
-        chainSpawnMult: 1.3,      // 连环爆炸: enemy spawn-rate multiplier
-        glassDamageMult: 2,       // 玻璃大炮: player damage multiplier
-        glassShotSpeedMult: 1.5,  // 玻璃大炮: shot-speed multiplier (divides shot delay)
-        bossDamageMult: 3,        // Boss猎手: damage vs the Boss entity
-        mobDamageMult: 0.5,       // Boss猎手: damage vs normal enemies
-        thornsRadius: 200,        // 荆棘护甲: all enemies within this radius of the player die per hit
-        thornsBossFrac: 0.1,      // 荆棘护甲: Boss loses maxHealth*this on each player hit
-        thornsBulletSpeedMult: 2, // 荆棘护甲: enemy-bullet speed multiplier
-        // 粮草先行
+        bulletCountBonus: 1,      // blitz: extra bullets per shot
+        bulletSpeedMult: 1.5,     // blitz: player bullet speed multiplier
+        lifeStealEnemy: 0.12,     // bloodlust: chance per enemy kill to gain 1 life
+        lifeStealBoss: 0.6,       // bloodlust: chance per boss kill to gain 1 life
+        bloodlustDamageMult: 0.5, // bloodlust: player damage multiplier (tradeoff)
+        chainRadius: 200,         // chain: explosion radius
+        chainDamage: 0.5,         // chain: splash damage to nearby enemies
+        chainSpawnMult: 1.3,      // chain: enemy spawn-rate multiplier
+        glassDamageMult: 2,       // glass: player damage multiplier
+        glassShotSpeedMult: 1.5,  // glass: shot-speed multiplier (divides shot delay)
+        bossDamageMult: 3,        // boss card: damage vs the Boss entity
+        mobDamageMult: 0.5,       // boss card: damage vs normal enemies
+        thornsRadius: 200,        // thorns: all enemies within this radius of the player die per hit
+        thornsBossFrac: 0.1,      // thorns: Boss loses maxHealth*this on each player hit
+        thornsBulletSpeedMult: 2, // thorns: enemy-bullet speed multiplier
+        // supply card
         supplyItemMult: 1.5,          // item spawn-rate multiplier
         supplyEnemyShotMult: 1.5,     // enemy shot-rate multiplier
-        // 战争迷雾 (fog): tuning is inline in render/enemyBullets; no numeric mult needed here.
-        // 增益加强
+        // fog card: tuning is inline in render/enemyBullets; no numeric mult needed here.
+        // boost card
         boostHeartHeal: 2,            // red heart grants this many lives instead of 1
         boostDamageTime: 15,          // damage-boost item duration (was 10)
         boostShieldTime: 10,          // shield-ring item shield seconds (was 5)

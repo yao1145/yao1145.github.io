@@ -8,67 +8,24 @@ Game.spawnEnemies = function() {
     }
 };
 
-// 单个敌机的类型 switch + 字段初始化，供正常出怪（spawnEnemies）与
-// Boss 召唤（updateBossSummon）共用：相同的类型表与血量加成。
+// Shared enemy field init (type rolled from CONFIG.enemyTypes) used by both
+// normal spawning and boss summoning, with the same hpBonus.
 Game.spawnEnemyUnit = function(hpBonus) {
-    const type = Math.floor(Math.random() * 5);
-    let color, speed, canShoot, health, width, height;
-
-    switch (type) {
-        case 0:
-            color = '#f00';
-            speed = this.enemySpeed;
-            canShoot = false;
-            health = 1;
-            width = 30;
-            height = 30;
-            break;
-        case 1:
-            color = '#00f';
-            speed = this.enemySpeed * 1.5;
-            canShoot = true;
-            health = 1;
-            width = 30;
-            height = 30;
-            break;
-        case 2:
-            color = '#a0f';
-            speed = this.enemySpeed * 0.7;
-            canShoot = true;
-            health = 2;
-            width = 35;
-            height = 35;
-            break;
-        case 3:
-            color = '#ff0';
-            speed = this.enemySpeed * 0.9;
-            canShoot = true;
-            health = 1;
-            width = 28;
-            height = 28;
-            break;
-        case 4:
-            color = '#0af';
-            speed = this.enemySpeed * 0.8;
-            canShoot = true;
-            health = 2;
-            width = 32;
-            height = 32;
-            break;
-    }
+    const type = Math.floor(Math.random() * CONFIG.enemyTypes.length);
+    const t = CONFIG.enemyTypes[type];
 
     const enemy = this.getObject('enemies');
     if (enemy) {
-        enemy.x = Math.random() * (this.width - width);
-        enemy.y = -height;
-        enemy.width = width;
-        enemy.height = height;
-        enemy.speed = speed;
-        enemy.color = color;
+        enemy.x = Math.random() * (this.width - t.width);
+        enemy.y = -t.height;
+        enemy.width = t.width;
+        enemy.height = t.height;
+        enemy.speed = this.enemySpeed * t.speedFactor;
+        enemy.color = t.color;
         enemy.type = type;
-        enemy.canShoot = canShoot;
-        enemy.health = health + hpBonus;
-        enemy.maxHealth = health + hpBonus;
+        enemy.canShoot = t.canShoot;
+        enemy.health = t.health + hpBonus;
+        enemy.maxHealth = t.health + hpBonus;
         enemy.lastShot = 0;
         enemy.shotDelay = 1000 + Math.random() * 1000;
         enemy.variant = this.rollEnemyVariant(type);
@@ -118,8 +75,8 @@ Game.updateEnemies = function(deltaTime) {
             if (distance < 150 && Math.random() < 0.005) {
                 this.createExplosion(enemy.x + enemy.width/2, enemy.y + enemy.height/2, '#f00', 8);
                 this.spawnExplosionBullet(enemy.x + enemy.width/2, enemy.y + enemy.height/2, 16);
-                // 自杀式自爆也统一走 killEnemy（计分/释放/_dead/血之渴望吸血），
-                // 与子弹击杀共用同一套死亡结算，避免 type-0 计分出现两个来源。
+                // Kamikaze self-destruct also settles through killEnemy so
+                // type-0 scoring has a single path.
                 enemy.health = 0;
                 this.killEnemy(enemy);
                 continue;

@@ -6,7 +6,7 @@ Game.updateParticles = function() {
     for (let i = pool.active.length - 1; i >= 0; i--) {
         const particle = pool.active[i];
 
-        // 扩散冲击环（isRing）不随 vx/vy 平移，而是每帧扩大半径，到上限后停止。
+        // Ring particles (isRing) don't move via vx/vy; they expand their radius each frame until capped.
         if (particle.isRing) {
             particle.radius = Math.min(particle.radius + particle.ringGrowth, particle.ringMax);
         } else {
@@ -78,11 +78,7 @@ Game.checkCollisions = function() {
                     setTimeout(() => {
                         // Never re-color an enemy that has been killed and returned to the pool.
                         if (enemy && !enemy._dead && enemy.color === '#fff') {
-                            if (enemy.type === 0) enemy.color = '#f00';
-                            else if (enemy.type === 1) enemy.color = '#00f';
-                            else if (enemy.type === 2) enemy.color = '#a0f';
-                            else if (enemy.type === 3) enemy.color = '#ff0';
-                            else if (enemy.type === 4) enemy.color = '#0af';
+                            enemy.color = CONFIG.enemyTypes[enemy.type].color;
                         }
                     }, 50);
 
@@ -90,8 +86,8 @@ Game.checkCollisions = function() {
                         const killX = enemy.x + enemy.width/2;
                         const killY = enemy.y + enemy.height/2;
                         this.killEnemy(enemy);
-                        // 连环爆炸: 子弹击杀这一事件触发首爆；连锁内后续击杀由
-                        // createExplosionChain 自己的 worklist 逐点引爆（不在此重复触发）。
+                        // Chain card: this bullet kill triggers the first blast; further
+                        // chain kills are detonated by createExplosionChain's own worklist.
                         if (this.activeCard === 'chain') this.createExplosionChain(killX, killY);
                     } else {
                         this.createExplosion(enemy.x + enemy.width/2, enemy.y + enemy.height/2, '#fff', 2);
@@ -144,7 +140,7 @@ Game.checkCollisions = function() {
 
                 switch (item.type) {
                     case 0:
-                        // 电光石火/玻璃大炮禁止回命时红心直接浪费，但依然会被消耗。
+                        // Heart is still consumed even when the active card forbids healing (wasted).
                         if (this.canHeal()) this.applyLifeGain(this.activeCard === 'boost' ? CONFIG.cards.boostHeartHeal : 1);
                         else this.updateUI(true);
                         break;
@@ -188,8 +184,8 @@ Game.createExplosion = function(x, y, color, count = 4) {
     }
 };
 
-// 廉价扩散冲击环：单个 ring 粒子，从中心向外扩一圈圆环后淡出。
-// 复用粒子池、复用 updateParticles/render 的逐帧路径，开销几乎为零。
+// Cheap shockwave: one ring particle that expands outward and fades, reusing
+// the particle pool and the existing per-frame update/render paths.
 Game.createShockwave = function(x, y, color = '#ffd166') {
     const particle = this.getObject('particles');
     if (!particle) return;
@@ -197,16 +193,16 @@ Game.createShockwave = function(x, y, color = '#ffd166') {
     particle.y = y;
     particle.vx = 0;
     particle.vy = 0;
-    particle.life = 14;               // 帧数寿命
+    particle.life = 14;               // life in frames
     particle.color = color;
     particle.isRing = true;
     particle.radius = 4;
-    particle.ringGrowth = 9;          // 每帧扩大 px
-    particle.ringMax = 130;           // 到上限即不再扩大（避免巨圆开销）
+    particle.ringGrowth = 9;          // px growth per frame
+    particle.ringMax = 130;           // growth cap (avoids huge-circle cost)
 };
 
-// 统一“玩家被击中”的收尾逻辑：扣 1 命、玩家中心爆炸、红闪、护盾重置，
-// 荆棘护甲反击与死亡判定。不负责释放撞击来源（由调用方自行处理）。
+// Shared player-hit handling: lose life, center explosion, red flash, shield
+// reset, thorns counter, death check. Does not release the hit source.
 Game.applyPlayerHit = function(damage = 1) {
     this.lives -= damage;
     this.createExplosion(this.player.x + this.player.width/2, this.player.y + this.player.height/2, '#fff', 4);
@@ -219,22 +215,21 @@ Game.applyPlayerHit = function(damage = 1) {
     this.player.shieldTime = 5;
     this.updateShieldUI();
 
-    // 记录本次命中是否致命（在荆棘反击可能加命之前判定）。
+    // Latch lethality before thorns can grant lives.
     const lethal = this.lives <= 0;
 
-    // 荆棘护甲: 受击即反击（击杀最近敌人 + 波及 Boss）。
+    // Thorns: counter-attack on every hit taken.
     if (this.activeCard === 'thorns') this.onThornsHit();
 
-    // 致命命中即死：锁存这次命中是否已把生命扣到 0——即便荆棘反击恰好击倒
-    // Boss 触发了 +3 命奖励，也不允许“绝境反杀复活”（规则：死了就是死了）。
+    // Death latches before thorns resolve: a thorns boss-kill cannot revive the player.
     if (lethal || this.lives <= 0) {
         this.gameOver();
     }
 };
 
-// 统一的敌人死亡处理（释放 + 计分 + 爆炸），同一帧内对同一敌人只生效一次。
+// Unified enemy death (release + score + explosion); runs once per enemy per frame.
 Game.killEnemy = function(enemy) {
-    // 只在敌人已被打到 <=0 生命时才结算死亡；_dead 保证同帧内不重复计分/重复释放。
+    // Only settles when health <= 0; _dead guards against double scoring/release within a frame.
     if (!enemy || enemy._dead || enemy.health > 0) return;
 
     enemy._dead = true;
@@ -254,7 +249,7 @@ Game.killEnemy = function(enemy) {
     }
     this.score += score;
 
-    // 血之渴望: 击杀普通敌人按概率回 1 命（Boss 概率见 handleBossDeath）。
+    // Bloodlust: chance to regain 1 life per enemy kill (boss chance in handleBossDeath).
     if (this.activeCard === 'bloodlust' && this.canHeal() && Math.random() < this.getLifeStealChance()) {
         this.applyLifeGain(1);
     }
@@ -262,15 +257,15 @@ Game.killEnemy = function(enemy) {
     this.createExplosion(killX, killY, killColor, 4);
 };
 
-// 荆棘护甲: 玩家每次受击时，以玩家为中心 thornsRadius 半径内的所有敌机一并
-// 秒杀并计分，每个击杀点附带一个扩散冲击环（类似连环爆炸），再对 Boss 削血。
+// Thorns: on every hit taken, instantly kill and score every enemy within
+// thornsRadius of the player (one shockwave each), then damage the boss.
 Game.onThornsHit = function() {
     const playerCX = this.player.x + this.player.width/2;
     const playerCY = this.player.y + this.player.height/2;
     const radius = CONFIG.cards.thornsRadius;
     const r2 = radius * radius;
 
-    // 遍历 active 池的快照，避免 killEnemy 在遍历中改动数组；只处理仍在场的活敌。
+    // Iterate a snapshot so killEnemy's releases can't mutate the array mid-loop.
     const enemies = this.objectPools.enemies.active.slice();
     for (const enemy of enemies) {
         if (!enemy || enemy._dead || enemy.health <= 0) continue;
@@ -280,16 +275,16 @@ Game.onThornsHit = function() {
         const dy = cy - playerCY;
         if (dx * dx + dy * dy > r2) continue;
 
-        // 荆棘是“秒杀”：先把敌人打到致命状态，再走统一的 killEnemy 计分/爆炸。
+        // Thorns is an instant kill: zero the health, then route through killEnemy.
         enemy.health = 0;
         this.killEnemy(enemy);
-        // 反杀冲击环：每个被秒杀的敌机补一个扩散环（类似连环爆炸）。
+        // One shockwave per killed enemy (like the chain card).
         this.createShockwave(cx, cy);
     }
-    // 玩家中心再补一个大冲击环，标示整圈反杀范围。
+    // Plus a large shockwave at the player marking the counter radius.
     this.createShockwave(playerCX, playerCY);
 
-    // 荆棘护甲对 Boss 的伤害比例削血。
+    // Thorns also chips the boss by a fraction of its max health.
     if (this.boss && this.boss.health > 0) {
         this.boss.health -= this.boss.maxHealth * CONFIG.cards.thornsBossFrac;
         if (this.boss.health <= 0) {
@@ -298,23 +293,23 @@ Game.onThornsHit = function() {
     }
 };
 
-// 统一的 Boss 死亡结算。先清空 this.boss 以杜绝重入，再依次发放奖励与后续状态。
+// Unified boss death. Null out this.boss first to prevent re-entry, then hand out rewards.
 Game.handleBossDeath = function() {
     if (!this.boss) return;
     this.boss = null;
 
     this.crowns++;
-    // Boss 奖励：+3 命（受 maxLives 上限约束，玻璃卡下被封顶到 1）。
+    // Boss reward: +3 lives (capped by maxLives, which glass locks to 1).
     this.applyLifeGain(3);
 
-    // 血之渴望: Boss 击杀有概率额外 +1 命（受电光石火/玻璃大炮限制）。
+    // Bloodlust: chance of +1 extra life from a boss kill (blocked by blitz/glass).
     if (this.activeCard === 'bloodlust' && Math.random() < CONFIG.cards.lifeStealBoss && this.canHeal()) {
         this.applyLifeGain(1);
     }
 
     this.isBossStage = false;
     this.bossHealthBar.style.display = 'none';
-    // Boss 可能在召唤窗口中途死亡：关掉召唤指示条与警告横幅。
+    // Boss can die mid-summon-window: hide the summon indicator and warning banner.
     this.summonIndicator.style.display = 'none';
     this.bossWarning.style.display = 'none';
     // Next boss needs a bigger gap than the last one (+200 per kill):
@@ -328,21 +323,22 @@ Game.handleBossDeath = function() {
     this.openCardSelection(false);
 };
 
-// 连环爆炸: 从 (x, y) 向外在 chainRadius 内级联引爆。网格每帧只重建一次，
-// 用 _dead / health 双重守卫避免伤及本帧已死的敌人；worklist + processed
-// + 迭代上限保证不会重复处理同一敌人或陷入死循环。
+// Chain explosion: cascades outward from (x, y) within chainRadius, using the
+// spatial grid built once per frame. _dead/health guards skip enemies already
+// dead this frame; worklist + processed set + iteration cap prevent double
+// processing and infinite loops.
 Game.createExplosionChain = function(x, y) {
     const chainRadius = CONFIG.cards.chainRadius;
     const chainDamage = CONFIG.cards.chainDamage;
     const worklist = [{ x: x, y: y }];
     const processed = new Set();
     let iterations = 0;
-    const maxIterations = 80; // 安全上限：极端敌群密度下也不会挂起
+    const maxIterations = 80; // safety cap against pathological enemy density
 
     while (worklist.length > 0 && iterations < maxIterations) {
         const point = worklist.pop();
         iterations++;
-        // 连环爆炸特效：少量小火星 + 一个扩散冲击环，简单且开销低。
+        // Chain VFX: a few sparks + one shockwave.
         this.createExplosion(point.x, point.y, '#ff0', 3);
         this.createShockwave(point.x, point.y);
 

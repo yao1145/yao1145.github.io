@@ -1,8 +1,8 @@
 import { Game } from '../core/game.js';
 import { CONFIG } from '../core/config.js';
 
-// Effect-card (效果卡) system: one card is picked at game start and re-picked
-// after each boss, and card effects are applied via the get* helpers below.
+// Effect-card system: one card is picked at game start and re-picked after
+// each boss; card effects are applied via the get* helpers below.
 
 Game.CARDS = {
     passion: { name: '激情岁月' },
@@ -20,8 +20,8 @@ Game.CARDS = {
     boost: { name: '增益加强' },
 };
 
-// Short per-card descriptions (卡面辅助文案), intentionally kept to ~10 glyphs
-// so a 4-card selection stays compact. Only used to label the pickable faces.
+// Short per-card face text, ~10 glyphs each so a 4-card selection stays
+// compact. Only used to label the pickable faces.
 Game.CARD_DESCS = {
     passion: '敌我攻速翻倍',
     survival: '伤减半·20s回1命',
@@ -38,10 +38,13 @@ Game.CARD_DESCS = {
     boost: '道具强化·敌弹伤2',
 };
 
-// 选卡面板固定展示至多 4 张：若当前已装备的卡仍被允许（未达到本局 pick 上限）则必含其一，
-// 其余位置从剩余允许的卡里随机补足。开局无已装备卡时展示至多 4 张随机卡。
+// The pick panel always shows up to 4 cards: the currently equipped one is
+// always included while still allowed (under this run's pick cap); the rest
+// fill in randomly from the remaining allowed cards. With no equipped card at
+// game start, up to 4 random cards show.
 Game.rollCardOptions = function() {
-    // 每种卡每局最多被装备 cardMaxPicks 次；超出后不再出现在候选池。
+    // Each card can be equipped cardMaxPicks times per run; past that it
+    // leaves the candidate pool.
     const used = this.cardPickCount || {};
     const allowed = Object.keys(this.CARDS).filter(k => (used[k] || 0) < CONFIG.cards.cardMaxPicks);
 
@@ -54,13 +57,13 @@ Game.rollCardOptions = function() {
     }
 
     const chosen = [];
-    // 当前已装备的卡仅在其仍被允许时保留在备选中。
+    // Keep the equipped card only while it is still allowed.
     const equippedIndex = this.activeCard ? allowed.indexOf(this.activeCard) : -1;
     if (equippedIndex !== -1) {
         chosen.push(allowed[equippedIndex]);
         allowed.splice(equippedIndex, 1);
     }
-    // 从剩余允许的卡里随机补齐到 4 张；不足 4 张时展示现有张数。
+    // Fill up to 4 from the remaining allowed cards; show fewer if short.
     const need = Math.min(4 - chosen.length, allowed.length);
     for (let i = 0; i < need; i++) chosen.push(allowed[i]);
 
@@ -101,7 +104,7 @@ Game.openCardSelection = function(firstPick = false) {
     this.enableControlArea(false);
     this.isCardSelectionOpen = true;
 
-    // 每次打开选卡都重抽当前批次的 4 张卡面。
+    // Re-roll the 4-card batch on every open.
     this.rollCardOptions();
     this.updateCardHighlight();
 
@@ -109,7 +112,7 @@ Game.openCardSelection = function(firstPick = false) {
         this.cardHint.textContent = '首次选择免费';
         this.cardHint.classList.remove('warn');
     } else if (this.activeCard === 'glass') {
-        // 玻璃大炮进出换卡都免费——提示必须与实际免扣规则一致。
+        // Glass switches in and out free — the hint must match the free rule.
         this.cardHint.textContent = '玻璃大炮：更换卡片免费';
         this.cardHint.classList.remove('warn');
     } else {
@@ -125,8 +128,8 @@ Game.selectCard = function(cardId) {
 
     const previousCard = this.activeCard;
     const isSwitch = previousCard !== null && cardId !== previousCard;
-    // 玻璃大炮 将生命上限锁定为 1：切入或切出玻璃都必须免费，
-    // 否则离开玻璃卡时需要支付 1 点生命 = 直接死亡。
+    // Glass locks the life cap to 1: switching in or out must be free,
+    // otherwise leaving glass would cost the last life = instant death.
     const isGlassFreeSwitch = cardId === 'glass' || previousCard === 'glass';
     if (isSwitch && !isGlassFreeSwitch) {
         this.lives -= CONFIG.cards.switchCost;
@@ -140,7 +143,7 @@ Game.selectCard = function(cardId) {
     }
 
     this.activeCard = cardId;
-    // 玻璃大炮: 进入玻璃锁定 maxLives=1，离开玻璃恢复默认生命上限。
+    // Glass: lock maxLives=1 on entry, restore the default cap on exit.
     if (cardId === 'glass') {
         this.maxLives = 1;
         this.lives = 1;
@@ -148,7 +151,8 @@ Game.selectCard = function(cardId) {
         this.maxLives = CONFIG.player.maxLives;
     }
 
-    // 每种卡每局最多装备 cardMaxPicks 次；保持当前卡也被计为一次使用。
+    // Each card equips at most cardMaxPicks times per run; keeping the
+    // current card also counts as a use.
     this.cardPickCount = this.cardPickCount || {};
     this.cardPickCount[cardId] = (this.cardPickCount[cardId] || 0) + 1;
 
@@ -164,12 +168,13 @@ Game.selectCard = function(cardId) {
     this.enableControlArea(true);
 };
 
-// 伤害取整：玩家子弹伤害始终是 0.5 的整数倍且不小于 0.5（敌人血量为 0.5 步进）。
+// Damage rounding: player bullet damage is always a multiple of 0.5, min 0.5
+// (enemy HP steps by 0.5).
 Game.roundBulletDamage = function(d) {
     return Math.max(0.5, Math.round(d * 2) / 2);
 };
 
-// 子弹伤害（未按 Boss猎手 区分目标），已做 0.5 取整。
+// Bullet damage (no per-target split; see getDamageFor), rounded to 0.5.
 Game.getBulletDamage = function() {
     let d = this.bulletDamage;
     if (this.activeCard === 'survival') {
@@ -182,13 +187,13 @@ Game.getBulletDamage = function() {
         d *= CONFIG.cards.glassDamageMult;
     }
     if (this.activeCard === 'bloodlust') {
-        // 血之渴望: 伤害减半是换取的代价（吸血只是补偿）。
+        // Bloodlust: the damage halving is the price paid; lifesteal only compensates.
         d *= CONFIG.cards.bloodlustDamageMult;
     }
     return this.roundBulletDamage(d);
 };
 
-// Boss猎手：按目标区分伤害——对 Boss 高伤、对小怪低伤。
+// Boss Hunter: per-target damage — high vs boss, low vs mobs.
 Game.getDamageFor = function(target) {
     let d = this.getBulletDamage();
     if (this.activeCard === 'boss') {
@@ -215,7 +220,7 @@ Game.getEnemyShotRate = function() {
     let rate = this.enemyShotRate;
     if (this.activeCard === 'passion') rate *= CONFIG.cards.speedMult;
     if (this.activeCard === 'supply') rate *= CONFIG.cards.supplyEnemyShotMult;
-    // 简单模式：敌机发射子弹频率 ×0.5。
+    // Easy mode: enemy fire rate x0.5.
     if (this.difficulty === 'easy') rate *= CONFIG.difficulty.easy.enemyFireRateMult;
     return rate;
 };
@@ -226,52 +231,53 @@ Game.getItemSpawnRate = function() {
 
 Game.getBossShotDelay = function() {
     const delay = this.boss.shotDelay / (this.activeCard === 'passion' ? CONFIG.cards.speedMult : 1);
-    // 简单模式：Boss 射击间隔 ×1.5。
+    // Easy mode: boss shot delay x1.5.
     return this.difficulty === 'easy' ? delay * CONFIG.difficulty.easy.bossShotDelayMult : delay;
 };
 
-// 电光石火: 每次射击额外发射的子弹数（在 baseBulletCount 之上）。
+// Blitz: extra bullets per shot, on top of baseBulletCount.
 Game.getBulletCount = function() {
     return this.baseBulletCount + (this.activeCard === 'blitz' ? CONFIG.cards.bulletCountBonus : 0);
 };
 
-// 电光石火: 玩家子弹速度倍率。
+// Blitz: player bullet speed multiplier.
 Game.getBulletSpeedMult = function() {
     return this.activeCard === 'blitz' ? CONFIG.cards.bulletSpeedMult : 1;
 };
 
-// 连环爆炸: 敌人刷新速率倍率。
+// Chain: enemy spawn-rate multiplier.
 Game.getEnemySpawnRate = function() {
     let rate = this.enemySpawnRate * (this.activeCard === 'chain' ? CONFIG.cards.chainSpawnMult : 1);
-    // 简单模式：出敌机频率 ×0.7。
+    // Easy mode: spawn rate x0.7.
     if (this.difficulty === 'easy') rate *= CONFIG.difficulty.easy.spawnRateMult;
     return rate;
 };
 
-// 荆棘护甲: 敌方子弹速度倍率。
+// Thorns: enemy bullet speed multiplier.
 Game.getEnemyBulletSpeed = function() {
     let speed = this.enemyBulletSpeed * (this.activeCard === 'thorns' ? CONFIG.cards.thornsBulletSpeedMult : 1);
-    // 简单模式：全部敌弹速度 ×0.7。
+    // Easy mode: all enemy bullet speeds x0.7.
     if (this.difficulty === 'easy') speed *= CONFIG.difficulty.easy.slowMult;
     return speed;
 };
 
-// 简单模式：敌机/Boss 移动速度倍率（除玩家外所有移动统一减慢）。
+// Easy mode: enemy/boss movement multiplier (everything but the player slowed).
 Game.getEnemySpeedMult = function() {
     return this.difficulty === 'easy' ? CONFIG.difficulty.easy.slowMult : 1;
 };
 
-// 血之渴望: 击杀普通敌人回 1 命的概率（Boss 概率见 lifeStealBoss，由碰撞层使用）。
+// Bloodlust: chance to regain a life on killing a normal enemy (the boss-side
+// chance is lifeStealBoss, consumed by the collision layer).
 Game.getLifeStealChance = function() {
     return this.activeCard === 'bloodlust' ? CONFIG.cards.lifeStealEnemy : 0;
 };
 
-// 电光石火/玻璃大炮: 玻璃(1血上限)与电光石火(技能向)无法通过效果回命。
+// Blitz/glass: glass (1-life cap) and blitz (skill-oriented) cannot heal via effects.
 Game.canHeal = function() {
     return !(this.activeCard === 'blitz' || this.activeCard === 'glass');
 };
 
-// 通用加命入口，受 maxLives 上限约束。
+// Single life-gain entry point, capped by maxLives.
 Game.applyLifeGain = function(n) {
     this.lives = Math.min(this.lives + n, this.maxLives);
     this.updateUI(true);
@@ -283,7 +289,7 @@ Game.updateCardEffects = function(deltaTime) {
     this.cardRegenTimer += deltaTime;
     if (this.cardRegenTimer >= CONFIG.cards.regenIntervalMs) {
         this.cardRegenTimer -= CONFIG.cards.regenIntervalMs;
-        // 生存之道: 每间隔 +1 命，经 applyLifeGain 受 maxLives 上限约束。
+        // Survival: +1 life per interval via applyLifeGain (maxLives-capped).
         this.applyLifeGain(1);
     }
 };

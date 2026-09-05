@@ -75,7 +75,7 @@ Game.render = function() {
     const particlePool = this.objectPools.particles;
     for (const particle of particlePool.active) {
         if (particle.isRing) {
-            // 扩散冲击环：以粒子中心为圆心描一个随帧扩大的淡出圆环。
+            // Shockwave ring: a fading circle expanding around the particle center.
             const alpha = particle.life / 14;
             ctx.strokeStyle = particle.color;
             ctx.globalAlpha = alpha;
@@ -92,7 +92,7 @@ Game.render = function() {
     }
     ctx.globalAlpha = 1.0;
 
-    // Opaque fog of war (战争迷雾): the mist bank is drawn AFTER the whole world,
+    // Opaque fog of war: the mist bank is drawn AFTER the whole world,
     // so enemies/boss and their bullets above the fog line are concealed by an
     // opaque layer; anything crossing below the line emerges into view. A single
     // gradient fill per frame is the whole cost (no per-sprite work).
@@ -101,14 +101,14 @@ Game.render = function() {
     }
 };
 
-// Fog (战争迷雾) bank: an opaque vertical mist covering the top half of the
+// Fog bank: an opaque vertical mist covering the top half of the
 // screen. Fully solid from the top edge to FOG_MARGIN pixels ABOVE the fog
 // line, then a smooth FOG_MARGIN-up/FOG_MARGIN-down gradient so enemies
 // "emerge" progressively across the boundary instead of popping in at a hard
 // cut. Inside the solid zone enemies are completely invisible.
 Game.drawFogBand = function(fogLine) {
     const ctx = this.ctx;
-    const margin = 50; // 雾线上下各 50px 的渐变过渡带
+    const margin = 50; // gradient fade band, 50px above/below the fog line
     const bottom = fogLine + margin;
     const fadeStart = Math.max(0, fogLine - margin);
 
@@ -118,191 +118,6 @@ Game.drawFogBand = function(fogLine) {
     gradient.addColorStop(1, 'rgba(10, 17, 30, 0)');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, this.width, bottom);
-};
-
-Game.drawTrianglePlayer = function(x, y, width, height, color) {
-    const ctx = this.ctx;
-    const cx = x + width / 2;
-    const engineOffset = 7;
-
-    // Engine exhaust flames (drawn first so the pods sit on top of their roots).
-    const flameY = y + height + 5;
-    ctx.fillStyle = '#f40';
-    ctx.fillRect(cx - engineOffset - 3, flameY, 6, 7);
-    ctx.fillRect(cx + engineOffset - 3, flameY, 6, 7);
-    ctx.fillStyle = '#ff0';
-    ctx.fillRect(cx - engineOffset - 2, flameY, 4, 5);
-    ctx.fillRect(cx + engineOffset - 2, flameY, 4, 5);
-
-    // Engine pods (red bodies, yellow cores) at the rear.
-    const engineY = y + height;
-    ctx.fillStyle = '#f00';
-    ctx.fillRect(cx - engineOffset - 3, engineY, 6, 6);
-    ctx.fillRect(cx + engineOffset - 3, engineY, 6, 6);
-    ctx.fillStyle = '#ff0';
-    ctx.fillRect(cx - engineOffset - 2, engineY + 1, 4, 4);
-    ctx.fillRect(cx + engineOffset - 2, engineY + 1, 4, 4);
-
-    // Main delta-body silhouette (nose up).
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.moveTo(cx, y);                     // nose
-    ctx.lineTo(x + width, y + height);     // back-right
-    ctx.lineTo(x, y + height);             // back-left
-    ctx.closePath();
-    ctx.fill();
-
-    // Darker inner fuselage panel.
-    ctx.fillStyle = '#088';
-    ctx.beginPath();
-    ctx.moveTo(cx, y + height * 0.18);
-    ctx.lineTo(cx + width * 0.34, y + height);
-    ctx.lineTo(cx - width * 0.34, y + height);
-    ctx.closePath();
-    ctx.fill();
-
-    // Side cannon barrels along the leading edges.
-    ctx.fillStyle = '#f90';
-    ctx.fillRect(x + width * 0.18, y + height * 0.55, 2, height * 0.3);
-    ctx.fillRect(x + width * 0.82 - 2, y + height * 0.55, 2, height * 0.3);
-
-    // Nose highlight stripe.
-    ctx.fillStyle = '#8f8';
-    ctx.beginPath();
-    ctx.moveTo(cx, y + 2);
-    ctx.lineTo(cx - 3, y + height * 0.42);
-    ctx.lineTo(cx + 3, y + height * 0.42);
-    ctx.closePath();
-    ctx.fill();
-
-    // Cockpit canopy.
-    ctx.fillStyle = '#0af';
-    ctx.beginPath();
-    ctx.ellipse(cx, y + height * 0.3, 3, height * 0.14, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#cff';
-    ctx.beginPath();
-    ctx.ellipse(cx, y + height * 0.28, 1.5, height * 0.08, 0, 0, Math.PI * 2);
-    ctx.fill();
-};
-
-Game.drawTriangleEnemy = function(x, y, width, height, color) {
-    const ctx = this.ctx;
-    const cx = x + width/2;
-
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.moveTo(cx, y + height);   // pointed end (nose) faces down toward the player
-    ctx.lineTo(x, y);
-    ctx.lineTo(x + width, y);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.moveTo(cx, y + height - 6);
-    ctx.lineTo(cx - 3, y + 6);
-    ctx.lineTo(cx + 3, y + 6);
-    ctx.closePath();
-    ctx.fill();
-};
-
-Game.drawPlaneEnemy = function(x, y, width, height, color) {
-    const ctx = this.ctx;
-    const cx = x + width/2;
-
-    // Body: nose points down, one wing tip up-left, one up-right.
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.moveTo(cx, y + height);   // nose (down)
-    ctx.lineTo(x, y);             // left wing tip (up)
-    ctx.lineTo(x + width, y);     // right wing tip (up)
-    ctx.closePath();
-    ctx.fill();
-
-    // Center fold ridge from nose to the top.
-    ctx.strokeStyle = 'rgba(0,0,0,0.5)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(cx, y + height);
-    ctx.lineTo(cx, y);
-    ctx.stroke();
-
-    // One folded wing shaded lighter for the paper-plane look.
-    ctx.fillStyle = '#fff';
-    ctx.globalAlpha = 0.35;
-    ctx.beginPath();
-    ctx.moveTo(cx, y + height);
-    ctx.lineTo(x, y);
-    ctx.lineTo(cx, y);
-    ctx.closePath();
-    ctx.fill();
-    ctx.globalAlpha = 1.0;
-};
-
-Game.drawCircleEnemy = function(x, y, width, height, color) {
-    const ctx = this.ctx;
-    const cx = x + width/2;
-    const cy = y + height/2;
-    const r = Math.min(width, height)/2 - 1;
-
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.arc(cx, cy, r * 0.45, 0, Math.PI * 2);
-    ctx.fill();
-};
-
-Game.drawDiamondEnemy = function(x, y, width, height, color) {
-    const ctx = this.ctx;
-    const cx = x + width/2;
-    const cy = y + height/2;
-
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.moveTo(cx, y);              // top
-    ctx.lineTo(x + width, cy);      // right
-    ctx.lineTo(cx, y + height);     // bottom
-    ctx.lineTo(x, cy);              // left
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.moveTo(cx, cy - 4);
-    ctx.lineTo(cx + 4, cy);
-    ctx.lineTo(cx, cy + 4);
-    ctx.lineTo(cx - 4, cy);
-    ctx.closePath();
-    ctx.fill();
-};
-
-Game.drawHexagonEnemy = function(x, y, width, height, color) {
-    const ctx = this.ctx;
-    const cx = x + width/2;
-    const cy = y + height/2;
-    const r = Math.min(width, height)/2;
-
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    for (let i = 0; i < 6; i++) {
-        const angle = (Math.PI / 3) * i;
-        const px = cx + Math.cos(angle) * r;
-        const py = cy + Math.sin(angle) * r;
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
-    }
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.arc(cx, cy, r * 0.35, 0, Math.PI * 2);
-    ctx.fill();
 };
 
 Game.drawBoss = function(x, y, width, height, color) {
@@ -328,7 +143,11 @@ Game.drawFireBoss = function(x, y, width, height, color, centerX, centerY) {
     const r = Math.min(width, height) / 2;
     const flicker = Math.sin(this.boss.waveOffset * 2);
 
-    // Rotating flame spikes that flicker outward.
+    // Skip drawing if the badge sprite isn't ready (unreachable after prebake; pure defense).
+    const sprite = this.getBossBadgeSprite(this.boss.type, r * 2);
+    if (!sprite) return;
+
+    // Rotating flame spikes that flicker outward — orbit decoration, independent of the badge sprite.
     ctx.fillStyle = '#f60';
     for (let i = 0; i < 10; i++) {
         const angle = (i * Math.PI * 2) / 10 + this.boss.waveOffset * 0.6;
@@ -348,39 +167,18 @@ Game.drawFireBoss = function(x, y, width, height, color, centerX, centerY) {
     }
 
     // Body — the school badge, with the flame corona still orbiting outside it.
-    const fireBadge = this.getBossBadgeSprite(this.boss.type, r * 2);
-    if (fireBadge) {
-        ctx.drawImage(fireBadge, centerX - r, centerY - r, r * 2, r * 2);
-        return;
-    }
-
-    // Body — layered flame.
-    ctx.fillStyle = '#d30';
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#f80';
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, r * 0.72, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Molten core (bobs with the flicker).
-    ctx.fillStyle = '#ff0';
-    ctx.beginPath();
-    ctx.arc(centerX, centerY - flicker * 2, r * 0.42, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.arc(centerX, centerY - flicker * 2, r * 0.18, 0, Math.PI * 2);
-    ctx.fill();
-
+    ctx.drawImage(sprite, centerX - r, centerY - r, r * 2, r * 2);
 };
 
 Game.drawIceBoss = function(x, y, width, height, color, centerX, centerY) {
     const ctx = this.ctx;
     const r = Math.min(width, height) / 2;
 
-    // Drifting crystal shards around the body.
+    // Skip drawing if the badge sprite isn't ready (unreachable after prebake; pure defense).
+    const sprite = this.getBossBadgeSprite(this.boss.type, r * 2);
+    if (!sprite) return;
+
+    // Drifting crystal shards around the body — orbit decoration, independent of the badge sprite.
     ctx.fillStyle = '#0cf';
     for (let i = 0; i < 6; i++) {
         const angle = (i * Math.PI * 2) / 6 + this.boss.waveOffset * 0.5;
@@ -399,32 +197,7 @@ Game.drawIceBoss = function(x, y, width, height, color, centerX, centerY) {
     }
 
     // Body — the school badge, with the crystal shards still orbiting outside it.
-    const iceBadge = this.getBossBadgeSprite(this.boss.type, r * 2);
-    if (iceBadge) {
-        ctx.drawImage(iceBadge, centerX - r, centerY - r, r * 2, r * 2);
-        return;
-    }
-
-    // Icy body — layered bluish facets.
-    ctx.fillStyle = '#08f';
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#0cf';
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, r * 0.7, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Frozen core.
-    ctx.fillStyle = '#eef';
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, r * 0.4, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, r * 0.2, 0, Math.PI * 2);
-    ctx.fill();
-
+    ctx.drawImage(sprite, centerX - r, centerY - r, r * 2, r * 2);
 };
 
 Game.drawPoisonBoss = function(x, y, width, height, color, centerX, centerY) {
@@ -432,7 +205,11 @@ Game.drawPoisonBoss = function(x, y, width, height, color, centerX, centerY) {
     const r = Math.min(width, height) / 2;
     const drift = this.boss.movePhase;
 
-    // Toxic bubbles drifting up around the body.
+    // Skip drawing if the badge sprite isn't ready (unreachable after prebake; pure defense).
+    const sprite = this.getBossBadgeSprite(this.boss.type, r * 2);
+    if (!sprite) return;
+
+    // Toxic bubbles drifting up around the body — orbit decoration, independent of the badge sprite.
     ctx.fillStyle = '#c0f';
     for (let i = 0; i < 8; i++) {
         const angle = (i * Math.PI * 2) / 8 + drift;
@@ -449,32 +226,7 @@ Game.drawPoisonBoss = function(x, y, width, height, color, centerX, centerY) {
     }
 
     // Body — the school badge, with the toxic bubbles still drifting outside it.
-    const poisonBadge = this.getBossBadgeSprite(this.boss.type, r * 2);
-    if (poisonBadge) {
-        ctx.drawImage(poisonBadge, centerX - r, centerY - r, r * 2, r * 2);
-        return;
-    }
-
-    // Oozing toxic body.
-    ctx.fillStyle = '#70a';
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#a0f';
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, r * 0.72, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Slime core (pulsing).
-    ctx.fillStyle = '#6f0';
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, r * 0.42, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#3f0';
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, r * 0.2, 0, Math.PI * 2);
-    ctx.fill();
-
+    ctx.drawImage(sprite, centerX - r, centerY - r, r * 2, r * 2);
 };
 
 Game.drawItem = function(x, y, width, height, color, type) {
