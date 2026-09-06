@@ -23,7 +23,7 @@ python -m http.server 8000
 - **Pre-rendered sprites** — enemies, bullets, items and the player are baked once to offscreen canvases and blitted with `drawImage`, so the hot render loop does no path fills.
 - **5 enemy types**, each with a distinct silhouette and behaviour (straight / homing / ring shots, a suicide bomber, and a tank).
 - **3 elemental bosses** (fire / ice / poison), each with three attack patterns gated by remaining health.
-- **Effect cards** — pick 1 of 4 run modifiers when the run starts and after every boss kill; swapping to a different card costs a life.
+- **Effect cards** — pick 1 of 4 run modifiers when the run starts and after every boss kill; swapping to a different card costs a life. Green buff cards — free, stackable fire-rate / bullet-count / life-cap boosts — can also appear in the offer.
 - **School-badge skins** — the player flies under the Peking University emblem while enemies and bosses wear other universities' badges (falls back to procedural sprites if the SVGs are missing).
 - **Power-up drops** — health, double-damage and shield pickups that spin and gently pulse as they fall.
 - **Crown progression** — earn crowns each run and unlock permanent achievement bonuses (see below).
@@ -37,14 +37,31 @@ python -m http.server 8000
 
 ## Gameplay
 
-- **Goal** — survive and rack up score. Every hit (an enemy bullet, a ramming enemy, or touching a boss) costs 1 life and grants a brief 5 s shield; lives are capped at **20** (every life gain — pickups, boss rewards, card heals — respects the cap, though the 玻璃大炮 Glass card overrides it with a cap of 1); at 0 lives the run ends.
+- **Goal** — survive and rack up score. Every hit (an enemy bullet, a ramming enemy, or touching a boss) costs 1 life and grants a brief 5 s shield; lives are capped at **20** (every life gain — pickups, boss rewards, card heals — respects the cap; 体质强化 Vitality stacks raise it by +5 each, while the 玻璃大炮 Glass card overrides it with a cap of 1); at 0 lives the run ends.
 - **Leveling** — the difficulty level rises every 500 points: enemies spawn faster, move faster, fire more often, and their bullets speed up. Speed and bullet-speed growth per level is intentionally gentle. Item density follows a level curve — sparse at first, densest around level 10 (about 5× the base rate), settling back to base from level 20.
 - **Enemies** — five types, each with its own behaviour: straight shooters, a slow 2 HP tank, homing shots, radial bullet rings, and a red kamikaze that detonates when it gets close.
 - **Bosses** — the first boss arrives at **1000 points**; each kill grants **+3 lives and +1 crown**, and raises the score gap to the next boss by **+200**, so bosses appear at 1000 → 2200 → 3600 … Each elemental boss (fire / ice / poison) has three attack patterns that escalate below 70% and 30% health. From the **4th boss onward**, bosses periodically summon waves of normal enemies: a 10 s quiet period after the boss appears, then repeating 30 s summon windows (with a top-right countdown chip) until the boss dies.
 - **Difficulty** — Two modes — 简单模式 Easy: enemy/boss movement and all enemy bullets ×0.7, spawn and enemy fire rates ×0.5, boss shot delay ×1.5; 困难模式 Hard: the reference balance.
-- **Effect cards** — when the run starts you pick 1 of 4 cards; after **every boss kill** you pick again. Keeping the current card is free, **switching to a different one costs 1 life** (the panel warns you). The active card is shown in the top-right HUD chip.
+- **Effect cards** — when the run starts you pick 1 of 4 cards; after **every boss kill** you pick again. Keeping the current card is free, **switching to a different one costs 1 life** (the panel warns you). The equipped card shows as a red icon chip in the top-right HUD (its name's first glyph); each roll also has a 1-in-3 chance of offering a free, stackable green buff card (see below).
 - **Power-ups** — falling pickups: **+1 life** (capped at 20), **double damage for 10 s**, or a **5 s shield**.
 - **Crowns** — every boss kill earns a crown; crown totals unlock the permanent achievements below and are never spent.
+
+### Green buff cards (增益绿卡)
+
+Alongside the effect cards, each 4-card roll has a **1-in-3 chance** of offering one **green buff card** — free to take, stackable, and lasting for the rest of the run. There are three:
+
+- **疾速射击** (Rapid Fire) — +50% fire rate per stack, additive (×1.5 / ×2.0 / ×2.5 at 1–3 stacks), multiplying on top of the attack-speed effect cards (激情岁月 / 绝地反击 / 玻璃大炮).
+- **弹仓扩容** (Magazine) — +1 bullet per shot per stack.
+- **体质强化** (Vitality) — +5 max lives per stack, and +5 lives granted immediately on pick.
+
+Rules:
+
+- **Free pick** — taking a green card never costs a life, never triggers the effect-card switch cost, and leaves the equipped effect card untouched.
+- **×3 stacks** — each green card can be picked at most 3 times per run, independently of the effect-card limit; exhausted greens stop being offered, and all stacks reset on a new run.
+- **Glass exception** — while the 玻璃大炮 Glass card is equipped, 体质强化 is removed from the offer (the life cap stays 1) and returns once Glass is unequipped. The max-life cap is 20 + 5 × Vitality stacks, or 1 under Glass.
+- **HUD** — green stacks appear as white-disc chips with green rings in the top-right indicator stack, each showing the card's glyph (速 / 弹 / 命) and a ×N stack badge.
+
+To absorb stacked fire rates, the player bullet pool holds 400 bullets (up from 200).
 
 ## Achievements
 
@@ -101,7 +118,7 @@ Crowns are never spent down — reaching a threshold unlocks its bonus permanent
         ├── input.js          # keyboard / touch / mouse wiring
         ├── achievements.js   # achievement panel logic
         ├── badges.js         # 校徽 badge sprite skinning + menu emblem
-        └── cards.js          # effect-card definitions, pick flow, stat multipliers
+        └── cards.js          # effect-card + green-card definitions, pick flow, stat multipliers
 ```
 
 ### Module wiring

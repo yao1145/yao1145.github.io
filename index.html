@@ -31,7 +31,8 @@
 
             <div class="shieldIndicator" id="shieldIndicator">盾: 0.0</div>
             <div class="attackIndicator" id="attackIndicator">攻: 0.0</div>
-            <div class="cardIndicator" id="cardIndicator">效果卡: 无</div>
+            <div class="cardIndicator" id="cardIndicator" style="display:none"></div>
+            <div id="greenBuffBar" class="greenBuffBar" style="display:none"></div>
             <div class="summonIndicator" id="summonIndicator">召唤: 0s</div>
 
             <div id="gameStartPanel" class="uiPanel">
@@ -131,6 +132,21 @@
                     <button type="button" class="effectCard" data-card="boost">
                         <span class="cardName">增益加强</span>
                         <span class="cardDesc">道具效果提升（红心+2命，攻/盾+5秒）；每发敌机子弹扣除2点生命</span>
+                        <span class="cardBadge">当前效果</span>
+                    </button>
+                    <button type="button" class="effectCard isGreen" data-card="g_rate">
+                        <span class="cardName">疾速射击</span>
+                        <span class="cardDesc">射速+50%可叠加</span>
+                        <span class="cardBadge">当前效果</span>
+                    </button>
+                    <button type="button" class="effectCard isGreen" data-card="g_bullets">
+                        <span class="cardName">弹仓扩容</span>
+                        <span class="cardDesc">子弹数+1可叠加</span>
+                        <span class="cardBadge">当前效果</span>
+                    </button>
+                    <button type="button" class="effectCard isGreen" data-card="g_vitality">
+                        <span class="cardName">体质强化</span>
+                        <span class="cardDesc">生命上限+5并回5命</span>
                         <span class="cardBadge">当前效果</span>
                     </button>
                 </div>
@@ -234,6 +250,14 @@
                             <li>增益加强 —— 道具效果提升；每发敌弹扣 2 点生命。</li>
                         </ul>
                         <p class="introP">提示：每次选择随机给出 4 张（含当前卡）；同一张效果卡最多可连用 3 次，用满后不再出现。</p>
+                        <p class="introP">每次选卡有 <b>1/3</b> 概率额外混入 1 张<b>增益绿卡</b>：绿卡<b>免费</b>选取——不占用效果卡槽位、不触发换卡扣命，与效果卡同时生效；同一张每局最多叠加 <b>3</b> 次，本局内永久生效，新开局清零。</p>
+                        <ul class="introList">
+                            <li>疾速射击 —— 射速 +50%，可叠加（加法，×1.5 / ×2.0 / ×2.5）。</li>
+                            <li>弹仓扩容 —— 每次射击子弹数 +1，可叠加。</li>
+                            <li>体质强化 —— 生命上限 +5 并立即 +5 命，可叠加。</li>
+                        </ul>
+                        <p class="introP">装备玻璃大炮时「体质强化」不会出现（生命上限被锁定为 1）；换出后生命上限恢复为 20 + 绿卡加成。</p>
+                        <p class="introP">右上角红色圆盘图标为当前效果卡；绿色白盘图标为已获得的绿卡增益及叠层数。</p>
                     </section>
                 </div>
                 <button id="introBackButton" class="uiButton">返回</button>

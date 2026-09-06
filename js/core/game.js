@@ -18,8 +18,6 @@ export const Game = {
     lastScore: 0,
     totalCrowns: 0,
     lives: 3,
-    // Max-life cap (the glass card temporarily overrides it with 1).
-    maxLives: CONFIG.player.maxLives,
     baseBulletCount: 1,
     autoShieldTimer: 0,
     bulletDamage: 1,
@@ -57,12 +55,15 @@ export const Game = {
     shieldIndicator: null,
     attackIndicator: null,
     summonIndicator: null,
+    greenBuffBar: null,
 
     bossAppearCount: 0,
     isDamageBoost: false,
     damageBoostTime: 0,
     // Effect card (see js/systems/cards.js): null until picked.
     activeCard: null,
+    // Green buff cards (see js/systems/cards.js): per-run stack counts.
+    greenStacks: { g_rate: 0, g_bullets: 0, g_vitality: 0 },
     // Difficulty preset ('hard' = authored tuning, 'easy' = relaxed, see CONFIG.difficulty).
     difficulty: 'hard',
     cardRegenTimer: 0,
@@ -91,13 +92,6 @@ export const Game = {
         this.highCrowns = localStorage.getItem('planeGameHighCrowns') || 0;
         this.lastScore = Number(localStorage.getItem('planeGameLastScore') || 0);
         this.totalCrowns = Number(localStorage.getItem('planeGameTotalCrowns') || 0);
-
-        // Test mode: ?crowns=N overrides the crown count for this load without
-        // writing to stored progress, so achievements/bonuses can be verified fast.
-        const testCrowns = new URLSearchParams(location.search).get('crowns');
-        if (testCrowns !== null) {
-            this.totalCrowns = Number(testCrowns) || 0;
-        }
 
         this.updateMainPanel();
         document.getElementById('hudStats').style.display = 'none';
@@ -214,8 +208,6 @@ export const Game = {
             : this.totalCrowns >= ach.doubleBulletCrowns ? 2 : 1;
         this.bulletDamage = 1;
         this.autoShieldTimer = this.totalCrowns >= ach.autoShieldCrowns ? ach.autoShieldIntervalMs : 0;
-        // Fresh run never inherits a stale glass-card life cap.
-        this.maxLives = CONFIG.player.maxLives;
 
         this.level = 1;
         this.crowns = 0;
@@ -234,8 +226,10 @@ export const Game = {
         this.damageBoostTime = 0;
         this.activeCard = null;
         this.cardRegenTimer = 0;
-        // Fresh run resets per-card pick counts.
+        // Fresh run resets per-card pick counts and green-card stacks.
         this.cardPickCount = {};
+        this.greenStacks = { g_rate: 0, g_bullets: 0, g_vitality: 0 };
+        this.updateGreenBuffUI();
         this.cardIndicator.style.display = 'none';
 
         this.player.x = this.width / 2 - 15;
@@ -366,8 +360,9 @@ export const Game = {
         document.getElementById('cardPanel').style.display = 'none';
         this.cardIndicator.style.display = 'none';
         this.activeCard = null;
-        // Drop the glass-card life cap when returning to the menu.
-        this.maxLives = CONFIG.player.maxLives;
+        // Run over: clear green stacks so the buff bar hides with them.
+        this.greenStacks = { g_rate: 0, g_bullets: 0, g_vitality: 0 };
+        this.updateGreenBuffUI();
         this.isCardSelectionOpen = false;
 
         // Reset the start panel to its default idle look (in case it was in pause state).

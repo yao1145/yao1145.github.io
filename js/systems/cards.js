@@ -38,10 +38,18 @@ Game.CARD_DESCS = {
     boost: '道具强化·敌弹伤2',
 };
 
+// Green buff cards: stackable and permanent for the run. Picking one is free
+// and never touches the active effect card. Tunables live in CONFIG.greenCards.
+Game.GREEN_CARDS = { g_rate: CONFIG.greenCards.rate, g_bullets: CONFIG.greenCards.bullets, g_vitality: CONFIG.greenCards.vitality };
+
+// HUD glyph per green card, used by the buff bar renderer.
+Game.GREEN_ICONS = { g_rate: '速', g_bullets: '弹', g_vitality: '命' };
+
 // The pick panel always shows up to 4 cards: the currently equipped one is
-// always included while still allowed (under this run's pick cap); the rest
-// fill in randomly from the remaining allowed cards. With no equipped card at
-// game start, up to 4 random cards show.
+// always included while still allowed (under this run's pick cap); each roll
+// has a CONFIG.greenCards.rollChance chance of including exactly one green
+// card, with the remaining slots filled by color cards. With no equipped card
+// at game start, up to 4 random cards show.
 Game.rollCardOptions = function() {
     // Each card can be equipped cardMaxPicks times per run; past that it
     // leaves the candidate pool.
@@ -63,9 +71,43 @@ Game.rollCardOptions = function() {
         chosen.push(allowed[equippedIndex]);
         allowed.splice(equippedIndex, 1);
     }
-    // Fill up to 4 from the remaining allowed cards; show fewer if short.
-    const need = Math.min(4 - chosen.length, allowed.length);
-    for (let i = 0; i < need; i++) chosen.push(allowed[i]);
+
+    // Green cards still under their pick cap; vitality can't be offered while
+    // glass caps lives at 1 (the raised cap would be unreachable).
+    const stacks = this.greenStacks || {};
+    const greenPool = Object.keys(this.GREEN_CARDS)
+        .filter(k => (stacks[k] || 0) < CONFIG.greenCards.maxPicks
+            && !(k === 'g_vitality' && this.activeCard === 'glass'));
+
+    // Per-selection gate: one roll decides whether the fill includes exactly
+    // one green card; the remaining slots draw from the color pool. If the
+    // color pool runs out mid-fill, keep filling from the green pool
+    // (exhaustion fallback, ignoring the gate); a hit with an empty green
+    // pool means all color cards.
+    const fill = [];
+    if (Math.random() < CONFIG.greenCards.rollChance && greenPool.length > 0) {
+        const idx = Math.floor(Math.random() * greenPool.length);
+        fill.push(greenPool[idx]);
+        greenPool.splice(idx, 1);
+    }
+    while (chosen.length + fill.length < 4 && allowed.length > 0) {
+        const idx = Math.floor(Math.random() * allowed.length);
+        fill.push(allowed[idx]);
+        allowed.splice(idx, 1);
+    }
+    while (chosen.length + fill.length < 4 && greenPool.length > 0) {
+        const idx = Math.floor(Math.random() * greenPool.length);
+        fill.push(greenPool[idx]);
+        greenPool.splice(idx, 1);
+    }
+    // Shuffle the fill so the green card (when present) isn't always first.
+    for (let i = fill.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const tmp = fill[i];
+        fill[i] = fill[j];
+        fill[j] = tmp;
+    }
+    chosen.push(...fill);
 
     for (const button of this.cardButtons) {
         const id = button.dataset.card;
@@ -73,7 +115,7 @@ Game.rollCardOptions = function() {
         button.style.display = show ? '' : 'none';
         if (show) {
             const desc = button.querySelector('.cardDesc');
-            if (desc) desc.textContent = this.CARD_DESCS[id] || '';
+            if (desc) desc.textContent = this.CARD_DESCS[id] || (this.GREEN_CARDS[id] && this.GREEN_CARDS[id].desc) || '';
         }
     }
 };
@@ -124,7 +166,26 @@ Game.openCardSelection = function(firstPick = false) {
 };
 
 Game.selectCard = function(cardId) {
-    if (!this.isCardSelectionOpen || !this.CARDS[cardId]) return;
+    if (!this.isCardSelectionOpen || !(this.CARDS[cardId] || this.GREEN_CARDS[cardId])) return;
+
+    // Green cards: free, stackable, never touch the equipped effect card.
+    if (this.GREEN_CARDS[cardId]) {
+        this.greenStacks[cardId] = Math.min((this.greenStacks[cardId] || 0) + 1, CONFIG.greenCards.maxPicks);
+        this.cardPickCount = this.cardPickCount || {};
+        this.cardPickCount[cardId] = (this.cardPickCount[cardId] || 0) + 1;
+        if (cardId === 'g_vitality') this.applyLifeGain(CONFIG.greenCards.vitality.perStack);
+
+        this.updateCardHighlight();
+        this.updateGreenBuffUI();
+        this.cardPanel.style.display = 'none';
+        this.isCardSelectionOpen = false;
+
+        this.isRunning = true;
+        this.accumulator = 0;
+        this.lastTime = performance.now();
+        this.enableControlArea(true);
+        return;
+    }
 
     const previousCard = this.activeCard;
     const isSwitch = previousCard !== null && cardId !== previousCard;
@@ -143,12 +204,9 @@ Game.selectCard = function(cardId) {
     }
 
     this.activeCard = cardId;
-    // Glass: lock maxLives=1 on entry, restore the default cap on exit.
+    // Glass: the cap drops to 1 via getMaxLives, so clamp current lives to it.
     if (cardId === 'glass') {
-        this.maxLives = 1;
         this.lives = 1;
-    } else if (previousCard === 'glass') {
-        this.maxLives = CONFIG.player.maxLives;
     }
 
     // Each card equips at most cardMaxPicks times per run; keeping the
@@ -157,8 +215,7 @@ Game.selectCard = function(cardId) {
     this.cardPickCount[cardId] = (this.cardPickCount[cardId] || 0) + 1;
 
     this.updateCardHighlight();
-    this.cardIndicator.textContent = `效果卡: ${this.CARDS[cardId].name}`;
-    this.cardIndicator.style.display = 'block';
+    this.updateCardChipUI();
     this.cardPanel.style.display = 'none';
     this.isCardSelectionOpen = false;
 
@@ -213,6 +270,8 @@ Game.getPlayerShotDelay = function() {
     if (this.activeCard === 'glass') {
         delay /= CONFIG.cards.glassShotSpeedMult;
     }
+    // g_rate stacks: additive x0.5 each (delay /1.5, /2, /2.5 at 1/2/3 stacks).
+    delay /= 1 + (this.greenStacks.g_rate || 0) * CONFIG.greenCards.rate.perStack;
     return delay;
 };
 
@@ -235,9 +294,12 @@ Game.getBossShotDelay = function() {
     return this.difficulty === 'easy' ? delay * CONFIG.difficulty.easy.bossShotDelayMult : delay;
 };
 
-// Blitz: extra bullets per shot, on top of baseBulletCount.
+// Blitz: extra bullets per shot, on top of baseBulletCount. g_bullets stacks
+// add +1 bullet each.
 Game.getBulletCount = function() {
-    return this.baseBulletCount + (this.activeCard === 'blitz' ? CONFIG.cards.bulletCountBonus : 0);
+    return this.baseBulletCount
+        + (this.activeCard === 'blitz' ? CONFIG.cards.bulletCountBonus : 0)
+        + (this.greenStacks.g_bullets || 0) * CONFIG.greenCards.bullets.perStack;
 };
 
 // Blitz: player bullet speed multiplier.
@@ -277,9 +339,15 @@ Game.canHeal = function() {
     return !(this.activeCard === 'blitz' || this.activeCard === 'glass');
 };
 
-// Single life-gain entry point, capped by maxLives.
+// Life cap: glass locks it to 1, otherwise base + 5 per vitality green stack.
+Game.getMaxLives = function() {
+    if (this.activeCard === 'glass') return 1;
+    return CONFIG.player.maxLives + (this.greenStacks.g_vitality || 0) * CONFIG.greenCards.vitality.perStack;
+};
+
+// Single life-gain entry point, capped by getMaxLives().
 Game.applyLifeGain = function(n) {
-    this.lives = Math.min(this.lives + n, this.maxLives);
+    this.lives = Math.min(this.lives + n, this.getMaxLives());
     this.updateUI(true);
 };
 
@@ -296,6 +364,42 @@ Game.updateCardEffects = function(deltaTime) {
 
 Game.updateCardHighlight = function() {
     for (const button of this.cardButtons) {
-        button.classList.toggle('cardActive', button.dataset.card === this.activeCard);
+        const id = button.dataset.card;
+        if (this.GREEN_CARDS[id]) {
+            // Green cards light up by stack count; badge shows the stack total.
+            const stacks = this.greenStacks[id] || 0;
+            button.classList.toggle('cardActive', stacks > 0);
+            const badge = button.querySelector('.cardBadge');
+            if (badge) badge.textContent = stacks > 0 ? `×${stacks}` : '';
+        } else {
+            button.classList.toggle('cardActive', id === this.activeCard);
+        }
+    }
+};
+
+// Green buff HUD: one chip per stacked green card; hidden while no stacks.
+Game.updateGreenBuffUI = function() {
+    if (!this.greenBuffBar) this.greenBuffBar = document.getElementById('greenBuffBar');
+    if (!this.greenBuffBar) return;
+    let html = '';
+    for (const id of Object.keys(this.GREEN_CARDS)) {
+        const stacks = this.greenStacks[id] || 0;
+        if (stacks <= 0) continue;
+        html += `<span class="buffChip"><span class="buffIcon">${this.GREEN_ICONS[id]}</span><span class="buffStack">×${stacks}</span></span>`;
+    }
+    this.greenBuffBar.innerHTML = html;
+    this.greenBuffBar.style.display = html ? '' : 'none';
+};
+
+// Effect-card HUD chip: shows the first glyph of the equipped card's name;
+// hidden while no card is equipped.
+Game.updateCardChipUI = function() {
+    if (!this.cardIndicator) this.cardIndicator = document.getElementById('cardIndicator');
+    if (!this.cardIndicator) return;
+    if (this.activeCard) {
+        this.cardIndicator.textContent = this.CARDS[this.activeCard].name[0];
+        this.cardIndicator.style.display = '';
+    } else {
+        this.cardIndicator.style.display = 'none';
     }
 };

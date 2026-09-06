@@ -39,7 +39,7 @@
 
 .summonIndicator {
     position: absolute;
-    top: 100px;   /* Fourth chip in the top-right stack: below shield (10px) / attack (40px) / card (70px) */
+    top: 130px;   /* Fifth chip in the top-right stack: below shield (10px) / attack (40px) / card (70px) / green buffs (100px) */
     right: 10px;
     background: rgba(0, 0, 0, 0.7);
     padding: 4px 8px;
@@ -50,4 +50,60 @@
     z-index: 15;
     display: none;
     font-family: 'Courier New', monospace;
+}
+
+/* Green buff stack bar: one white disc per equipped green buff card, fed by
+   the game JS (chips + inline display flip). Slots directly below the card
+   indicator in the top-right stack; the summon chip moves to 130px. */
+.greenBuffBar {
+    position: absolute;
+    top: 100px;   /* Below shield (10px) / attack (40px) / card (70px) */
+    right: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    row-gap: 4px;
+    max-width: 50%;  /* Never grow left into the top-left HUD stats */
+    z-index: 15;
+}
+
+/* White disc echoing the badge white-disc sprite motif, green-ringed so it
+   reads as part of the buff family. Spacing via sibling margin (not gap) so
+   the row survives even if the container is shown as display: block. */
+.buffChip {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 0 0 1px rgba(61, 220, 132, 0.7), 0 0 8px rgba(61, 220, 132, 0.45);
+}
+
+.buffChip + .buffChip {
+    margin-left: 5px;
+}
+
+.buffIcon {
+    font-size: 13px;
+    font-weight: bold;
+    line-height: 1;
+    color: #10151b;
+}
+
+/* Stack count (xN) pinned to the disc's top-right corner. */
+.buffStack {
+    position: absolute;
+    top: -4px;
+    right: -6px;
+    padding: 1px 3px;
+    border-radius: 6px;
+    background: #3ddc84;
+    color: #06180d;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 9px;
+    font-weight: bold;
+    line-height: 1.1;
 }
