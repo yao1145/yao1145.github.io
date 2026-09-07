@@ -201,6 +201,7 @@ export const Game = {
     startGame: function() {
         // Ready gate: no start until all badges are loaded (badgeLoad, maintained by badges.js).
         if (!this.badgeLoad || this.badgeLoad.status !== 'ready') return;
+        this.resetBuildState();
         this.isRunning = true;
         this.isGameOver = false;
         this.isMenu = false;
