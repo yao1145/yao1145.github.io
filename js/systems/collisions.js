@@ -84,11 +84,7 @@ Game.checkCollisions = function() {
                     enemy.color = CONFIG.enemyTypes[enemy.type].color;
                     break;
                 }
-                if (event.killed) {
-                    // Chain card: this bullet kill triggers the first blast; further
-                    // chain kills are detonated by createExplosionChain's own worklist.
-                    if (this.activeCard === 'chain') this.createExplosionChain(event.x, event.y);
-                } else {
+                if (!event.killed) {
                     this.createExplosion(event.x, event.y, '#fff', 2);
                 }
                 if (!event.pierced) this.releaseObject('bullets', bullet);
@@ -176,8 +172,9 @@ Game.isColliding = function(obj1, obj2) {
 // strikes, retaliation, explosions): identity-validates the target, applies
 // the quantized amount, and settles a first-lethal death exactly once.
 // Never queues direct-hit events and never feeds per-shot progress.
+// extra context (e.g. the killing shotId) is forwarded to the kill broadcast.
 // Returns true when the damage was dealt.
-Game.applyCombatDamage = function(target, targetType, amount, source) {
+Game.applyCombatDamage = function(target, targetType, amount, source, extra = {}) {
     if (!target || target._dead || target.health <= 0) return false;
     if (targetType === 'enemy' && !this.isActiveEntity('enemies', target.entityId)) return false;
     if (targetType === 'boss' && (!this.boss || this.boss.entityId !== target.entityId)) return false;
@@ -191,7 +188,7 @@ Game.applyCombatDamage = function(target, targetType, amount, source) {
             this.createExplosion(target.x + target.width / 2, target.y + target.height / 2, '#f00', 8);
             this.handleBossDeath();
         } else {
-            this.killEnemy(target, { source });
+            this.killEnemy(target, { source, damage: amount, ...extra });
         }
     }
     return true;
@@ -228,7 +225,7 @@ Game.damageTarget = function({ bullet, target, targetType }) {
         if (canPierce) bullet.pierceRemaining -= 1;
     }
 
-    const dealt = this.applyCombatDamage(target, targetType, damage, 'direct');
+    const dealt = this.applyCombatDamage(target, targetType, damage, 'direct', { shotId: bullet && bullet.shotId });
     if (!dealt) return null;
 
     const event = {
@@ -352,6 +349,11 @@ Game.killEnemy = function(enemy, context = {}) {
         type: enemy.type,
         x: enemy.x + enemy.width / 2,
         y: enemy.y + enemy.height / 2,
+        // Killing-blow damage: chain seeds and execute progress read it.
+        damage: context.damage || 0,
+        // A chain-explosion death carries its chain id so tests and metrics
+        // can tell one cascade from another.
+        chainId: context.chainId || 0,
     };
     const killColor = enemy.color;
 
@@ -451,44 +453,18 @@ Game.handleBossDeath = function() {
     this.beginRewardFlow(false);
 };
 
-// Chain explosion: cascades outward from (x, y) within chainRadius, using the
-// spatial grid built once per frame. _dead/health guards skip enemies already
-// dead this frame; worklist + processed set + iteration cap prevent double
-// processing and infinite loops.
-Game.createExplosionChain = function(x, y) {
-    const chainRadius = CONFIG.cards.chainRadius;
-    const chainDamage = CONFIG.cards.chainDamage;
-    const worklist = [{ x: x, y: y }];
-    const processed = new Set();
-    let iterations = 0;
-    const maxIterations = 80; // safety cap against pathological enemy density
-
-    while (worklist.length > 0 && iterations < maxIterations) {
-        const point = worklist.pop();
-        iterations++;
-        // Chain VFX: a few sparks + one shockwave.
-        this.createExplosion(point.x, point.y, '#ff0', 3);
-        this.createShockwave(point.x, point.y);
-
-        const nearby = this.spatialGrid.getNearby({ x: point.x, y: point.y, width: 1, height: 1 });
-        for (const entry of nearby) {
-            if (entry.poolType !== 'enemies') continue;
-            const enemy = entry.obj;
-            if (!enemy || enemy._dead || enemy.health <= 0) continue;
-            if (processed.has(enemy)) continue;
-
-            const dx = enemy.x + enemy.width/2 - point.x;
-            const dy = enemy.y + enemy.height/2 - point.y;
-            if (dx * dx + dy * dy > chainRadius * chainRadius) continue;
-
-            enemy.health -= chainDamage;
-            if (enemy.health <= 0) {
-                processed.add(enemy);
-                // Chain deaths are explosion-sourced: they never feed the
-                // direct-shot hooks (heat-up, marks, seed progress).
-                this.killEnemy(enemy, { source: 'explosion' });
-                worklist.push({ x: enemy.x + enemy.width/2, y: enemy.y + enemy.height/2 });
-            }
+// Removes ordinary enemy bullets whose center lies within radius of (x, y).
+// Shared by 安全窗口 (fortress) and 连锁震荡 (chain): never touches enemies,
+// the boss, or un-clearable mechanic objects.
+Game.clearEnemyBulletsInRadius = function(x, y, radius) {
+    const r2 = radius * radius;
+    const pool = this.objectPools.enemyBullets;
+    for (let i = pool.active.length - 1; i >= 0; i--) {
+        const bullet = pool.active[i];
+        const dx = bullet.x + bullet.width / 2 - x;
+        const dy = bullet.y + bullet.height / 2 - y;
+        if (dx * dx + dy * dy <= r2) {
+            this.releaseObject('enemyBullets', bullet);
         }
     }
 };

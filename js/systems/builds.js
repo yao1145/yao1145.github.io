@@ -527,6 +527,114 @@ Game.onDirectShotBatch = function(batch) {
 
 Game.onEnemyKilled = function(killEvent) {
     this.rapidOnKill(killEvent);
+    this.chainSeedFromKill(killEvent);
+};
+
+// --- 连锁清场 chain: merged kill-explosions --------------------------------
+// The chain card's 200px cascade and the 爆破种子 seed are ONE event per kill:
+// they share a radius/damage (the larger of both) and one chain id, so the
+// core card and the build never detonate two independent explosions.
+
+Game.chainSeedFromKill = function(killEvent) {
+    if (killEvent.source !== 'direct') return;
+    if (this.activeCard !== 'chain' && !this.hasBuild('chain_entry')) return;
+    this.createDamageExplosion({
+        x: killEvent.x,
+        y: killEvent.y,
+        damage: killEvent.damage,
+    });
+};
+
+// Seeds and runs one kill-explosion chain. spec = { x, y, damage } where
+// damage is the direct hit that caused the kill (D for the seed's 0.5D).
+// Geometry limits: a merged (core) chain keeps the core card's 200px radius,
+// its unbounded propagation and its 80-blast safety cap; a seed-only chain is
+// capped at 12 blasts and propagates only with 二次引燃 (at most 2 extra
+// blast layers). Each entity is hit once per chain; the boss takes only the
+// seed part at half and never propagates; VFX failure never cancels damage.
+Game.createDamageExplosion = function(spec) {
+    const hasCore = this.activeCard === 'chain';
+    const hasSeed = this.hasBuild('chain_entry');
+    if (!hasCore && !hasSeed) return false;
+
+    const cfg = CONFIG.builds.chain;
+    const state = this.buildState;
+    const seedRadius = cfg.seedRadius + (this.hasBuild('chain_wide') ? cfg.wideBonusRadius : 0);
+    const seedDamage = this.roundCombatDamage(cfg.seedDamageMult * (spec.damage || 0));
+    // Normal-enemy damage: the larger of the core blast and the seed's 0.5D.
+    const damage = hasCore && hasSeed
+        ? Math.max(CONFIG.cards.chainDamage, seedDamage)
+        : hasSeed ? seedDamage : CONFIG.cards.chainDamage;
+    const radius = hasCore ? CONFIG.cards.chainRadius : seedRadius;
+    // The boss only ever takes the seed part, at half (新增爆炸部分半伤).
+    const bossDamage = hasSeed
+        ? this.roundCombatDamage(seedDamage * cfg.bossDamageMult)
+        : 0;
+    const seedOnly = !hasCore;
+    const maxBlasts = seedOnly ? cfg.buildMaxExplosions : 80;
+    const ignite = seedOnly && this.hasBuild('chain_ignite');
+    // A merged (core) chain keeps the card's unbounded cascade; a seed-only
+    // chain only cascades with 二次引燃, capped at 2 extra blast layers.
+    const propagate = hasCore || ignite;
+    const chainId = ++this.nextChainId;
+
+    const queue = [{ x: spec.x, y: spec.y, depth: 0 }];
+    const hitIds = new Set(); // every entity is hit at most once per chain
+    let blasts = 0;
+    let chainKills = 0;
+    let shocked = false;
+
+    while (queue.length > 0 && blasts < maxBlasts) {
+        const point = queue.pop();
+        blasts++;
+        state.counters.chainBlasts = (state.counters.chainBlasts || 0) + 1;
+        // Light blast VFX; a drained particle pool never cancels the damage.
+        this.createExplosion(point.x, point.y, '#ff0', 2);
+        this.createShockwave(point.x, point.y);
+
+        const candidates = this.spatialGrid.getWithinRadius(point.x, point.y, radius);
+        for (const entry of candidates) {
+            if (entry.poolType !== 'enemies') continue;
+            const enemy = entry.obj;
+            if (!enemy || enemy._dead || enemy.health <= 0) continue;
+            if (hitIds.has(enemy.entityId)) continue;
+            const dx = enemy.x + enemy.width / 2 - point.x;
+            const dy = enemy.y + enemy.height / 2 - point.y;
+            if (dx * dx + dy * dy > radius * radius) continue;
+            hitIds.add(enemy.entityId);
+
+            enemy.health -= damage;
+            if (enemy.health <= 0) {
+                chainKills++;
+                const killX = enemy.x + enemy.width / 2;
+                const killY = enemy.y + enemy.height / 2;
+                this.killEnemy(enemy, { source: 'explosion', chainId });
+                if (propagate && (hasCore || point.depth + 1 <= cfg.buildMaxDepth)) {
+                    queue.push({ x: killX, y: killY, depth: point.depth + 1 });
+                }
+                // 连锁震荡: the 3rd chain kill clears nearby enemy bullets —
+                // once per chain, and the clear respects the global 5s cooldown.
+                if (this.hasBuild('chain_capstone')
+                    && !shocked && chainKills >= cfg.shockKills
+                    && (state.timers.chainShockCooldown || 0) <= 0) {
+                    shocked = true;
+                    state.timers.chainShockCooldown = cfg.shockCooldownMs;
+                    this.clearEnemyBulletsInRadius(killX, killY, cfg.shockRadius);
+                }
+            }
+        }
+
+        // The boss is not grid-inserted: check it per blast, once per chain.
+        if (this.boss && !hitIds.has(this.boss.entityId)) {
+            const bdx = this.boss.x + this.boss.width / 2 - point.x;
+            const bdy = this.boss.y + this.boss.height / 2 - point.y;
+            if (bdx * bdx + bdy * bdy <= radius * radius) {
+                hitIds.add(this.boss.entityId);
+                this.applyCombatDamage(this.boss, 'boss', bossDamage, 'explosion');
+            }
+        }
+    }
+    return true;
 };
 
 // --- 疾速压制 rapid: heat-up -> pierced primary shots -----------------------
@@ -701,6 +809,10 @@ Game.updateBuildEffects = function(deltaTime) {
     if ((state.timers.hunterWindow || 0) > 0) {
         state.timers.hunterWindow -= deltaTime;
         if (state.timers.hunterWindow < 0) state.timers.hunterWindow = 0;
+    }
+    if ((state.timers.chainShockCooldown || 0) > 0) {
+        state.timers.chainShockCooldown -= deltaTime;
+        if (state.timers.chainShockCooldown < 0) state.timers.chainShockCooldown = 0;
     }
 };
 

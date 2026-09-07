@@ -28,6 +28,8 @@ export const Game = {
     // spawnBullet (never reset — stale async references must not collide with
     // a new run's ids, like nextEntityId).
     nextShotId: 0,
+    // Explosion-chain identity (js/systems/builds.js): one id per kill cascade.
+    nextChainId: 0,
     // Direct hits collected during one checkCollisions pass and delivered to
     // the build hooks by flushDirectShotBatches().
     directHitQueue: [],
