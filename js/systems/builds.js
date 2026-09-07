@@ -216,8 +216,13 @@ Game.getLegalBuildCandidates = function(rng = Math.random) {
         prioritizedLines.add(line);
     };
 
-    const investedLines = routeOrder.filter((line) => owned.some((id) => builds[id] && builds[id].line === line)
-        && getNextLegal(line));
+    const investedLines = routeOrder.filter((line) => {
+        const route = ROUTES.find((candidateRoute) => candidateRoute.line === line);
+        const capstoneId = route.builds.find(([, stage]) => stage === 'capstone')[0];
+        return owned.some((id) => builds[id] && builds[id].line === line)
+            && !owned.includes(capstoneId)
+            && getNextLegal(line);
+    });
     const associatedCandidateLines = [...new Set(associatedLines[this.activeCard] || [])]
         .filter((line) => getNextLegal(line));
     const associatedNewLines = associatedCandidateLines.filter((line) => !investedLines.includes(line));

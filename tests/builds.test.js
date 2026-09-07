@@ -97,6 +97,22 @@ test('candidate allocation preserves every invested unfinished route before the 
     assert.equal(candidates.includes('supply_entry'), false);
 });
 
+test('completed routes do not consume candidate priority slots', () => {
+    resetBuilds();
+    Game.activeCard = 'fog';
+    Game.buildState.owned = [
+        'rapid_entry', 'rapid_reignite', 'rapid_capstone',
+        'fortress_entry',
+        'desperate_entry',
+        'supply_entry',
+    ];
+
+    const candidates = Game.getLegalBuildCandidates(() => 0);
+
+    assert.deepEqual(candidates, ['fortress_regroup', 'desperate_strike', 'supply_magnet']);
+    assert.equal(candidates.some((id) => Game.BUILDS[id].line === 'rapid'), false);
+});
+
 test('candidate generation returns only the legal number when the pool is short or empty', () => {
     resetBuilds();
     Game.buildState.owned = Object.keys(Game.BUILDS);
