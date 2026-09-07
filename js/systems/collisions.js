@@ -172,12 +172,44 @@ Game.isColliding = function(obj1, obj2) {
            obj1.y + obj1.height > obj2.y;
 };
 
+// Shared combat-damage application for every non-direct source too (bonus
+// strikes, retaliation, explosions): identity-validates the target, applies
+// the quantized amount, and settles a first-lethal death exactly once.
+// Never queues direct-hit events and never feeds per-shot progress.
+// Returns true when the damage was dealt.
+Game.applyCombatDamage = function(target, targetType, amount, source) {
+    if (!target || target._dead || target.health <= 0) return false;
+    if (targetType === 'enemy' && !this.isActiveEntity('enemies', target.entityId)) return false;
+    if (targetType === 'boss' && (!this.boss || this.boss.entityId !== target.entityId)) return false;
+
+    amount = this.roundCombatDamage(amount);
+    if (amount <= 0) return false;
+
+    target.health -= amount;
+    if (target.health <= 0) {
+        if (targetType === 'boss') {
+            this.createExplosion(target.x + target.width / 2, target.y + target.height / 2, '#f00', 8);
+            this.handleBossDeath();
+        } else {
+            this.killEnemy(target, { source });
+        }
+    }
+    return true;
+};
+
+// Resolves a still-live target by identity (pooled entities are only the
+// enemy they are while active; the boss only while it is this.boss).
+Game.resolveLiveTarget = function(targetType, entityId) {
+    if (targetType === 'boss') {
+        return this.boss && this.boss.entityId === entityId ? this.boss : null;
+    }
+    return this.objectPools.enemies.active.find((e) => e.entityId === entityId) || null;
+};
+
 // Unified direct-shot hit. Validates the target identity before touching its
-// health — pooled objects are only the enemy they are while active, and the
-// boss is only valid while it is this.boss — then applies exactly one damage,
-// settles a first-lethal death exactly once (killEnemy / handleBossDeath),
-// and queues the hit for the per-shot batch hooks. A piercing bullet never
-// re-damages an entity it already hit.
+// health, applies exactly one damage via applyCombatDamage (which settles a
+// first-lethal death exactly once), and queues the hit for the per-shot
+// batch hooks. A piercing bullet never re-damages an entity it already hit.
 // Returns the direct-hit event, or null when nothing landed.
 Game.damageTarget = function({ bullet, target, targetType }) {
     if (!target || target._dead || target.health <= 0) return null;
@@ -196,16 +228,8 @@ Game.damageTarget = function({ bullet, target, targetType }) {
         if (canPierce) bullet.pierceRemaining -= 1;
     }
 
-    target.health -= damage;
-    const killed = target.health <= 0;
-    if (killed) {
-        if (targetType === 'boss') {
-            this.createExplosion(target.x + target.width / 2, target.y + target.height / 2, '#f00', 8);
-            this.handleBossDeath();
-        } else {
-            this.killEnemy(target, { source: 'direct', shotId: bullet && bullet.shotId });
-        }
-    }
+    const dealt = this.applyCombatDamage(target, targetType, damage, 'direct');
+    if (!dealt) return null;
 
     const event = {
         source: 'direct',
@@ -220,7 +244,7 @@ Game.damageTarget = function({ bullet, target, targetType }) {
         x: target.x + target.width / 2,
         y: target.y + target.height / 2,
         pierced: canPierce,
-        killed,
+        killed: target.health <= 0,
     };
     this.queueDirectHit(event);
     return event;

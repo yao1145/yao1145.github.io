@@ -113,6 +113,18 @@ Game.drawEnemySprite = function(enemy) {
 
 Game.drawBulletSprite = function(bullet) {
     this.ctx.drawImage(this.getBulletSprite(bullet.width, bullet.height, bullet.color), bullet.x, bullet.y, bullet.width, bullet.height);
+    // 疾速压制 feedback: a heated primary bullet carries a short tail flame
+    // (pure decoration — the collision box is unchanged).
+    if (bullet.rapidBoosted) {
+        const ctx = this.ctx;
+        ctx.fillStyle = 'rgba(255, 176, 80, 0.7)';
+        ctx.beginPath();
+        ctx.moveTo(bullet.x + bullet.width / 2, bullet.y + bullet.height);
+        ctx.lineTo(bullet.x + 1, bullet.y + bullet.height + 7);
+        ctx.lineTo(bullet.x + bullet.width - 1, bullet.y + bullet.height + 7);
+        ctx.closePath();
+        ctx.fill();
+    }
 };
 
 Game.drawEnemyBulletSprite = function(bullet) {

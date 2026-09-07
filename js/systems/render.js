@@ -61,6 +61,9 @@ Game.render = function() {
         const healthPercent = enemy.health / enemy.maxHealth;
         ctx.fillStyle = healthPercent > 0.5 ? '#0f0' : '#f00';
         ctx.fillRect(healthBarX, healthBarY, healthBarWidth * healthPercent, healthBarHeight);
+
+        // 破甲猎王 feedback: thin edge arc + mark count on the locked target.
+        this.drawHunterMark(enemy.entityId, enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, Math.max(enemy.width, enemy.height) / 2 + 4);
     }
 
     const itemPool = this.objectPools.items;
@@ -70,6 +73,7 @@ Game.render = function() {
 
     if (this.boss) {
         this.drawBoss(this.boss.x, this.boss.y, this.boss.width, this.boss.height, this.boss.color);
+        this.drawHunterMark(this.boss.entityId, this.boss.x + this.boss.width / 2, this.boss.y + this.boss.height / 2, Math.max(this.boss.width, this.boss.height) / 2 + 6);
     }
 
     const particlePool = this.objectPools.particles;
@@ -118,6 +122,24 @@ Game.drawFogBand = function(fogLine) {
     gradient.addColorStop(1, 'rgba(10, 17, 30, 0)');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, this.width, bottom);
+};
+
+// 破甲猎王 target mark: a thin arc at the entity edge plus the mark count,
+// drawn only for the currently locked target. Decoration only — it never
+// touches the collision box or the simulation.
+Game.drawHunterMark = function(targetId, cx, cy, radius) {
+    const lock = this.buildState && this.buildState.locks;
+    if (!lock || lock.hunterTargetId == null || lock.hunterTargetId !== targetId) return;
+    const ctx = this.ctx;
+    ctx.strokeStyle = 'rgba(140, 240, 255, 0.85)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, -Math.PI / 2.6, Math.PI / 2.6);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(140, 240, 255, 0.95)';
+    ctx.font = '10px Consolas, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(String(lock.hunterHits), cx, cy - radius - 4);
 };
 
 Game.drawBoss = function(x, y, width, height, color) {

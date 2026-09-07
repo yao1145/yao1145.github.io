@@ -511,13 +511,232 @@ Game.updateRewardSummaryUI = function() {
         <div class="summaryRow"><span class="summaryLabel">本次强化</span><span class="summaryValue">${buildText}</span></div>`;
 };
 
-// --- Combat-event hook defaults (extended by the build mechanics) ----------
+// --- Combat-event hooks -----------------------------------------------------
 // flushDirectShotBatches() delivers one batch per shot id after the collision
-// pass; killEnemy() broadcasts one event per settled death. Both stay no-ops
-// until a route owns the relevant build, so the event pipeline always runs
-// at the same cost.
+// pass; killEnemy() broadcasts one event per settled death. Each owned route
+// subscribes through its own handler so unowned routes cost nothing.
 
-Game.onDirectShotBatch = function() {};
-Game.onEnemyKilled = function() {};
+Game.onDirectShotBatch = function(batch) {
+    const first = batch.events[0];
+    // D for this shot: bonus strikes read the same single damage computation.
+    this.buildState.counters.directBaseDamage = first ? first.baseDamage : 0;
+    this.hunterWindowOnBatch(batch);
+    this.rapidOnBatch(batch);
+    this.hunterOnBatch(batch);
+};
+
+Game.onEnemyKilled = function(killEvent) {
+    this.rapidOnKill(killEvent);
+};
+
+// --- 疾速压制 rapid: heat-up -> pierced primary shots -----------------------
+
+// Reserves pierce for the primary bullet of every third shot fired while the
+// heat-up is running; the ordinal only advances during the heat-up. Called
+// once per shot by spawnBullet.
+Game.getPrimaryPierceForShot = function(shotId) {
+    if (!this.hasBuild('rapid_entry') || (this.buildState.timers.rapidWarmup || 0) <= 0) return 0;
+    this.buildState.counters.rapidHeatupShots = (this.buildState.counters.rapidHeatupShots || 0) + 1;
+    if (this.buildState.counters.rapidHeatupShots % 3 !== 0) return 0;
+    const cfg = CONFIG.builds.rapid;
+    return this.hasBuild('rapid_wide') ? cfg.widePierce : cfg.basePierce;
+};
+
+Game.rapidOnBatch = function(batch) {
+    if (!this.hasBuild('rapid_entry')) return;
+    const cfg = CONFIG.builds.rapid;
+    const state = this.buildState;
+
+    // One heat-up tick per shot, no matter how many bullets of the batch
+    // landed; heated shots never accumulate the next round.
+    if ((state.timers.rapidWarmup || 0) > 0) return;
+    state.counters.rapidHits = (state.counters.rapidHits || 0) + 1;
+    state.counters.rapidLastHit = this.gameTime;
+    if (state.counters.rapidHits >= cfg.hits) {
+        state.counters.rapidHits = 0;
+        state.timers.rapidWarmup = cfg.activeMs;
+        state.counters.rapidHeatupShots = 0;
+        state.counters.rapidExtendedMs = 0;
+    }
+};
+
+// 持续火力: a direct kill while heated extends the heat-up by 300ms per kill,
+// up to 1.5s of total extension per round.
+Game.rapidOnKill = function(killEvent) {
+    if (killEvent.source !== 'direct' || !this.hasBuild('rapid_capstone')) return;
+    const state = this.buildState;
+    if ((state.timers.rapidWarmup || 0) <= 0) return;
+    const cfg = CONFIG.builds.rapid;
+    const used = state.counters.rapidExtendedMs || 0;
+    if (used >= cfg.maxExtensionMs) return;
+    const gain = Math.min(cfg.killExtensionMs, cfg.maxExtensionMs - used);
+    state.timers.rapidWarmup += gain;
+    state.counters.rapidExtendedMs = used + gain;
+};
+
+// --- 破甲猎王 hunter: single-target marks -> precision strike -> window -----
+
+Game.hunterOnBatch = function(batch) {
+    if (!this.hasBuild('hunter_entry')) return;
+    const state = this.buildState;
+    const lock = state.locks;
+    const lockedId = lock.hunterTargetId;
+
+    // Batch target: the still-active locked target when it was hit in this
+    // batch, otherwise this batch's first hit that is still alive.
+    let target = null;
+    if (lockedId != null) {
+        const hit = batch.events.find((e) => e.entityId === lockedId);
+        if (hit) target = { targetType: hit.targetType, entityId: hit.entityId };
+    }
+    if (!target) {
+        const hit = batch.events.find((e) => {
+            return e.targetType === 'boss'
+                ? this.boss && this.boss.entityId === e.entityId
+                : this.isActiveEntity('enemies', e.entityId);
+        });
+        if (hit) target = { targetType: hit.targetType, entityId: hit.entityId };
+    }
+    if (!target) return;
+
+    // Switching targets clears the accumulated marks.
+    if (lockedId !== target.entityId) {
+        lock.hunterTargetId = target.entityId;
+        lock.hunterHits = 0;
+    }
+    lock.hunterHits += 1;
+    state.counters.hunterLastHit = this.gameTime;
+
+    if (lock.hunterHits >= CONFIG.builds.hunter.hits) {
+        lock.hunterHits = 0;
+        const live = this.resolveLiveTarget(target.targetType, target.entityId);
+        // Target died or was recycled mid-batch: clear the lock, no strike.
+        if (!live) {
+            lock.hunterTargetId = null;
+            return;
+        }
+        const cfg = CONFIG.builds.hunter;
+        // 处决校准: 3D against targets at 30% health or below, else 2D.
+        const execute = live.health <= cfg.executeHealthRatio * live.maxHealth;
+        const mult = execute ? cfg.executeMult : cfg.strikeMult;
+        if (this.triggerBonusStrike(target, mult, 'hunterPrecisionDamage')
+            && target.targetType === 'boss' && this.hasBuild('hunter_capstone')) {
+            // 猎王窗口: a boss precision strike opens the 2s window.
+            state.timers.hunterWindow = cfg.windowMs;
+        }
+    }
+};
+
+// A precision strike is bonus damage: 2D/3D of the triggering batch's D dealt
+// to the target with one feedback ring. Never counted back as a direct hit.
+Game.triggerBonusStrike = function(targetRef, multiplier, metric) {
+    const d = this.buildState.counters.directBaseDamage || 0;
+    const amount = this.roundCombatDamage(d * multiplier);
+    const target = this.resolveLiveTarget(targetRef.targetType, targetRef.entityId);
+    if (!target) return false;
+    if (!this.applyCombatDamage(target, targetRef.targetType, amount, 'bonus')) return false;
+
+    this.buildState.metrics = this.buildState.metrics || {};
+    this.buildState.metrics[metric] = (this.buildState.metrics[metric] || 0) + amount;
+    // 追加打击单环: one expanding ring marks the strike point.
+    this.createShockwave(target.x + target.width / 2, target.y + target.height / 2, '#8ef');
+    return true;
+};
+
+// 猎王窗口: the first direct hit inside the 2s window after a boss strike
+// deals +2D to its target and closes the window (windows never stack).
+Game.hunterWindowOnBatch = function(batch) {
+    const state = this.buildState;
+    if ((state.timers.hunterWindow || 0) <= 0 || !this.hasBuild('hunter_capstone')) return;
+    const first = batch.events[0];
+    if (!first) return;
+
+    const cfg = CONFIG.builds.hunter;
+    const amount = this.roundCombatDamage(first.baseDamage * cfg.windowMult);
+    const target = this.resolveLiveTarget(first.targetType, first.entityId);
+    if (target && this.applyCombatDamage(target, first.targetType, amount, 'bonus')) {
+        state.metrics = state.metrics || {};
+        state.metrics.hunterWindowDamage = (state.metrics.hunterWindowDamage || 0) + amount;
+        this.createShockwave(target.x + target.width / 2, target.y + target.height / 2, '#8ef');
+    }
+    state.timers.hunterWindow = 0;
+};
+
+// --- Per-tick build timers (called from Game.update) ------------------------
+
+Game.updateBuildEffects = function(deltaTime) {
+    if (!this.buildState) return;
+    const state = this.buildState;
+    const cfg = CONFIG.builds;
+
+    // Rapid heat-up runs down; a natural end keeps 4 progress with 快速复燃.
+    if ((state.timers.rapidWarmup || 0) > 0) {
+        state.timers.rapidWarmup -= deltaTime;
+        if (state.timers.rapidWarmup <= 0) {
+            state.timers.rapidWarmup = 0;
+            state.counters.rapidHeatupShots = 0;
+            state.counters.rapidExtendedMs = 0;
+            state.counters.rapidHits = this.hasBuild('rapid_reignite')
+                ? cfg.rapid.retainedHits : 0;
+        }
+    } else if (this.hasBuild('rapid_entry')) {
+        // 1.5s without a landed shot decays the accumulated progress.
+        const lastHit = state.counters.rapidLastHit || 0;
+        if ((state.counters.rapidHits || 0) > 0
+            && lastHit > 0 && this.gameTime - lastHit >= cfg.rapid.decayMs) {
+            state.counters.rapidHits = 0;
+        }
+    }
+
+    // Hunter lock and window time out in simulation time.
+    if (this.hasBuild('hunter_entry') && state.locks.hunterTargetId != null) {
+        const lastHit = state.counters.hunterLastHit || 0;
+        const timeout = this.hasBuild('hunter_stable')
+            ? cfg.hunter.stableResetMs : cfg.hunter.resetMs;
+        if (this.gameTime - lastHit >= timeout) {
+            state.locks.hunterTargetId = null;
+            state.locks.hunterHits = 0;
+        }
+    }
+    if ((state.timers.hunterWindow || 0) > 0) {
+        state.timers.hunterWindow -= deltaTime;
+        if (state.timers.hunterWindow < 0) state.timers.hunterWindow = 0;
+    }
+};
+
+// Candidate HUD rows for the owned build routes, ordered by visibility: the
+// two most relevant rows win. Active states (a running heat-up, an open
+// window, a primed charge) rank first, then partial progress, and ties break
+// by the stable six-route order. Later tasks add the remaining routes' rows.
+Game.getBuildHudStates = function() {
+    if (!this.buildState) return [];
+    const state = this.buildState;
+    const cfg = CONFIG.builds;
+    const rows = [];
+
+    const rapidWarm = state.timers.rapidWarmup || 0;
+    if (this.hasBuild('rapid_entry')) {
+        if (rapidWarm > 0) {
+            rows.push({ key: 'rapid', line: 'rapid', label: '热机', value: `${(rapidWarm / 1000).toFixed(1)}s`, active: true });
+        } else if ((state.counters.rapidHits || 0) > 0) {
+            rows.push({ key: 'rapid', line: 'rapid', label: '热机', value: `${state.counters.rapidHits}/${cfg.rapid.hits}`, active: false });
+        }
+    }
+    if (this.hasBuild('hunter_entry')) {
+        if ((state.timers.hunterWindow || 0) > 0) {
+            rows.push({ key: 'hunterWindow', line: 'hunter', label: '猎王窗口', value: `${((state.timers.hunterWindow) / 1000).toFixed(1)}s`, active: true });
+        }
+        if (state.locks.hunterTargetId != null) {
+            rows.push({ key: 'hunter', line: 'hunter', label: '猎王', value: `${state.locks.hunterHits}/${cfg.hunter.hits}`, active: false });
+        }
+    }
+
+    const routeRank = { rapid: 0, fortress: 1, desperate: 2, chain: 3, hunter: 4, supply: 5 };
+    const sorted = rows.sort((a, b) => {
+        if (a.active !== b.active) return a.active ? -1 : 1;
+        return routeRank[a.line] - routeRank[b.line];
+    });
+    return sorted.slice(0, 2);
+};
 
 Game.resetBuildState();

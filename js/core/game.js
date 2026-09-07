@@ -193,6 +193,7 @@ export const Game = {
         this.updateParticles();
         this.updateItems(deltaTime);
         this.updateCardEffects(deltaTime);
+        this.updateBuildEffects(deltaTime);
 
         this.spawnEnemies();
         this.enemiesShoot();

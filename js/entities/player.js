@@ -73,6 +73,8 @@ Game.spawnBullet = function() {
     // many bullets land. The middle bullet is the designated primary.
     const shotId = ++this.nextShotId;
     const primaryIndex = Math.floor((count - 1) / 2);
+    // 疾速压制: while heated, every third shot's primary bullet pierces.
+    const primaryPierce = this.getPrimaryPierceForShot(shotId);
     let firstSpawned = null;
     let primarySpawned = false;
 
@@ -93,7 +95,10 @@ Game.spawnBullet = function() {
         // re-initialized because getObject() deletes all keys on reuse.
         bullet.shotId = shotId;
         bullet.isPrimary = isPrimary;
-        bullet.pierceRemaining = 0;
+        bullet.pierceRemaining = isPrimary ? primaryPierce : 0;
+        // Visual marker: the heated primary keeps its tail flame even after
+        // its pierce charge is spent mid-flight.
+        bullet.rapidBoosted = isPrimary && primaryPierce > 0;
         bullet.hitEntityIds = [];
         bullet.buildDamageBonus = 0;
     }

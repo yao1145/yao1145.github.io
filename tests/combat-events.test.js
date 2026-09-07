@@ -9,6 +9,11 @@ import '../js/systems/collisions.js';
 import '../js/systems/builds.js';
 import '../js/entities/player.js';
 
+// Module-import-time hook implementations: tests that spy on the event hooks
+// restore these in resetCombat so later tests exercise the real mechanics.
+const realOnDirectShotBatch = Game.onDirectShotBatch;
+const realOnEnemyKilled = Game.onEnemyKilled;
+
 test('resetGameFixture restores shared run state without resetting entity ids', () => {
     Object.assign(Game, {
         isRunning: true,
@@ -126,6 +131,8 @@ function resetCombat() {
     Game.bulletDamage = 1;
     Game.baseBulletCount = 1;
     Game.score = 0;
+    Game.onDirectShotBatch = realOnDirectShotBatch;
+    Game.onEnemyKilled = realOnEnemyKilled;
 }
 
 function makeEnemy(health = 1, x = 0, y = 0) {
@@ -291,4 +298,255 @@ test('checkCollisions routes a bullet kill through the unified pipeline once', (
     assert.equal(batches[0].events[0].amount, 1);
     assert.equal(Game.objectPools.bullets.active.length, 0);
     assert.equal(Game.objectPools.enemies.active.length, 0);
+});
+
+// --- Task 6: rapid heat-up + hunter mark combat loops -----------------------
+
+function applyBuild(...ids) {
+    for (const id of ids) {
+        assert.equal(Game.applyBuildChoice(id), true, `apply ${id}`);
+    }
+}
+
+function makeHit(targetType, entityId, baseDamage = 1) {
+    return { source: 'direct', targetType, entityId, amount: baseDamage, baseDamage, isPrimary: true, x: 0, y: 0 };
+}
+
+function batch(shotId, targetType, entityId, baseDamage = 1, extraEvents = []) {
+    const events = [makeHit(targetType, entityId, baseDamage), ...extraEvents];
+    return { shotId, events };
+}
+
+function directKill(shotId, type = 0) {
+    return { source: 'direct', shotId, entityId: 9000 + shotId, type, x: 0, y: 0 };
+}
+
+test('rapid: 12 landed shots start the 3s heat-up, one count per shot', () => {
+    resetCombat();
+    Game.resetBuildState();
+    applyBuild('rapid_entry');
+    const enemy = makeEnemy(100, 0, 0);
+
+    for (let i = 1; i <= 11; i++) Game.onDirectShotBatch(batch(i, 'enemy', enemy.entityId));
+    assert.equal(Game.buildState.counters.rapidHits, 11);
+    assert.equal(Game.buildState.timers.rapidWarmup, 0);
+
+    Game.onDirectShotBatch(batch(12, 'enemy', enemy.entityId));
+    assert.equal(Game.buildState.timers.rapidWarmup, 3000);
+    assert.equal(Game.buildState.counters.rapidHits, 0);
+
+    // Heated shots never accumulate the next round.
+    Game.onDirectShotBatch(batch(13, 'enemy', enemy.entityId));
+    assert.equal(Game.buildState.counters.rapidHits, 0);
+    assert.equal(Game.buildState.timers.rapidWarmup, 3000);
+});
+
+test('rapid: idle progress decays after 1.5s without a landed shot', () => {
+    resetCombat();
+    Game.resetBuildState();
+    applyBuild('rapid_entry');
+    const enemy = makeEnemy(100, 0, 0);
+
+    for (let i = 1; i <= 5; i++) {
+        Game.gameTime = i;
+        Game.onDirectShotBatch(batch(i, 'enemy', enemy.entityId));
+    }
+    assert.equal(Game.buildState.counters.rapidHits, 5);
+
+    // 2s idle (decay check runs in updateBuildEffects against gameTime).
+    Game.gameTime = 5 + 2000;
+    Game.updateBuildEffects(16);
+    assert.equal(Game.buildState.counters.rapidHits, 0);
+});
+
+test('rapid: a finished heat-up keeps 4 progress with reignite, none without', () => {
+    resetCombat();
+    Game.resetBuildState();
+    applyBuild('rapid_entry');
+    const enemy = makeEnemy(100, 0, 0);
+    for (let i = 1; i <= 12; i++) Game.onDirectShotBatch(batch(i, 'enemy', enemy.entityId));
+    Game.updateBuildEffects(3000);
+    assert.equal(Game.buildState.timers.rapidWarmup, 0);
+    assert.equal(Game.buildState.counters.rapidHits, 0);
+
+    Game.resetBuildState();
+    applyBuild('rapid_entry', 'rapid_reignite');
+    for (let i = 1; i <= 12; i++) Game.onDirectShotBatch(batch(i, 'enemy', enemy.entityId));
+    Game.updateBuildEffects(3000);
+    assert.equal(Game.buildState.timers.rapidWarmup, 0);
+    assert.equal(Game.buildState.counters.rapidHits, 4);
+});
+
+test('rapid: every third shot during heat-up pierces, wide pierces twice', () => {
+    resetCombat();
+    Game.resetBuildState();
+    applyBuild('rapid_entry', 'rapid_wide');
+    Game.buildState.timers.rapidWarmup = 3000;
+
+    assert.equal(Game.getPrimaryPierceForShot(1), 0);
+    assert.equal(Game.getPrimaryPierceForShot(2), 0);
+    assert.equal(Game.getPrimaryPierceForShot(3), 2);
+    assert.equal(Game.getPrimaryPierceForShot(4), 0);
+    assert.equal(Game.getPrimaryPierceForShot(5), 0);
+    assert.equal(Game.getPrimaryPierceForShot(6), 2);
+    assert.equal(Game.buildState.counters.rapidHeatupShots, 6);
+
+    // Outside the heat-up nothing pierces and no ordinal is consumed.
+    Game.buildState.timers.rapidWarmup = 0;
+    assert.equal(Game.getPrimaryPierceForShot(7), 0);
+    assert.equal(Game.buildState.counters.rapidHeatupShots, 6);
+});
+
+test('rapid: direct kills extend the heat-up 300ms each, capped at 1.5s per round', () => {
+    resetCombat();
+    Game.resetBuildState();
+    applyBuild('rapid_entry');
+    Game.buildState.timers.rapidWarmup = 3000;
+    Game.onEnemyKilled(directKill(1));
+    assert.equal(Game.buildState.timers.rapidWarmup, 3000); // capstone missing
+
+    applyBuild('rapid_reignite', 'rapid_capstone');
+    Game.onEnemyKilled(directKill(2));
+    Game.onEnemyKilled(directKill(3));
+    Game.onEnemyKilled(directKill(4));
+    Game.onEnemyKilled(directKill(5));
+    Game.onEnemyKilled(directKill(6));
+    assert.equal(Game.buildState.timers.rapidWarmup, 4500); // 5 x 300ms extension
+    assert.equal(Game.buildState.counters.rapidExtendedMs, 1500);
+
+    Game.onEnemyKilled(directKill(7)); // cap reached
+    assert.equal(Game.buildState.timers.rapidWarmup, 4500);
+
+    // Non-direct kills never extend.
+    Game.onEnemyKilled({ source: 'explosion', shotId: 8, entityId: 8, type: 0, x: 0, y: 0 });
+    assert.equal(Game.buildState.timers.rapidWarmup, 4500);
+
+    // The extension allowance resets when the heat-up ends.
+    Game.updateBuildEffects(4500);
+    assert.equal(Game.buildState.timers.rapidWarmup, 0);
+    assert.equal(Game.buildState.counters.rapidExtendedMs, 0);
+    assert.equal(Game.buildState.counters.rapidHits, 4); // reignite kept progress
+});
+
+test('hunter: 10 same-target hits strike 2D and reset; strikes do not re-count', () => {
+    resetCombat();
+    Game.resetBuildState();
+    applyBuild('hunter_entry');
+    const enemy = makeEnemy(100, 0, 0);
+
+    for (let i = 1; i <= 9; i++) Game.onDirectShotBatch(batch(i, 'enemy', enemy.entityId));
+    assert.equal(Game.buildState.locks.hunterHits, 9);
+
+    Game.onDirectShotBatch(batch(10, 'enemy', enemy.entityId));
+    assert.equal(Game.buildState.locks.hunterHits, 0);
+    assert.equal(enemy.health, 98); // 2D bonus strike on a 100-HP target
+    assert.equal(Game.buildState.metrics.hunterPrecisionDamage, 2);
+
+    // The strike is bonus damage: the next direct batch starts marks fresh.
+    Game.onDirectShotBatch(batch(11, 'enemy', enemy.entityId));
+    assert.equal(Game.buildState.locks.hunterHits, 1);
+});
+
+test('hunter: execute calibration strikes 3D against low-health targets', () => {
+    resetCombat();
+    Game.resetBuildState();
+    applyBuild('hunter_entry', 'hunter_execute');
+    const enemy = makeEnemy(100, 0, 0);
+    enemy.health = 30;
+
+    for (let i = 1; i <= 10; i++) Game.onDirectShotBatch(batch(i, 'enemy', enemy.entityId));
+    assert.equal(enemy.health, 27);
+    assert.equal(Game.buildState.metrics.hunterPrecisionDamage, 3);
+});
+
+test('hunter: switching targets clears the accumulated marks', () => {
+    resetCombat();
+    Game.resetBuildState();
+    applyBuild('hunter_entry');
+    const a = makeEnemy(100, 0, 0);
+    const b = makeEnemy(100, 50, 50);
+
+    for (let i = 1; i <= 4; i++) Game.onDirectShotBatch(batch(i, 'enemy', a.entityId));
+    Game.onDirectShotBatch(batch(5, 'enemy', b.entityId));
+    assert.equal(Game.buildState.locks.hunterTargetId, b.entityId);
+    assert.equal(Game.buildState.locks.hunterHits, 1);
+});
+
+test('hunter: an active locked target in the batch wins over the first hit', () => {
+    resetCombat();
+    Game.resetBuildState();
+    applyBuild('hunter_entry');
+    const a = makeEnemy(100, 0, 0);
+    const b = makeEnemy(100, 50, 50);
+
+    for (let i = 1; i <= 3; i++) Game.onDirectShotBatch(batch(i, 'enemy', a.entityId));
+    // A scatter burst that hits b first and the locked a second stays on a.
+    Game.onDirectShotBatch(batch(4, 'enemy', b.entityId, 1, [makeHit('enemy', a.entityId, 1)]));
+    assert.equal(Game.buildState.locks.hunterTargetId, a.entityId);
+    assert.equal(Game.buildState.locks.hunterHits, 4);
+});
+
+test('hunter: losing the target for the reset window clears the lock', () => {
+    resetCombat();
+    Game.resetBuildState();
+    applyBuild('hunter_entry', 'hunter_stable');
+    const enemy = makeEnemy(100, 0, 0);
+
+    for (let i = 1; i <= 3; i++) {
+        Game.gameTime = i;
+        Game.onDirectShotBatch(batch(i, 'enemy', enemy.entityId));
+    }
+    Game.gameTime = 3 + 2000; // idle longer than stableResetMs
+    Game.updateBuildEffects(16);
+    assert.equal(Game.buildState.locks.hunterTargetId, null);
+    assert.equal(Game.buildState.locks.hunterHits, 0);
+
+    Game.onDirectShotBatch(batch(4, 'enemy', enemy.entityId));
+    assert.equal(Game.buildState.locks.hunterHits, 1);
+});
+
+test('hunter: a dead or recycled target clears the lock instead of striking', () => {
+    resetCombat();
+    Game.resetBuildState();
+    applyBuild('hunter_entry');
+    const enemy = makeEnemy(10, 0, 0);
+
+    for (let i = 1; i <= 9; i++) Game.onDirectShotBatch(batch(i, 'enemy', enemy.entityId));
+    Game.releaseObject('enemies', enemy); // dies before the 10th hit lands
+
+    Game.onDirectShotBatch(batch(10, 'enemy', enemy.entityId));
+    assert.equal(Game.buildState.locks.hunterTargetId, null);
+    assert.equal(Game.buildState.locks.hunterHits, 0);
+    assert.equal(Game.buildState.metrics.hunterPrecisionDamage, undefined);
+});
+
+test('hunter: boss precision strikes open a 2s window consumed by the next direct hit', () => {
+    resetCombat();
+    Game.resetBuildState();
+    applyBuild('hunter_entry', 'hunter_stable', 'hunter_capstone');
+    Game.boss = { entityId: 9001, health: 100, maxHealth: 100, x: 0, y: 0, width: 100, height: 100, type: 0 };
+
+    for (let i = 1; i <= 10; i++) Game.onDirectShotBatch(batch(i, 'boss', Game.boss.entityId));
+    assert.equal(Game.boss.health, 98);
+    assert.equal(Game.buildState.locks.hunterHits, 0);
+    assert.equal(Game.buildState.timers.hunterWindow, 2000);
+
+    // A second full cycle: batch 11 immediately consumes the open window with
+    // +2D on the boss (96 -> 94), and the 10th mark of the cycle (batch 20)
+    // strikes again and re-opens the window at its full duration (no stacking).
+    for (let i = 11; i <= 20; i++) Game.onDirectShotBatch(batch(i, 'boss', Game.boss.entityId));
+    assert.equal(Game.boss.health, 94);
+    assert.equal(Game.buildState.timers.hunterWindow, 2000);
+    assert.equal(Game.buildState.metrics.hunterWindowDamage, 2);
+
+    // The first direct hit inside the window adds +2D to its target and closes it.
+    const enemy = makeEnemy(100, 50, 50);
+    Game.onDirectShotBatch(batch(21, 'enemy', enemy.entityId));
+    assert.equal(enemy.health, 98);
+    assert.equal(Game.buildState.timers.hunterWindow, 0);
+    assert.equal(Game.buildState.metrics.hunterWindowDamage, 4); // boss 2D + enemy 2D
+
+    // Further hits inside the old window period get nothing.
+    Game.onDirectShotBatch(batch(22, 'enemy', enemy.entityId));
+    assert.equal(enemy.health, 98);
 });
