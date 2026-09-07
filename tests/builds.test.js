@@ -84,6 +84,23 @@ test('candidate generation prioritizes associated and invested routes, then fill
     assert.ok(candidates.every((candidate) => Game.hasBuild(candidate) === false));
 });
 
+test('candidate allocation keeps as many invested routes as the three-slot budget allows', () => {
+    resetBuilds();
+    Game.activeCard = 'supply';
+    Game.buildState.owned = ['rapid_entry', 'fortress_entry', 'desperate_entry'];
+
+    const candidates = Game.getLegalBuildCandidates(() => 0);
+
+    assert.equal(candidates.length, CONFIG.builds.offerCount);
+    assert.deepEqual(candidates, [
+        'supply_entry',
+        'rapid_reignite',
+        'fortress_regroup',
+    ]);
+    assert.equal(candidates.includes('desperate_strike'), false);
+    assert.equal(candidates.includes('desperate_execute'), false);
+});
+
 test('candidate generation returns only the legal number when the pool is short or empty', () => {
     resetBuilds();
     Game.buildState.owned = Object.keys(Game.BUILDS);

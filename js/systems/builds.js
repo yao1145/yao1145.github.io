@@ -201,23 +201,38 @@ Game.getLegalBuildCandidates = function(rng = Math.random) {
     if (legal.length === 0) return [];
 
     const prioritized = [];
-    const addNext = (line) => {
+    const prioritizedLines = new Set();
+    const addRouteCandidate = (line) => {
+        if (prioritized.length >= CONFIG.builds.offerCount || prioritizedLines.has(line)) return;
         const next = ROUTES.find((route) => route.line === line).builds
             .map(([id]) => id)
             .filter((id) => legal.includes(id));
-        if (next.length > 0 && !prioritized.includes(next[0]) && legal.includes(next[0])) {
-            prioritized.push(next[0]);
-        }
+        if (next.length === 0) return;
+        prioritized.push(next[0]);
+        prioritizedLines.add(line);
     };
 
-    for (const line of associatedLines[this.activeCard] || []) addNext(line);
+    // Reserve the first slot(s) for the current core card's associated route.
+    // This is intentionally separate from the invested-route pass below.
+    for (const line of associatedLines[this.activeCard] || []) addRouteCandidate(line);
+
+    // Use every remaining slot for a distinct invested, unfinished route before
+    // considering new routes or random fill. If more routes are eligible than
+    // slots remain, routeOrder is the deterministic tie-breaker: the omitted
+    // routes are the unavoidable consequence of the three-card offer cap.
     for (const line of routeOrder) {
-        if (owned.some((id) => builds[id] && builds[id].line === line)) addNext(line);
+        const invested = owned.some((id) => builds[id] && builds[id].line === line);
+        if (invested) addRouteCandidate(line);
     }
+
+    // Only after the core and invested-route passes may a fresh route entry use
+    // a slot. The final random fill below still respects the same legal pool.
     for (const line of routeOrder) {
         const entry = `${line}_entry`;
-        if (!owned.includes(entry) && legal.includes(entry) && !prioritized.includes(entry)) {
+        if (prioritized.length >= CONFIG.builds.offerCount) break;
+        if (!owned.includes(entry) && legal.includes(entry) && !prioritizedLines.has(line)) {
             prioritized.push(entry);
+            prioritizedLines.add(line);
         }
     }
 
