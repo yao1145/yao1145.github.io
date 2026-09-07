@@ -68,15 +68,37 @@ Game.spawnBullet = function() {
     const count = this.getBulletCount();
     const color = this.isDamageBoost ? '#f90' : '#ff0';
     const gap = 6;
+    // One shot id per trigger of fire: every bullet of the burst shares it, so
+    // per-shot progress (heat-up, marks) counts the batch once no matter how
+    // many bullets land. The middle bullet is the designated primary.
+    const shotId = ++this.nextShotId;
+    const primaryIndex = Math.floor((count - 1) / 2);
+    let firstSpawned = null;
+    let primarySpawned = false;
 
     for (let i = 0; i < count; i++) {
         const bullet = this.getObject('bullets');
         if (!bullet) break;
+        if (!firstSpawned) firstSpawned = bullet;
+        const isPrimary = i === primaryIndex;
+        if (isPrimary) primarySpawned = true;
+
         bullet.x = this.player.x + this.player.width / 2 - 2 + (i - (count - 1) / 2) * gap;
         bullet.y = this.player.y;
         bullet.width = 4;
         bullet.height = 12;
         bullet.speed = 8 * this.getBulletSpeedMult();
         bullet.color = color;
+        // Per-shot identity + effect fields: every pooled bullet is fully
+        // re-initialized because getObject() deletes all keys on reuse.
+        bullet.shotId = shotId;
+        bullet.isPrimary = isPrimary;
+        bullet.pierceRemaining = 0;
+        bullet.hitEntityIds = [];
+        bullet.buildDamageBonus = 0;
     }
+
+    // A pool shortage can skip the intended primary bullet; promote the first
+    // actually-spawned bullet so the shot always has exactly one primary.
+    if (firstSpawned && !primarySpawned) firstSpawned.isPrimary = true;
 };

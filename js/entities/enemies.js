@@ -77,9 +77,10 @@ Game.updateEnemies = function(deltaTime) {
                 this.createExplosion(enemy.x + enemy.width/2, enemy.y + enemy.height/2, '#f00', 8);
                 this.spawnExplosionBullet(enemy.x + enemy.width/2, enemy.y + enemy.height/2, 16);
                 // Kamikaze self-destruct also settles through killEnemy so
-                // type-0 scoring has a single path.
+                // type-0 scoring has a single path. It is not a player kill:
+                // label it explosion so build hooks never count it as direct.
                 enemy.health = 0;
-                this.killEnemy(enemy);
+                this.killEnemy(enemy, { source: 'explosion' });
                 continue;
             }
         }

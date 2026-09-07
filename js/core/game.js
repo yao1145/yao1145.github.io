@@ -24,6 +24,13 @@ export const Game = {
     level: 1,
     crowns: 0,
     nextEntityId: 0,
+    // Shot identity for player fire: monotonic per-batch id assigned in
+    // spawnBullet (never reset — stale async references must not collide with
+    // a new run's ids, like nextEntityId).
+    nextShotId: 0,
+    // Direct hits collected during one checkCollisions pass and delivered to
+    // the build hooks by flushDirectShotBatches().
+    directHitQueue: [],
 
     allocateEntityId: function() {
         this.nextEntityId += 1;

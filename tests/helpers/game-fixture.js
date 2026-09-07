@@ -49,5 +49,6 @@ export function resetGameFixture() {
     Game.isCardSelectionOpen = false;
     Game.cardSelectionModel = null;
     Game.lastUIUpdateTime = 0;
+    Game.directHitQueue = [];
     return Game;
 }

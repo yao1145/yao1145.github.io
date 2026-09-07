@@ -272,6 +272,24 @@ Game.roundBulletDamage = function(d) {
     return Math.max(0.5, Math.round(d * 2) / 2);
 };
 
+// Combat-damage quantization for the unified event pipeline (direct hits,
+// strikes, explosions, retaliation): a multiple of 0.5 with a 0.5 floor, but
+// exact zero stays zero — an unowned effect must never become a 0.5 hit.
+Game.roundCombatDamage = function(d) {
+    return d <= 0 ? 0 : Math.max(0.5, Math.round(d * 2) / 2);
+};
+
+// Final direct-shot damage for one hit. getDamageFor() is called exactly once
+// per hit; a primary-bullet supply bonus (buildDamageBonus, set at spawn) is
+// folded in before quantization, and the same result feeds both the event's
+// amount and baseDamage so later bonus strikes never re-enter the card
+// multiplier hooks.
+Game.getDirectShotDamage = function(targetType, bullet) {
+    let d = this.getDamageFor(targetType);
+    if (bullet && bullet.buildDamageBonus) d += bullet.buildDamageBonus;
+    return this.roundCombatDamage(d);
+};
+
 // Bullet damage (no per-target split; see getDamageFor), rounded to 0.5.
 Game.getBulletDamage = function() {
     let d = this.bulletDamage;

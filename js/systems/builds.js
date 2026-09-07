@@ -511,4 +511,13 @@ Game.updateRewardSummaryUI = function() {
         <div class="summaryRow"><span class="summaryLabel">本次强化</span><span class="summaryValue">${buildText}</span></div>`;
 };
 
+// --- Combat-event hook defaults (extended by the build mechanics) ----------
+// flushDirectShotBatches() delivers one batch per shot id after the collision
+// pass; killEnemy() broadcasts one event per settled death. Both stay no-ops
+// until a route owns the relevant build, so the event pipeline always runs
+// at the same cost.
+
+Game.onDirectShotBatch = function() {};
+Game.onEnemyKilled = function() {};
+
 Game.resetBuildState();

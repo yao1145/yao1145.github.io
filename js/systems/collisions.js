@@ -47,56 +47,58 @@ Game.checkCollisions = function() {
     for (let i = bulletPool.active.length - 1; i >= 0; i--) {
         const bullet = bulletPool.active[i];
 
-        if (this.isBossStage && this.boss) {
-            if (this.isColliding(bullet, this.boss)) {
-                this.releaseObject('bullets', bullet);
-                this.boss.health -= this.getDamageFor('boss');
-
-                this.createExplosion(bullet.x, bullet.y, '#fff', 2);
-
-                if (this.boss.health <= 0) {
-                    this.createExplosion(this.boss.x + this.boss.width/2, this.boss.y + this.boss.height/2, '#f00', 8);
-                    this.handleBossDeath();
-                }
-                break;
+        // The boss is handled first and ends the bullet pass on a hit, keeping
+        // the historical once-per-frame boss damage unchanged.
+        if (this.isBossStage && this.boss && this.isColliding(bullet, this.boss)) {
+            const event = this.damageTarget({ bullet, target: this.boss, targetType: 'boss' });
+            if (event) {
+                this.createExplosion(event.x, event.y, '#fff', 2);
+                if (!event.pierced) this.releaseObject('bullets', bullet);
             }
+            break;
         }
 
         const nearbyEnemies = this.spatialGrid.getNearby(bullet);
         for (const nearby of nearbyEnemies) {
-            if (nearby.poolType === 'enemies') {
-                const enemy = nearby.obj;
+            if (nearby.poolType !== 'enemies') continue;
+            const enemy = nearby.obj;
 
-                if (this.isColliding(bullet, enemy)) {
-                    // An enemy killed earlier this frame is still in the spatial grid;
-                    // skip it so a second bullet (e.g. from triple-shot) can't score it again.
-                    if (enemy.health <= 0) continue;
-                    this.releaseObject('bullets', bullet);
-                    enemy.health -= this.getDamageFor('enemy');
+            if (this.isColliding(bullet, enemy)) {
+                // An enemy killed earlier this frame is still in the spatial grid;
+                // skip it so a second bullet (e.g. from triple-shot) can't score it again.
+                if (enemy.health <= 0) continue;
 
-                    enemy.color = '#fff';
-                    setTimeout(() => {
-                        // Never re-color an enemy that has been killed and returned to the pool.
-                        if (enemy && !enemy._dead && enemy.color === '#fff') {
-                            enemy.color = CONFIG.enemyTypes[enemy.type].color;
-                        }
-                    }, 50);
-
-                    if (enemy.health <= 0) {
-                        const killX = enemy.x + enemy.width/2;
-                        const killY = enemy.y + enemy.height/2;
-                        this.killEnemy(enemy);
-                        // Chain card: this bullet kill triggers the first blast; further
-                        // chain kills are detonated by createExplosionChain's own worklist.
-                        if (this.activeCard === 'chain') this.createExplosionChain(killX, killY);
-                    } else {
-                        this.createExplosion(enemy.x + enemy.width/2, enemy.y + enemy.height/2, '#fff', 2);
+                // A landed hit flashes the enemy white; the restore timeout never
+                // re-colors a corpse or a pooled object reused for another enemy.
+                enemy.color = '#fff';
+                setTimeout(() => {
+                    if (enemy && !enemy._dead && enemy.color === '#fff') {
+                        enemy.color = CONFIG.enemyTypes[enemy.type].color;
                     }
+                }, 50);
+
+                const event = this.damageTarget({ bullet, target: enemy, targetType: 'enemy' });
+                if (!event) {
+                    // Nothing landed (piercing bullet re-overlapping an already-hit
+                    // enemy): undo the false flash and let the bullet fly on.
+                    enemy.color = CONFIG.enemyTypes[enemy.type].color;
                     break;
                 }
+                if (event.killed) {
+                    // Chain card: this bullet kill triggers the first blast; further
+                    // chain kills are detonated by createExplosionChain's own worklist.
+                    if (this.activeCard === 'chain') this.createExplosionChain(event.x, event.y);
+                } else {
+                    this.createExplosion(event.x, event.y, '#fff', 2);
+                }
+                if (!event.pierced) this.releaseObject('bullets', bullet);
+                break;
             }
         }
     }
+    // Every landed bullet hit of this pass is now queued: deliver one batch
+    // per shot to the build hooks.
+    this.flushDirectShotBatches();
 
     if (this.player.shieldTime <= 0) {
         const nearbyEnemyBullets = this.spatialGrid.getNearby(this.player);
@@ -170,6 +172,87 @@ Game.isColliding = function(obj1, obj2) {
            obj1.y + obj1.height > obj2.y;
 };
 
+// Unified direct-shot hit. Validates the target identity before touching its
+// health — pooled objects are only the enemy they are while active, and the
+// boss is only valid while it is this.boss — then applies exactly one damage,
+// settles a first-lethal death exactly once (killEnemy / handleBossDeath),
+// and queues the hit for the per-shot batch hooks. A piercing bullet never
+// re-damages an entity it already hit.
+// Returns the direct-hit event, or null when nothing landed.
+Game.damageTarget = function({ bullet, target, targetType }) {
+    if (!target || target._dead || target.health <= 0) return null;
+    if (targetType === 'enemy' && !this.isActiveEntity('enemies', target.entityId)) return null;
+    if (targetType === 'boss' && (!this.boss || this.boss.entityId !== target.entityId)) return null;
+    if (bullet && bullet.hitEntityIds && bullet.hitEntityIds.includes(target.entityId)) return null;
+
+    const damage = this.getDirectShotDamage(targetType, bullet);
+    if (damage <= 0) return null;
+
+    // A pierce charge survives this hit and lets the bullet fly on to one more
+    // target; the primary hit itself does not consume the charge.
+    const canPierce = Boolean(bullet && bullet.pierceRemaining > 0);
+    if (bullet) {
+        bullet.hitEntityIds.push(target.entityId);
+        if (canPierce) bullet.pierceRemaining -= 1;
+    }
+
+    target.health -= damage;
+    const killed = target.health <= 0;
+    if (killed) {
+        if (targetType === 'boss') {
+            this.createExplosion(target.x + target.width / 2, target.y + target.height / 2, '#f00', 8);
+            this.handleBossDeath();
+        } else {
+            this.killEnemy(target, { source: 'direct', shotId: bullet && bullet.shotId });
+        }
+    }
+
+    const event = {
+        source: 'direct',
+        shotId: bullet ? bullet.shotId : 0,
+        isPrimary: Boolean(bullet && bullet.isPrimary),
+        targetType,
+        entityId: target.entityId,
+        // amount is the damage actually applied; baseDamage is the same single
+        // computation, so bonus strikes never re-enter the multiplier hooks.
+        amount: damage,
+        baseDamage: damage,
+        x: target.x + target.width / 2,
+        y: target.y + target.height / 2,
+        pierced: canPierce,
+        killed,
+    };
+    this.queueDirectHit(event);
+    return event;
+};
+
+// Direct hits land during the collision pass; they are queued here and
+// grouped by shot id when the pass ends.
+Game.queueDirectHit = function(event) {
+    if (!Array.isArray(this.directHitQueue)) this.directHitQueue = [];
+    this.directHitQueue.push(event);
+};
+
+// End of the direct-shot pass: deliver one batch per shot id. A scatter burst
+// counts as a single batch for per-shot progress even when several bullets
+// land, and the drained queue means each tick's hits dispatch exactly once.
+Game.flushDirectShotBatches = function() {
+    const queue = this.directHitQueue || [];
+    this.directHitQueue = [];
+    if (queue.length === 0) return;
+
+    const batches = new Map();
+    for (const event of queue) {
+        let batch = batches.get(event.shotId);
+        if (!batch) {
+            batch = { shotId: event.shotId, events: [] };
+            batches.set(event.shotId, batch);
+        }
+        batch.events.push(event);
+    }
+    for (const batch of batches.values()) this.onDirectShotBatch(batch);
+};
+
 Game.createExplosion = function(x, y, color, count = 4) {
     for (let i = 0; i < count; i++) {
         const particle = this.getObject('particles');
@@ -227,20 +310,31 @@ Game.applyPlayerHit = function(damage = 1) {
     }
 };
 
-// Unified enemy death (release + score + explosion); runs once per enemy per frame.
-Game.killEnemy = function(enemy) {
+// Unified enemy death (release + score + explosion); settles at most once per
+// enemy per frame and returns true when it settled the death. context.source
+// is one of 'direct' | 'explosion' | 'retaliation' | 'bonus' and is forwarded
+// with the identity snapshot to onEnemyKilled — the unique kill broadcast.
+Game.killEnemy = function(enemy, context = {}) {
     // Only settles when health <= 0; _dead guards against double scoring/release within a frame.
-    if (!enemy || enemy._dead || enemy.health > 0) return;
+    if (!enemy || enemy._dead || enemy.health > 0) return false;
 
     enemy._dead = true;
-    const killX = enemy.x + enemy.width/2;
-    const killY = enemy.y + enemy.height/2;
+    // Copy identity/position/type before the pool release: a re-acquired
+    // pooled object is a different entity and must never be reported as this kill.
+    const killEvent = {
+        source: context.source || 'direct',
+        shotId: context.shotId || 0,
+        entityId: enemy.entityId,
+        type: enemy.type,
+        x: enemy.x + enemy.width / 2,
+        y: enemy.y + enemy.height / 2,
+    };
     const killColor = enemy.color;
 
     this.releaseObject('enemies', enemy);
 
     let score = 0;
-    switch (enemy.type) {
+    switch (killEvent.type) {
         case 0: score = 10; break;
         case 1: score = 15; break;
         case 2: score = 25; break;
@@ -254,7 +348,12 @@ Game.killEnemy = function(enemy) {
         this.applyLifeGain(1);
     }
 
-    this.createExplosion(killX, killY, killColor, 4);
+    this.createExplosion(killEvent.x, killEvent.y, killColor, 4);
+
+    // Unique kill broadcast: build hooks (direct-kill extensions, chain seeds,
+    // execute progress) read this event; it fires once per death.
+    if (typeof this.onEnemyKilled === 'function') this.onEnemyKilled(killEvent);
+    return true;
 };
 
 // Thorns: on every hit taken, instantly kill and score every enemy within
@@ -275,9 +374,10 @@ Game.onThornsHit = function() {
         const dy = cy - playerCY;
         if (dx * dx + dy * dy > r2) continue;
 
-        // Thorns is an instant kill: zero the health, then route through killEnemy.
+        // Thorns is an instant kill: zero the health, then route through
+        // killEnemy as a retaliation (it never counts as a direct-shot kill).
         enemy.health = 0;
-        this.killEnemy(enemy);
+        this.killEnemy(enemy, { source: 'retaliation' });
         // One shockwave per killed enemy (like the chain card).
         this.createShockwave(cx, cy);
     }
@@ -360,7 +460,9 @@ Game.createExplosionChain = function(x, y) {
             enemy.health -= chainDamage;
             if (enemy.health <= 0) {
                 processed.add(enemy);
-                this.killEnemy(enemy);
+                // Chain deaths are explosion-sourced: they never feed the
+                // direct-shot hooks (heat-up, marks, seed progress).
+                this.killEnemy(enemy, { source: 'explosion' });
                 worklist.push({ x: enemy.x + enemy.width/2, y: enemy.y + enemy.height/2 });
             }
         }
