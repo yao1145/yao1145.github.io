@@ -16,6 +16,7 @@ Game.spawnEnemyUnit = function(hpBonus) {
 
     const enemy = this.getObject('enemies');
     if (enemy) {
+        enemy.entityId = this.allocateEntityId();
         enemy.x = Math.random() * (this.width - t.width);
         enemy.y = -t.height;
         enemy.width = t.width;

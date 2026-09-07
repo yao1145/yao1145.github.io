@@ -23,6 +23,12 @@ export const Game = {
     bulletDamage: 1,
     level: 1,
     crowns: 0,
+    nextEntityId: 0,
+
+    allocateEntityId: function() {
+        this.nextEntityId += 1;
+        return this.nextEntityId;
+    },
 
     enemySpawnRate: CONFIG.enemySpawnRate,
     enemySpeed: CONFIG.enemySpeed,

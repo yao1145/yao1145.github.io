@@ -36,6 +36,10 @@ Game.releaseObject = function(poolType, obj) {
     }
 };
 
+Game.isActiveEntity = function(type, id) {
+    return !!id && this.objectPools[type].active.some(obj => obj.entityId === id);
+};
+
 Game.clearAllPools = function() {
     for (const poolType in this.objectPools) {
         const pool = this.objectPools[poolType];

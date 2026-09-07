@@ -25,6 +25,7 @@ Game.spawnBoss = function() {
     }
 
     this.boss = {
+        entityId: this.allocateEntityId(),
         x: this.width / 2 - 50,
         y: 50,
         width: 100,
