@@ -204,9 +204,15 @@ Game.openCardSelection = function(firstPick = false) {
     if (this.cardPanel) this.cardPanel.style.display = 'flex';
 };
 
-Game.resumeAfterCardSelection = function() {
+// Hide the card panel without touching the simulation (used when another
+// panel, e.g. the build selection, takes over the pause).
+Game.closeCardSelection = function() {
     this.isCardSelectionOpen = false;
     if (this.cardPanel) this.cardPanel.style.display = 'none';
+};
+
+Game.resumeAfterCardSelection = function() {
+    this.closeCardSelection();
     this.isRunning = true;
     this.accumulator = 0;
     this.lastTime = performance.now();
@@ -220,6 +226,9 @@ Game.skipCardSelection = function() {
         || !Array.isArray(model.options)
         || model.options.length !== 0
         || !model.canSkip) return false;
+    // Inside the boss reward flow a skip never resumes the simulation; it only
+    // advances to the next reward stage (see js/systems/builds.js).
+    if (this.rewardFlow && this.rewardFlow.phase === 'core') return this.advanceRewardFlow();
     this.resumeAfterCardSelection();
     return true;
 };
@@ -242,6 +251,12 @@ Game.completeCoreCardSelection = function(cardId) {
     this.updateCardHighlight();
     this.updateCardChipUI();
     if (typeof this.updateUI === 'function') this.updateUI(true);
+    // Inside the boss reward flow the core-card pick only advances the flow;
+    // the simulation stays paused until the summary confirms.
+    if (this.rewardFlow && this.rewardFlow.phase === 'core') {
+        this.advanceRewardFlow();
+        return true;
+    }
     this.resumeAfterCardSelection();
     return true;
 };

@@ -318,9 +318,13 @@ Game.handleBossDeath = function() {
     this.bossSpawnThreshold += this.bossSpawnGap;
     this.objectPools.enemyBullets.active = [];
     this.updateUI(true);
-    // Boss defeated: pause and let the player re-pick an effect
-    // card (keeping the current one is free, switching costs 1 life).
-    this.openCardSelection(false);
+    // Boss defeated: start a new build cycle, reset the per-cycle desperate
+    // heal lock, then pause and run the two-stage reward flow (core card ->
+    // build -> summary; keeping the current card is free, switching costs 1 life).
+    if (!this.buildState) this.resetBuildState();
+    this.buildState.cycle += 1;
+    this.buildState.locks.desperateCycleHeal = false;
+    this.beginRewardFlow(false);
 };
 
 // Chain explosion: cascades outward from (x, y) within chainRadius, using the

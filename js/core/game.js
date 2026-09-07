@@ -71,6 +71,11 @@ export const Game = {
     difficulty: 'hard',
     cardRegenTimer: 0,
     isCardSelectionOpen: false,
+    // Two-stage boss reward flow (see js/systems/builds.js): non-null while the
+    // core-card -> build -> summary sequence owns the pause state.
+    rewardFlow: null,
+    isBuildSelectionOpen: false,
+    isRewardSummaryOpen: false,
     lastUIUpdateTime: 0,
     uiUpdateInterval: CONFIG.uiUpdateInterval,
 
@@ -109,6 +114,7 @@ export const Game = {
 
         this.setupEventListeners();
         this.setupCards();
+        this.setupBuilds();
         this.loadBadges();
         this.lastTime = performance.now();
         this.gameLoop();
@@ -234,6 +240,14 @@ export const Game = {
         this.cardPickCount = {};
         this.cardIndicator.style.display = 'none';
 
+        // A new run starts outside the boss reward flow (only the opening core
+        // card pick, which resumes on its own).
+        this.rewardFlow = null;
+        this.isBuildSelectionOpen = false;
+        this.isRewardSummaryOpen = false;
+        if (this.buildPanel) this.buildPanel.style.display = 'none';
+        if (this.rewardSummaryPanel) this.rewardSummaryPanel.style.display = 'none';
+
         this.player.x = this.width / 2 - 15;
         this.player.y = this.height - 100;
         this.player.lastShot = 0;
@@ -263,7 +277,8 @@ export const Game = {
     },
 
     togglePause: function() {
-        if (this.isCardSelectionOpen) return; // card picking owns the pause state
+        // Card picking and the boss reward flow own the pause state.
+        if (this.isCardSelectionOpen || this.rewardFlow) return;
         this.isRunning = !this.isRunning;
 
         if (this.isRunning) {
@@ -324,6 +339,12 @@ export const Game = {
         this.isCardSelectionOpen = false;
         document.getElementById('cardPanel').style.display = 'none';
         this.cardIndicator.style.display = 'none';
+        // Abandon any in-flight boss reward flow.
+        this.rewardFlow = null;
+        this.isBuildSelectionOpen = false;
+        this.isRewardSummaryOpen = false;
+        if (this.buildPanel) this.buildPanel.style.display = 'none';
+        if (this.rewardSummaryPanel) this.rewardSummaryPanel.style.display = 'none';
         this.isRunning = false;
         this.isGameOver = true;
 
@@ -363,6 +384,11 @@ export const Game = {
         this.cardIndicator.style.display = 'none';
         this.activeCard = null;
         this.isCardSelectionOpen = false;
+        this.rewardFlow = null;
+        this.isBuildSelectionOpen = false;
+        this.isRewardSummaryOpen = false;
+        if (this.buildPanel) this.buildPanel.style.display = 'none';
+        if (this.rewardSummaryPanel) this.rewardSummaryPanel.style.display = 'none';
 
         // Reset the start panel to its default idle look (in case it was in pause state).
         document.querySelector('.uiTitle').textContent = 'PKUfighter';

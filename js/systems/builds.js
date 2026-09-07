@@ -273,4 +273,242 @@ Game.applyBuildChoice = function(candidateId, replaceId) {
     return true;
 };
 
+// --- Two-stage boss reward flow -------------------------------------------
+// Phase machine: 'core' (card selection) -> 'build' (choose/replace/skip a
+// build) -> 'summary' (confirm). Only finishRewardFlow() resumes the
+// simulation; every other branch keeps it paused. buildState.cycle counts
+// completed boss cycles and is incremented by handleBossDeath.
+
+const LINE_NAMES = {
+    rapid: '疾速压制',
+    fortress: '坚壁续航',
+    desperate: '绝境反攻',
+    chain: '连锁清场',
+    hunter: '破甲猎王',
+    supply: '补给运营',
+};
+
+const STAGE_NAMES = {
+    entry: '入门',
+    branch: '分支',
+    capstone: '进阶',
+};
+
+function buildDetailText(build) {
+    const parts = [];
+    const required = build.requires.map((requirement) => Array.isArray(requirement)
+        ? requirement.map((id) => Game.BUILDS[id].name).join(' 或 ')
+        : Game.BUILDS[requirement].name);
+    if (required.length) parts.push(`前置：${required.join('、')}`);
+    if (build.excludes.length) {
+        parts.push(`与 ${build.excludes.map((id) => Game.BUILDS[id].name).join('、')} 互斥`);
+    }
+    parts.push('本局保留，换卡后仍然保留');
+    return parts.join('；');
+}
+
+Game.beginRewardFlow = function(firstPick = false) {
+    this.rewardFlow = {
+        phase: 'core',
+        firstPick,
+        candidates: [],
+        pendingCandidate: null,
+        chosenBuild: null,
+    };
+    this.openCardSelection(firstPick);
+};
+
+// Advance from the core-card stage to the build stage (or straight to the
+// summary when nothing legal can be offered).
+Game.advanceRewardFlow = function() {
+    if (!this.rewardFlow || this.rewardFlow.phase !== 'core') return false;
+    this.rewardFlow.candidates = this.getLegalBuildCandidates();
+    this.rewardFlow.pendingCandidate = null;
+    this.rewardFlow.chosenBuild = null;
+    if (this.rewardFlow.candidates.length === 0) {
+        this.showRewardSummary();
+    } else {
+        this.openBuildSelection();
+    }
+    return true;
+};
+
+Game.openBuildSelection = function() {
+    if (!this.rewardFlow) return false;
+    this.closeCardSelection();
+    this.isBuildSelectionOpen = true;
+    this.isRunning = false;
+    this.accumulator = 0;
+    this.lastTime = performance.now();
+    if (typeof this.enableControlArea === 'function') this.enableControlArea(false);
+    this.rewardFlow.phase = 'build';
+    this.updateBuildSelectionUI();
+    if (this.buildPanel) this.buildPanel.style.display = 'flex';
+    return true;
+};
+
+// Without a free slot this only arms replacement mode; use
+// selectBuildReplacement() to finalize a swap.
+Game.selectBuild = function(candidateId) {
+    if (!this.rewardFlow || this.rewardFlow.phase !== 'build') return false;
+    if (!this.rewardFlow.candidates.includes(candidateId)) return false;
+
+    if (this.buildState.owned.length >= CONFIG.builds.maxOwned) {
+        this.rewardFlow.pendingCandidate = candidateId;
+        this.updateBuildSelectionUI();
+        return true;
+    }
+    if (!this.applyBuildChoice(candidateId)) return false;
+    this.rewardFlow.chosenBuild = candidateId;
+    this.showRewardSummary();
+    return true;
+};
+
+Game.selectBuildReplacement = function(removeId) {
+    if (!this.rewardFlow || this.rewardFlow.phase !== 'build') return false;
+    const candidateId = this.rewardFlow.pendingCandidate;
+    if (!candidateId) return false;
+    if (!this.applyBuildChoice(candidateId, removeId)) return false;
+    this.rewardFlow.pendingCandidate = null;
+    this.rewardFlow.chosenBuild = candidateId;
+    this.showRewardSummary();
+    return true;
+};
+
+Game.skipBuildSelection = function() {
+    if (!this.rewardFlow || this.rewardFlow.phase !== 'build') return false;
+    this.rewardFlow.pendingCandidate = null;
+    this.rewardFlow.chosenBuild = null;
+    this.showRewardSummary();
+    return true;
+};
+
+Game.showRewardSummary = function() {
+    if (!this.rewardFlow) return false;
+    this.isBuildSelectionOpen = false;
+    if (this.buildPanel) this.buildPanel.style.display = 'none';
+    this.rewardFlow.phase = 'summary';
+    this.isRewardSummaryOpen = true;
+    this.updateRewardSummaryUI();
+    if (this.rewardSummaryPanel) this.rewardSummaryPanel.style.display = 'flex';
+    return true;
+};
+
+// The only path that resumes the simulation after a boss reward.
+Game.finishRewardFlow = function() {
+    if (!this.rewardFlow) return false;
+    this.rewardFlow = null;
+    this.isBuildSelectionOpen = false;
+    this.isRewardSummaryOpen = false;
+    if (this.buildPanel) this.buildPanel.style.display = 'none';
+    if (this.rewardSummaryPanel) this.rewardSummaryPanel.style.display = 'none';
+    this.isRunning = true;
+    this.accumulator = 0;
+    this.lastTime = performance.now();
+    if (typeof this.enableControlArea === 'function') this.enableControlArea(true);
+    return true;
+};
+
+// --- Build / summary panels (DOM guarded so Node tests run headless) -------
+
+Game.setupBuilds = function() {
+    if (typeof document === 'undefined') return;
+    this.buildPanel = document.getElementById('buildPanel');
+    this.buildSubtitle = document.getElementById('buildSubtitle');
+    this.buildHint = document.getElementById('buildHint');
+    this.buildOptions = document.getElementById('buildOptions');
+    this.buildBackButton = document.getElementById('buildBackButton');
+    this.rewardSummaryPanel = document.getElementById('rewardSummaryPanel');
+    this.rewardSummaryBody = document.getElementById('rewardSummaryBody');
+    if (!this.buildPanel) return;
+
+    this.buildPanel.addEventListener('click', (event) => {
+        const detailToggle = event.target.closest('.buildDetailToggle');
+        if (detailToggle) {
+            const option = detailToggle.closest('.buildOption');
+            if (option) option.classList.toggle('expanded');
+            return;
+        }
+        const removeButton = event.target.closest('.buildRemoveOption');
+        if (removeButton && !removeButton.disabled) {
+            this.selectBuildReplacement(removeButton.dataset.remove);
+            return;
+        }
+        const option = event.target.closest('.buildOption');
+        if (option && !option.disabled) {
+            this.selectBuild(option.dataset.build);
+            return;
+        }
+        if (event.target.closest('#buildBackButton')) {
+            this.rewardFlow.pendingCandidate = null;
+            this.updateBuildSelectionUI();
+            return;
+        }
+        if (event.target.closest('#buildSkipButton')) this.skipBuildSelection();
+    });
+
+    if (this.rewardSummaryPanel) {
+        this.rewardSummaryPanel.addEventListener('click', (event) => {
+            if (event.target.closest('#rewardConfirmButton')) this.finishRewardFlow();
+        });
+    }
+};
+
+Game.updateBuildSelectionUI = function() {
+    if (typeof document === 'undefined' || !this.buildOptions || !this.rewardFlow) return;
+    const flow = this.rewardFlow;
+    const owned = this.buildState.owned;
+    const isFull = owned.length >= CONFIG.builds.maxOwned;
+    const replacing = Boolean(flow.pendingCandidate);
+
+    if (this.buildSubtitle) {
+        this.buildSubtitle.textContent = replacing
+            ? `选择被「${Game.BUILDS[flow.pendingCandidate].name}」替换的强化`
+            : isFull ? '强化槽位已满，可替换一项或跳过' : '换卡后仍然保留';
+    }
+    if (this.buildHint) {
+        this.buildHint.textContent = `已持有 ${owned.length}/${CONFIG.builds.maxOwned} 项强化`;
+    }
+    if (this.buildBackButton) this.buildBackButton.style.display = replacing ? '' : 'none';
+
+    if (replacing) {
+        this.buildOptions.innerHTML = this.getLegalBuildRemovals(flow.pendingCandidate).map((id) => {
+            const build = Game.BUILDS[id];
+            return `<button type="button" class="buildOption buildRemoveOption" data-remove="${id}">`
+                + `<span class="buildName">替换：${build.name}</span>`
+                + `<span class="buildMeta">${LINE_NAMES[build.line]} · ${STAGE_NAMES[build.stage]}</span>`
+                + `<span class="buildDesc">让位后获得：${Game.BUILDS[flow.pendingCandidate].name}</span>`
+                + '</button>';
+        }).join('');
+        return;
+    }
+
+    this.buildOptions.innerHTML = flow.candidates.map((id) => {
+        const build = Game.BUILDS[id];
+        const meta = `${LINE_NAMES[build.line]} · ${STAGE_NAMES[build.stage]}`
+            + (build.stage === 'branch' ? ' · 二选一' : '');
+        return `<button type="button" class="buildOption" data-build="${id}">`
+            + `<span class="buildName">${build.name}</span>`
+            + `<span class="buildMeta">${meta}</span>`
+            + `<span class="buildDesc">${build.summary}</span>`
+            + '<span class="buildDetailToggle">详情</span>'
+            + `<span class="buildDetail">${buildDetailText(build)}</span>`
+            + '</button>';
+    }).join('');
+};
+
+Game.updateRewardSummaryUI = function() {
+    if (typeof document === 'undefined' || !this.rewardSummaryBody || !this.rewardFlow) return;
+    const cardName = this.activeCard && this.CARDS[this.activeCard]
+        ? this.CARDS[this.activeCard].name
+        : '无';
+    const buildId = this.rewardFlow.chosenBuild;
+    const buildText = buildId
+        ? `${Game.BUILDS[buildId].name} · ${LINE_NAMES[Game.BUILDS[buildId].line]}${STAGE_NAMES[Game.BUILDS[buildId].stage]}`
+        : '无（跳过）';
+    this.rewardSummaryBody.innerHTML = `
+        <div class="summaryRow"><span class="summaryLabel">当前核心卡</span><span class="summaryValue">${cardName}</span></div>
+        <div class="summaryRow"><span class="summaryLabel">本次强化</span><span class="summaryValue">${buildText}</span></div>`;
+};
+
 Game.resetBuildState();

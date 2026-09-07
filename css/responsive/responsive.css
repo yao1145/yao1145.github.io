@@ -41,4 +41,22 @@
         font-size: 11px;
     }
 
+    /* Boss reward flow panels: tighten the build cards and summary rows. */
+    #buildPanel,
+    #rewardSummaryPanel {
+        width: 94%;
+    }
+
+    .buildOption {
+        padding: 10px 6px;
+    }
+
+    .buildName {
+        font-size: 14px;
+    }
+
+    .rewardSummaryBody .summaryValue {
+        font-size: 13px;
+    }
+
 }

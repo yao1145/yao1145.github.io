@@ -195,3 +195,199 @@
         gap: 4px;
     }
 }
+
+/* --- Boss reward flow: build selection + summary panels ------------------ */
+
+/* Same wide scrolling plate as #cardPanel; JS flips the inline style to flex. */
+#buildPanel,
+#rewardSummaryPanel {
+    display: none;
+    flex-direction: column;
+    gap: 12px;
+    width: 88%;
+    max-width: 720px;
+    max-height: 88vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(86, 227, 255, 0.35) transparent;
+}
+
+#buildPanel::-webkit-scrollbar,
+#rewardSummaryPanel::-webkit-scrollbar {
+    width: 6px;
+}
+
+#buildPanel::-webkit-scrollbar-track,
+#rewardSummaryPanel::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#buildPanel::-webkit-scrollbar-thumb,
+#rewardSummaryPanel::-webkit-scrollbar-thumb {
+    background: rgba(86, 227, 255, 0.35);
+    border-radius: 3px;
+}
+
+#buildPanel .uiMeta,
+#buildPanel .uiTitle,
+#rewardSummaryPanel .uiMeta,
+#rewardSummaryPanel .uiTitle {
+    margin-bottom: 0;
+}
+
+/* Candidate list mirrors .cardGrid's auto-wrapping grid. */
+.buildOptions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
+    width: 100%;
+}
+
+/* Build option cards reuse the .effectCard look (amber accent marks the
+   replacement mode instead of the crimson "equipped" state). */
+.buildOption {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    padding: 14px 12px;
+    min-width: 0;
+    background: linear-gradient(180deg, rgba(86, 227, 255, 0.09), rgba(86, 227, 255, 0.03));
+    border: 1px solid rgba(86, 227, 255, 0.45);
+    border-radius: 2px;
+    color: #bdf3ff;
+    font-family: inherit;
+    font-size: inherit;
+    text-align: center;
+    cursor: pointer;
+    transition: background 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+
+.buildOption:hover {
+    background: linear-gradient(180deg, rgba(86, 227, 255, 0.26), rgba(86, 227, 255, 0.08));
+    border-color: rgba(86, 227, 255, 0.9);
+    color: #fff;
+    box-shadow: 0 0 16px rgba(86, 227, 255, 0.3), inset 0 0 10px rgba(86, 227, 255, 0.08);
+}
+
+.buildOption:active {
+    transform: translateY(1px);
+}
+
+.buildOption:focus-visible {
+    outline: 2px solid #bdf3ff;
+    outline-offset: 2px;
+}
+
+/* Replacement mode: amber plates for "give up this build" targets. */
+.buildOption.buildRemoveOption {
+    border-color: rgba(255, 190, 80, 0.6);
+    background: linear-gradient(180deg, rgba(255, 190, 80, 0.12), rgba(255, 190, 80, 0.04));
+}
+
+.buildOption.buildRemoveOption:hover {
+    border-color: rgba(255, 190, 80, 0.95);
+    box-shadow: 0 0 16px rgba(255, 190, 80, 0.3), inset 0 0 10px rgba(255, 190, 80, 0.08);
+}
+
+.buildName {
+    font-size: 16px;
+    font-weight: bold;
+    letter-spacing: 0.08em;
+    color: #eaffff;
+    text-shadow: 0 0 8px rgba(86, 227, 255, 0.5);
+}
+
+.buildMeta {
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    color: rgba(255, 190, 80, 0.85);
+}
+
+.buildDesc {
+    font-size: 11px;
+    line-height: 1.5;
+    letter-spacing: 0.05em;
+    color: rgba(168, 200, 216, 0.85);
+}
+
+/* Toggle + hidden detail block: expanded state is set by JS on the option. */
+.buildDetailToggle {
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: rgba(140, 222, 245, 0.65);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.buildDetail {
+    display: none;
+    font-size: 10px;
+    line-height: 1.5;
+    letter-spacing: 0.04em;
+    color: rgba(140, 222, 245, 0.7);
+}
+
+.buildOption.expanded .buildDetail {
+    display: block;
+}
+
+/* Summary rows reuse the stat-row rhythm of the shared panels. */
+.rewardSummaryBody {
+    width: 100%;
+}
+
+.rewardSummaryBody .summaryRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 9px 12px;
+    margin-bottom: 8px;
+    background: rgba(8, 18, 28, 0.6);
+    border: 1px solid rgba(86, 227, 255, 0.28);
+    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+
+.rewardSummaryBody .summaryRow:last-child {
+    margin-bottom: 0;
+}
+
+.rewardSummaryBody .summaryLabel {
+    color: #6e93a6;
+    font-size: 13px;
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+}
+
+.rewardSummaryBody .summaryValue {
+    color: #ffd166;
+    font-size: 14px;
+    font-weight: bold;
+    font-family: 'Consolas', 'Courier New', monospace;
+    text-shadow: 0 0 8px rgba(255, 190, 80, 0.55);
+    text-align: right;
+}
+
+@media (max-width: 520px) {
+    .buildOptions {
+        gap: 8px;
+    }
+
+    .buildOption {
+        padding: 12px 8px;
+        gap: 4px;
+    }
+
+    .rewardSummaryBody .summaryRow {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+    }
+}

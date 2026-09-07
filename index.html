@@ -137,6 +137,23 @@
                 <button id="cardSkipButton" class="uiButton uiButtonSecondary" type="button" style="display:none">本轮不换卡</button>
             </div>
 
+            <div id="buildPanel" class="uiPanel buildPanel" style="display: none;">
+                <div class="uiMeta">Build</div>
+                <div class="uiTitle">选择本局强化</div>
+                <div class="cardHint" id="buildSubtitle">换卡后仍然保留</div>
+                <div class="cardHint" id="buildHint">已持有 0/6 项强化</div>
+                <div class="buildOptions" id="buildOptions"></div>
+                <button id="buildBackButton" class="uiButton uiButtonSecondary" type="button" style="display:none">返回候选列表</button>
+                <button id="buildSkipButton" class="uiButton uiButtonSecondary" type="button">跳过强化</button>
+            </div>
+
+            <div id="rewardSummaryPanel" class="uiPanel rewardSummaryPanel" style="display: none;">
+                <div class="uiMeta">Summary</div>
+                <div class="uiTitle">本局奖励摘要</div>
+                <div id="rewardSummaryBody" class="rewardSummaryBody"></div>
+                <button id="rewardConfirmButton" class="uiButton" type="button">继续战斗</button>
+            </div>
+
             <div id="achievementsPanel" class="uiPanel">
                 <div class="uiTitle">成就奖励</div>
                 <div class="uiText">当前皇冠: <span id="achievementsCrowns">0</span></div>

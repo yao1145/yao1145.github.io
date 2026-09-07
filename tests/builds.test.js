@@ -2,9 +2,21 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Game } from '../js/core/game.js';
 import { CONFIG } from '../js/core/config.js';
+import { resetGameFixture } from './helpers/game-fixture.js';
+import '../js/systems/cards.js';
 import '../js/systems/builds.js';
+import '../js/systems/collisions.js';
 
 function resetBuilds() {
+    Game.resetBuildState();
+}
+
+// Reward-flow fixture: stub the DOM-touching hooks like the card tests do.
+function resetRewardFlow() {
+    resetGameFixture();
+    Game.player = { shotDelay: CONFIG.player.shotDelay };
+    Game.updateUI = () => {};
+    Game.enableControlArea = () => {};
     Game.resetBuildState();
 }
 
@@ -221,4 +233,137 @@ test('resetBuildState clears run state without resetting entity identity', () =>
         desperateCycleHeal: false,
     });
     assert.deepEqual(Game.buildState.metrics, {});
+});
+
+// --- Two-stage boss reward flow (core card -> build -> summary) ---
+
+test('reward flow advances core -> build -> summary and only the summary resumes', () => {
+    resetRewardFlow();
+    Game.activeCard = 'passion';
+    Game.beginRewardFlow(false);
+    assert.equal(Game.rewardFlow.phase, 'core');
+    assert.equal(Game.isCardSelectionOpen, true);
+    assert.equal(Game.isRunning, false);
+
+    assert.equal(Game.completeCoreCardSelection('passion'), true);
+    assert.equal(Game.rewardFlow.phase, 'build');
+    assert.equal(Game.isRunning, false);
+    assert.equal(Game.isCardSelectionOpen, false);
+
+    assert.equal(Game.selectBuild('rapid_entry'), true);
+    assert.equal(Game.rewardFlow.phase, 'summary');
+    assert.equal(Game.isRunning, false);
+    assert.equal(Game.hasBuild('rapid_entry'), true);
+
+    Game.finishRewardFlow();
+    assert.equal(Game.rewardFlow, null);
+    assert.equal(Game.isRunning, true);
+});
+
+test('game-start core selection without a reward flow resumes the simulation', () => {
+    resetRewardFlow();
+    Game.isCardSelectionOpen = true;
+    Game.cardSelectionModel = { options: ['peace'] };
+
+    assert.equal(Game.completeCoreCardSelection('peace'), true);
+    assert.equal(Game.rewardFlow, null);
+    assert.equal(Game.isRunning, true);
+});
+
+test('an empty build pool skips the build step and shows the summary', () => {
+    resetRewardFlow();
+    Game.activeCard = 'peace';
+    Game.buildState.owned = Object.keys(Game.BUILDS);
+    Game.beginRewardFlow(false);
+
+    assert.equal(Game.completeCoreCardSelection('peace'), true);
+    assert.equal(Game.rewardFlow.phase, 'summary');
+    assert.equal(Game.isRunning, false);
+
+    Game.finishRewardFlow();
+    assert.equal(Game.isRunning, true);
+});
+
+test('a full build list enters replacement mode before the summary', () => {
+    resetRewardFlow();
+    Game.activeCard = 'peace';
+    Game.buildState.owned = [
+        'rapid_entry', 'rapid_reignite', 'rapid_capstone',
+        'fortress_entry', 'fortress_regroup', 'fortress_capstone',
+    ];
+    Game.beginRewardFlow(false);
+    Game.completeCoreCardSelection('peace');
+    assert.equal(Game.rewardFlow.phase, 'build');
+
+    // The offer is randomized; arm replacement mode with whichever candidate
+    // came up first and swap out one of its legal removals.
+    const candidate = Game.rewardFlow.candidates[0];
+    assert.equal(Game.selectBuild(candidate), true);
+    assert.equal(Game.rewardFlow.phase, 'build');
+    assert.equal(Game.rewardFlow.pendingCandidate, candidate);
+    const removals = Game.getLegalBuildRemovals(candidate);
+    assert.ok(removals.length > 0);
+
+    assert.equal(Game.selectBuildReplacement(removals[0]), true);
+    assert.equal(Game.rewardFlow.phase, 'summary');
+    assert.equal(Game.hasBuild(candidate), true);
+    assert.equal(Game.hasBuild(removals[0]), false);
+
+    Game.finishRewardFlow();
+    assert.equal(Game.isRunning, true);
+});
+
+test('skipping the build step shows the summary without granting a build', () => {
+    resetRewardFlow();
+    Game.activeCard = 'peace';
+    Game.beginRewardFlow(false);
+    Game.completeCoreCardSelection('peace');
+
+    assert.equal(Game.skipBuildSelection(), true);
+    assert.equal(Game.rewardFlow.phase, 'summary');
+    assert.equal(Game.buildState.rewardCount, 0);
+    assert.deepEqual(Game.buildState.owned, []);
+
+    Game.finishRewardFlow();
+    assert.equal(Game.isRunning, true);
+});
+
+test('reward flow owns the pause state and clears the accumulator on finish', () => {
+    resetRewardFlow();
+    Game.activeCard = 'peace';
+    Game.accumulator = 40;
+    Game.beginRewardFlow(false);
+    assert.equal(Game.accumulator, 0);
+
+    // Pause key is inert while a reward flow is active.
+    Game.togglePause();
+    assert.equal(Game.isRunning, false);
+
+    Game.completeCoreCardSelection('peace');
+    Game.selectBuild('fortress_entry');
+    Game.finishRewardFlow();
+    assert.equal(Game.accumulator, 0);
+    assert.equal(Game.isRunning, true);
+});
+
+test('boss death starts a new cycle, clears the desperate lock, and opens the flow', () => {
+    resetRewardFlow();
+    Game.activeCard = 'peace';
+    Game.isRunning = true;
+    Game.buildState.cycle = 2;
+    Game.buildState.locks.desperateCycleHeal = true;
+    Game.boss = { health: 0, maxHealth: 100 };
+    Game.bossHealthBar = { style: {} };
+    Game.summonIndicator = { style: {} };
+    Game.bossWarning = { style: {} };
+
+    Game.handleBossDeath();
+
+    assert.equal(Game.boss, null);
+    assert.equal(Game.crowns, 1);
+    assert.equal(Game.buildState.cycle, 3);
+    assert.equal(Game.buildState.locks.desperateCycleHeal, false);
+    assert.equal(Game.isBossStage, false);
+    assert.equal(Game.rewardFlow.phase, 'core');
+    assert.equal(Game.isRunning, false);
 });
