@@ -84,7 +84,7 @@ test('candidate generation prioritizes associated and invested routes, then fill
     assert.ok(candidates.every((candidate) => Game.hasBuild(candidate) === false));
 });
 
-test('candidate allocation keeps as many invested routes as the three-slot budget allows', () => {
+test('candidate allocation preserves every invested unfinished route before the associated route', () => {
     resetBuilds();
     Game.activeCard = 'supply';
     Game.buildState.owned = ['rapid_entry', 'fortress_entry', 'desperate_entry'];
@@ -92,13 +92,9 @@ test('candidate allocation keeps as many invested routes as the three-slot budge
     const candidates = Game.getLegalBuildCandidates(() => 0);
 
     assert.equal(candidates.length, CONFIG.builds.offerCount);
-    assert.deepEqual(candidates, [
-        'supply_entry',
-        'rapid_reignite',
-        'fortress_regroup',
-    ]);
-    assert.equal(candidates.includes('desperate_strike'), false);
-    assert.equal(candidates.includes('desperate_execute'), false);
+    assert.deepEqual(candidates, ['rapid_reignite', 'fortress_regroup', 'desperate_strike']);
+    assert.equal(new Set(candidates).size, candidates.length);
+    assert.equal(candidates.includes('supply_entry'), false);
 });
 
 test('candidate generation returns only the legal number when the pool is short or empty', () => {
@@ -141,10 +137,42 @@ test('full build replacement permits swapping mutually exclusive branches atomic
     }
 
     assert.deepEqual(Game.getLegalBuildRemovals('rapid_wide'), ['rapid_reignite']);
-    assert.equal(Game.getLegalBuildCandidates(() => 0).includes('rapid_wide'), true);
+    assert.equal(Game.getLegalBuildCandidates(() => 0).includes('rapid_capstone'), true);
     assert.equal(Game.applyBuildChoice('rapid_wide', 'rapid_reignite'), true);
     assert.equal(Game.hasBuild('rapid_reignite'), false);
     assert.equal(Game.hasBuild('rapid_wide'), true);
+});
+
+test('full-slot candidates prefer a legal capstone over an alternate branch replacement', () => {
+    resetBuilds();
+    Game.activeCard = 'passion';
+    Game.buildState.owned = [
+        'rapid_entry', 'rapid_reignite',
+        'fortress_entry', 'fortress_regroup', 'fortress_capstone',
+        'supply_entry',
+    ];
+
+    const candidates = Game.getLegalBuildCandidates(() => 0);
+
+    assert.equal(candidates[0], 'rapid_capstone');
+    assert.equal(Game.getLegalBuildRemovals('rapid_capstone').length > 0, true);
+    assert.equal(Game.getLegalBuildRemovals('rapid_wide').length > 0, true);
+});
+
+test('unassociated new-route entries use the supplied RNG for ordering', () => {
+    resetBuilds();
+    Game.activeCard = 'fog';
+
+    const lowRandomCandidates = Game.getLegalBuildCandidates(() => 0);
+    const highRandomCandidates = Game.getLegalBuildCandidates(() => 0.9999);
+
+    assert.notDeepEqual(lowRandomCandidates, highRandomCandidates);
+    for (const candidates of [lowRandomCandidates, highRandomCandidates]) {
+        assert.equal(candidates.length, CONFIG.builds.offerCount);
+        assert.equal(new Set(candidates).size, candidates.length);
+        assert.equal(new Set(candidates.map((id) => Game.BUILDS[id].line)).size, candidates.length);
+        assert.ok(candidates.every((id) => Game.BUILDS[id].stage === 'entry'));
+    }
 });
 
 test('resetBuildState clears run state without resetting entity identity', () => {

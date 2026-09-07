@@ -202,38 +202,48 @@ Game.getLegalBuildCandidates = function(rng = Math.random) {
 
     const prioritized = [];
     const prioritizedLines = new Set();
-    const addRouteCandidate = (line) => {
-        if (prioritized.length >= CONFIG.builds.offerCount || prioritizedLines.has(line)) return;
-        const next = ROUTES.find((route) => route.line === line).builds
+    const getNextLegal = (line) => {
+        const legalForLine = ROUTES.find((route) => route.line === line).builds
             .map(([id]) => id)
             .filter((id) => legal.includes(id));
-        if (next.length === 0) return;
-        prioritized.push(next[0]);
+        return legalForLine.find((id) => builds[id].stage === 'capstone') || legalForLine[0];
+    };
+    const addRouteCandidate = (line) => {
+        if (prioritized.length >= CONFIG.builds.offerCount || prioritizedLines.has(line)) return;
+        const next = getNextLegal(line);
+        if (!next) return;
+        prioritized.push(next);
         prioritizedLines.add(line);
     };
 
-    // Reserve the first slot(s) for the current core card's associated route.
-    // This is intentionally separate from the invested-route pass below.
-    for (const line of associatedLines[this.activeCard] || []) addRouteCandidate(line);
+    const investedLines = routeOrder.filter((line) => owned.some((id) => builds[id] && builds[id].line === line)
+        && getNextLegal(line));
+    const associatedCandidateLines = [...new Set(associatedLines[this.activeCard] || [])]
+        .filter((line) => getNextLegal(line));
+    const associatedNewLines = associatedCandidateLines.filter((line) => !investedLines.includes(line));
+    const associatedCanLead = investedLines.length + associatedNewLines.length <= CONFIG.builds.offerCount;
 
-    // Use every remaining slot for a distinct invested, unfinished route before
-    // considering new routes or random fill. If more routes are eligible than
-    // slots remain, routeOrder is the deterministic tie-breaker: the omitted
-    // routes are the unavoidable consequence of the three-card offer cap.
-    for (const line of routeOrder) {
-        const invested = owned.some((id) => builds[id] && builds[id].line === line);
-        if (invested) addRouteCandidate(line);
+    if (associatedCanLead) {
+        for (const line of associatedCandidateLines) addRouteCandidate(line);
+        for (const line of investedLines) addRouteCandidate(line);
+    } else {
+        // The three-slot cap makes the associated route and every invested route
+        // mutually incompatible here; preserve the invested-route guarantee.
+        for (const line of investedLines) addRouteCandidate(line);
+        for (const line of associatedCandidateLines) addRouteCandidate(line);
     }
 
     // Only after the core and invested-route passes may a fresh route entry use
     // a slot. The final random fill below still respects the same legal pool.
-    for (const line of routeOrder) {
-        const entry = `${line}_entry`;
+    const newRouteEntries = routeOrder
+        .map((line) => `${line}_entry`)
+        .filter((entry) => !owned.includes(entry)
+            && legal.includes(entry)
+            && !prioritizedLines.has(builds[entry].line));
+    for (const entry of randomize(newRouteEntries, rng)) {
         if (prioritized.length >= CONFIG.builds.offerCount) break;
-        if (!owned.includes(entry) && legal.includes(entry) && !prioritizedLines.has(line)) {
-            prioritized.push(entry);
-            prioritizedLines.add(line);
-        }
+        prioritized.push(entry);
+        prioritizedLines.add(builds[entry].line);
     }
 
     const remaining = randomize(legal.filter((id) => !prioritized.includes(id)), rng);
