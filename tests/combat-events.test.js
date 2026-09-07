@@ -39,7 +39,6 @@ test('resetGameFixture restores shared run state without resetting entity ids', 
         isDamageBoost: true,
         damageBoostTime: 600,
         activeCard: 'glass',
-        greenStacks: { g_rate: 3, g_bullets: 3, g_vitality: 3 },
         difficulty: 'easy',
         cardRegenTimer: 1000,
         isCardSelectionOpen: true,
@@ -89,7 +88,6 @@ test('resetGameFixture restores shared run state without resetting entity ids', 
     assert.equal(Game.isDamageBoost, false);
     assert.equal(Game.damageBoostTime, 0);
     assert.equal(Game.activeCard, null);
-    assert.deepEqual(Game.greenStacks, { g_rate: 0, g_bullets: 0, g_vitality: 0 });
     assert.equal(Game.difficulty, 'hard');
     assert.equal(Game.cardRegenTimer, 0);
     assert.equal(Game.isCardSelectionOpen, false);

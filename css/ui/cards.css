@@ -3,8 +3,7 @@
    PKU-crimson "equipped" state, amber warnings. Extends .uiPanel. */
 
 /* Wider variant of the shared .uiPanel plate, laid out as a column once the
-   game JS flips the inline style to `display: flex`. Widened from the default
-   so the ten cards can sit across several columns instead of a tall list. */
+   game JS flips the inline style to `display: flex`. */
 #cardPanel {
     display: none;
     flex-direction: column;
@@ -12,7 +11,7 @@
     width: 88%;
     max-width: 720px;
 
-    /* Ten cards can outgrow a short viewport (portrait phones, landscape
+    /* Thirteen cards can outgrow a short viewport (portrait phones, landscape
        phones): cap the height and let the panel scroll rather than clip.
        88vh keeps the centered plate (translate -50%) inside the screen. */
     max-height: 88vh;
@@ -86,6 +85,12 @@
     box-shadow: 0 0 16px rgba(86, 227, 255, 0.3), inset 0 0 10px rgba(86, 227, 255, 0.08);
 }
 
+.effectCard:disabled {
+    cursor: not-allowed;
+    opacity: 0.48;
+    filter: saturate(0.45);
+}
+
 .effectCard:active {
     transform: translateY(1px);
 }
@@ -141,44 +146,6 @@
     display: block;
 }
 
-/* Green buff cards: stackable greens read as a separate "stacking buff"
-   family — signal-green faces instead of the cyan ones, same plate shape. */
-.effectCard.isGreen {
-    background: linear-gradient(180deg, rgba(61, 220, 132, 0.12), rgba(61, 220, 132, 0.03));
-    border-color: rgba(61, 220, 132, 0.5);
-    color: #bdf3d9;
-}
-
-.effectCard.isGreen:hover {
-    background: linear-gradient(180deg, rgba(61, 220, 132, 0.28), rgba(61, 220, 132, 0.08));
-    border-color: rgba(61, 220, 132, 0.95);
-    color: #fff;
-    box-shadow: 0 0 16px rgba(61, 220, 132, 0.32), inset 0 0 10px rgba(61, 220, 132, 0.08);
-}
-
-/* Equipped green card: the .cardActive treatment in a green accent. */
-.effectCard.isGreen.cardActive {
-    border-color: rgba(61, 220, 132, 0.9);
-    background: linear-gradient(180deg, rgba(61, 220, 132, 0.2), rgba(61, 220, 132, 0.07));
-    box-shadow: 0 0 16px rgba(61, 220, 132, 0.38), inset 0 0 12px rgba(61, 220, 132, 0.12);
-}
-
-.effectCard.isGreen .cardName {
-    color: #eafff4;
-    text-shadow: 0 0 8px rgba(61, 220, 132, 0.55);
-}
-
-.effectCard.isGreen .cardDesc {
-    color: rgba(150, 214, 178, 0.9);
-}
-
-/* Equipped tag on a green card glows green to match its accent. */
-.effectCard.isGreen.cardActive .cardBadge {
-    background: #3ddc84;
-    color: #06180d;
-    box-shadow: 0 0 8px rgba(61, 220, 132, 0.6);
-}
-
 /* Single-line hint under the title; JS flags `warn` when switching costs HP. */
 .cardHint {
     margin: 0;
@@ -193,8 +160,7 @@
     text-shadow: 0 0 8px rgba(255, 190, 80, 0.5);
 }
 
-/* Active-card HUD chip: red-accent counterpart of the green .buffChip discs
-   (hud.css), third in the top-right stack. JS writes the card glyph, the
+/* Active-card HUD chip, third in the top-right stack. JS writes the card glyph, the
    tooltip and flips inline display '' / none, so the stylesheet's display:
    flex is the visible state and the inline style hides it by default. */
 .cardIndicator {
@@ -216,7 +182,7 @@
     z-index: 15;
 }
 
-/* Narrow screens: keep ~2 columns (a single column would turn ten cards into a
+/* Narrow screens: keep ~2 columns (a single column would turn thirteen cards into a
    very tall list) and tighten spacing so the grid stays compact. Readability at
    >= 320px is preserved via the 120px min track width above. */
 @media (max-width: 520px) {

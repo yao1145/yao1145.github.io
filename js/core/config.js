@@ -77,7 +77,7 @@ export const CONFIG = {
 
     // Object pool capacities
     poolMaxSize: {
-        // 200 → 400: stacked fire-rate buffs can outrun the old pool (getObject()
+        // 200 → 400: high fire-rate configurations can outrun the old pool (getObject()
         // nulls are already handled gracefully downstream).
         bullets: 400,
         enemyBullets: 300,
@@ -205,16 +205,6 @@ export const CONFIG = {
             magnetSpeed: 0.75,
             fullHealthHeartProgress: 2,
         },
-    },
-
-    // Green buff cards: stackable and permanent for the run. Picking one is
-    // free and never touches the active effect card.
-    greenCards: {
-        rollChance: 1 / 3,      // probability per selection that one green card appears among the four
-        maxPicks: 3,            // picks per green card per run
-        rate:    { name: '疾速射击', desc: '射速+50%可叠加',   perStack: 0.5 },  // additive rate multiplier
-        bullets: { name: '弹仓扩容', desc: '子弹数+1可叠加',   perStack: 1 },
-        vitality:{ name: '体质强化', desc: '生命上限+5并回5命', perStack: 5 },
     },
 
     // Crown-threshold achievement bonuses, unlocked permanently once totalCrowns reaches these.

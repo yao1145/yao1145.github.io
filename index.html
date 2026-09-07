@@ -32,7 +32,6 @@
             <div class="shieldIndicator" id="shieldIndicator">盾: 0.0</div>
             <div class="attackIndicator" id="attackIndicator">攻: 0.0</div>
             <div class="cardIndicator" id="cardIndicator" style="display:none"></div>
-            <div id="greenBuffBar" class="greenBuffBar" style="display:none"></div>
             <div class="summonIndicator" id="summonIndicator">召唤: 0s</div>
 
             <div id="gameStartPanel" class="uiPanel">
@@ -134,22 +133,8 @@
                         <span class="cardDesc">道具效果提升（红心+2命，攻/盾+5秒）；每发敌机子弹扣除2点生命</span>
                         <span class="cardBadge">当前效果</span>
                     </button>
-                    <button type="button" class="effectCard isGreen" data-card="g_rate">
-                        <span class="cardName">疾速射击</span>
-                        <span class="cardDesc">射速+50%可叠加</span>
-                        <span class="cardBadge">当前效果</span>
-                    </button>
-                    <button type="button" class="effectCard isGreen" data-card="g_bullets">
-                        <span class="cardName">弹仓扩容</span>
-                        <span class="cardDesc">子弹数+1可叠加</span>
-                        <span class="cardBadge">当前效果</span>
-                    </button>
-                    <button type="button" class="effectCard isGreen" data-card="g_vitality">
-                        <span class="cardName">体质强化</span>
-                        <span class="cardDesc">生命上限+5并回5命</span>
-                        <span class="cardBadge">当前效果</span>
-                    </button>
                 </div>
+                <button id="cardSkipButton" class="uiButton uiButtonSecondary" type="button" style="display:none">本轮不换卡</button>
             </div>
 
             <div id="achievementsPanel" class="uiPanel">

@@ -44,10 +44,10 @@ export function resetGameFixture() {
     Game.damageBoostTime = 0;
     Game.activeCard = null;
     Game.cardPickCount = {};
-    Game.greenStacks = { g_rate: 0, g_bullets: 0, g_vitality: 0 };
     Game.difficulty = 'hard';
     Game.cardRegenTimer = 0;
     Game.isCardSelectionOpen = false;
+    Game.cardSelectionModel = null;
     Game.lastUIUpdateTime = 0;
     return Game;
 }

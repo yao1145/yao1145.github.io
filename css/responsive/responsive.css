@@ -34,26 +34,11 @@
         padding: 3px 6px;
     }
 
-    /* Card chip shrinks to match the buff chips below it in the stack. */
+    /* Card indicator shrinks with the other top-right HUD indicators. */
     .cardIndicator {
         width: 20px;
         height: 20px;
         font-size: 11px;
     }
 
-    /* Green buff chips shrink with the indicator stack above them. */
-    .buffChip {
-        width: 20px;
-        height: 20px;
-    }
-
-    .buffIcon {
-        font-size: 11px;
-    }
-
-    .buffStack {
-        font-size: 8px;
-        top: -3px;
-        right: -5px;
-    }
 }

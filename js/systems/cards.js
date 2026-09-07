@@ -20,7 +20,7 @@ Game.CARDS = {
     boost: { name: '增益加强' },
 };
 
-// Short per-card face text, ~10 glyphs each so a 4-card selection stays
+// Short per-card face text, ~10 glyphs each so a four-card selection stays
 // compact. Only used to label the pickable faces.
 Game.CARD_DESCS = {
     passion: '敌我攻速翻倍',
@@ -38,191 +38,209 @@ Game.CARD_DESCS = {
     boost: '道具强化·敌弹伤2',
 };
 
-// Green buff cards: stackable and permanent for the run. Picking one is free
-// and never touches the active effect card. Tunables live in CONFIG.greenCards.
-Game.GREEN_CARDS = { g_rate: CONFIG.greenCards.rate, g_bullets: CONFIG.greenCards.bullets, g_vitality: CONFIG.greenCards.vitality };
+function shuffle(values, rng) {
+    const result = [...values];
+    for (let i = result.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(rng() * (i + 1));
+        [result[i], result[j]] = [result[j], result[i]];
+    }
+    return result;
+}
 
-// HUD glyph per green card, used by the buff bar renderer.
-Game.GREEN_ICONS = { g_rate: '速', g_bullets: '弹', g_vitality: '命' };
+Game.getMaxLivesForCard = function(cardId) {
+    return cardId === 'glass' ? 1 : CONFIG.player.maxLives;
+};
 
-// The pick panel always shows up to 4 cards: the currently equipped one is
-// always included while still allowed (under this run's pick cap); each roll
-// has a CONFIG.greenCards.rollChance chance of including exactly one green
-// card, with the remaining slots filled by color cards. With no equipped card
-// at game start, up to 4 random cards show.
-Game.rollCardOptions = function() {
-    // Each card can be equipped cardMaxPicks times per run; past that it
-    // leaves the candidate pool.
-    const used = this.cardPickCount || {};
-    const allowed = Object.keys(this.CARDS).filter(k => (used[k] || 0) < CONFIG.cards.cardMaxPicks);
-
-    // Fisher–Yates shuffle of the remaining allowed cards.
-    for (let i = allowed.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        const tmp = allowed[i];
-        allowed[i] = allowed[j];
-        allowed[j] = tmp;
+Game.getCardSwitchPreview = function(cardId) {
+    const maxLivesAfter = this.getMaxLivesForCard(cardId);
+    if (!this.CARDS[cardId]) {
+        return { legal: false, cost: 0, livesAfter: this.lives, maxLivesAfter, reason: '无效效果卡' };
     }
 
-    const chosen = [];
-    // Keep the equipped card only while it is still allowed.
-    const equippedIndex = this.activeCard ? allowed.indexOf(this.activeCard) : -1;
-    if (equippedIndex !== -1) {
-        chosen.push(allowed[equippedIndex]);
-        allowed.splice(equippedIndex, 1);
+    const used = (this.cardPickCount || {})[cardId] || 0;
+    if (used >= CONFIG.cards.cardMaxPicks) {
+        return { legal: false, cost: 0, livesAfter: this.lives, maxLivesAfter, reason: '本局已选择3次' };
     }
 
-    // Green cards still under their pick cap; vitality can't be offered while
-    // glass caps lives at 1 (the raised cap would be unreachable).
-    const stacks = this.greenStacks || {};
-    const greenPool = Object.keys(this.GREEN_CARDS)
-        .filter(k => (stacks[k] || 0) < CONFIG.greenCards.maxPicks
-            && !(k === 'g_vitality' && this.activeCard === 'glass'));
+    const isSwitch = this.activeCard !== null && cardId !== this.activeCard;
+    const free = cardId === 'glass' || this.activeCard === 'glass';
+    const cost = isSwitch && !free ? CONFIG.cards.switchCost : 0;
+    const chargedLives = this.lives - cost;
+    // Entering glass clamps the current life count to its cap. Leaving glass
+    // restores the cap only; it never grants the lost life back.
+    const livesAfter = cardId === 'glass'
+        ? Math.min(chargedLives, maxLivesAfter)
+        : chargedLives;
+    const legal = livesAfter >= 1;
 
-    // Per-selection gate: one roll decides whether the fill includes exactly
-    // one green card; the remaining slots draw from the color pool. If the
-    // color pool runs out mid-fill, keep filling from the green pool
-    // (exhaustion fallback, ignoring the gate); a hit with an empty green
-    // pool means all color cards.
-    const fill = [];
-    if (Math.random() < CONFIG.greenCards.rollChance && greenPool.length > 0) {
-        const idx = Math.floor(Math.random() * greenPool.length);
-        fill.push(greenPool[idx]);
-        greenPool.splice(idx, 1);
-    }
-    while (chosen.length + fill.length < 4 && allowed.length > 0) {
-        const idx = Math.floor(Math.random() * allowed.length);
-        fill.push(allowed[idx]);
-        allowed.splice(idx, 1);
-    }
-    while (chosen.length + fill.length < 4 && greenPool.length > 0) {
-        const idx = Math.floor(Math.random() * greenPool.length);
-        fill.push(greenPool[idx]);
-        greenPool.splice(idx, 1);
-    }
-    // Shuffle the fill so the green card (when present) isn't always first.
-    for (let i = fill.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        const tmp = fill[i];
-        fill[i] = fill[j];
-        fill[j] = tmp;
-    }
-    chosen.push(...fill);
+    return {
+        legal,
+        cost,
+        livesAfter,
+        maxLivesAfter,
+        reason: legal ? '' : '生命不足，无法更换',
+    };
+};
 
+Game.getCardSelectionModel = function(rng = Math.random) {
+    const cardIds = Object.keys(this.CARDS);
+    const previews = Object.fromEntries(cardIds.map((id) => [id, this.getCardSwitchPreview(id)]));
+    const cardStates = Object.fromEntries(cardIds.map((id) => [id, {
+        id,
+        name: this.CARDS[id].name,
+        description: this.CARD_DESCS[id],
+        pickCount: (this.cardPickCount || {})[id] || 0,
+        ...previews[id],
+    }]));
+    const legalIds = cardIds.filter((id) => previews[id].legal);
+    const randomized = shuffle(legalIds, rng);
+
+    // Keeping the current card must remain possible while it is legal, even
+    // when the random four-card sample would otherwise omit it.
+    if (this.activeCard && previews[this.activeCard]?.legal) {
+        const currentIndex = randomized.indexOf(this.activeCard);
+        if (currentIndex !== -1) randomized.splice(currentIndex, 1);
+        randomized.unshift(this.activeCard);
+    }
+
+    const options = randomized.slice(0, 4);
+    return {
+        options,
+        previews,
+        cards: cardStates,
+        canSkip: options.length === 0,
+        skipReason: options.length === 0 ? '没有合法效果卡，本轮不换卡' : '仍有合法效果卡',
+    };
+};
+
+Game.updateCardSelectionUI = function(model) {
+    if (!this.cardButtons) return;
+    const options = new Set(model.options);
     for (const button of this.cardButtons) {
         const id = button.dataset.card;
-        const show = chosen.indexOf(id) !== -1;
+        const preview = model.previews[id];
+        const show = options.has(id);
         button.style.display = show ? '' : 'none';
-        if (show) {
+        button.disabled = !show || !preview?.legal;
+        button.setAttribute('aria-disabled', String(button.disabled));
+        if (preview) {
+            button.title = preview.legal ? '' : preview.reason;
             const desc = button.querySelector('.cardDesc');
-            if (desc) desc.textContent = this.CARD_DESCS[id] || (this.GREEN_CARDS[id] && this.GREEN_CARDS[id].desc) || '';
+            if (desc && show) {
+                const used = (this.cardPickCount || {})[id] || 0;
+                const costText = preview.cost === 0 ? '免费' : `消耗${preview.cost}命`;
+                desc.textContent = `${this.CARD_DESCS[id]} · 已选${used}/${CONFIG.cards.cardMaxPicks} · ${costText} · 换后${preview.livesAfter}命/上限${preview.maxLivesAfter}`;
+                if (!preview.legal) desc.textContent += ` · ${preview.reason}`;
+            }
+            const badge = button.querySelector('.cardBadge');
+            if (badge && show) {
+                const used = (this.cardPickCount || {})[id] || 0;
+                badge.textContent = id === this.activeCard
+                    ? `当前 · ${used}/${CONFIG.cards.cardMaxPicks}`
+                    : `${used}/${CONFIG.cards.cardMaxPicks}`;
+            }
         }
     }
+    if (this.cardSkipButton) {
+        this.cardSkipButton.style.display = model.canSkip ? '' : 'none';
+        this.cardSkipButton.disabled = !model.canSkip;
+        this.cardSkipButton.title = model.canSkip ? '' : model.skipReason;
+    }
+};
+
+// Compatibility wrapper retained for the existing card UI and later reward
+// flow: it now draws only from the legal thirteen-card core pool.
+Game.rollCardOptions = function(rng = Math.random) {
+    this.cardSelectionModel = this.getCardSelectionModel(rng);
+    this.updateCardSelectionUI(this.cardSelectionModel);
+    return this.cardSelectionModel.options;
 };
 
 Game.setupCards = function() {
     this.cardPanel = document.getElementById('cardPanel');
     this.cardHint = document.getElementById('cardHint');
     this.cardIndicator = document.getElementById('cardIndicator');
+    this.cardSkipButton = document.getElementById('cardSkipButton');
     this.cardButtons = Array.from(document.querySelectorAll('.effectCard'));
 
-    // Single delegated listener: clicks on any .effectCard bubble up to the panel.
     this.cardPanel.addEventListener('click', (event) => {
         const button = event.target.closest('.effectCard');
-        if (button) {
+        if (button && !button.disabled) {
             this.selectCard(button.dataset.card);
+            return;
         }
+        if (event.target.closest('#cardSkipButton')) this.skipCardSelection();
     });
 };
 
 Game.openCardSelection = function(firstPick = false) {
     if (this.isGameOver) return;
 
-    // Freeze the simulation exactly like togglePause: drain the accumulator and
-    // reset the clock so the game resumes without a catch-up burst.
     this.isRunning = false;
     this.accumulator = 0;
     this.lastTime = performance.now();
-    this.enableControlArea(false);
+    if (typeof this.enableControlArea === 'function') this.enableControlArea(false);
     this.isCardSelectionOpen = true;
 
-    // Re-roll the 4-card batch on every open.
     this.rollCardOptions();
     this.updateCardHighlight();
 
-    if (firstPick || !this.activeCard) {
-        this.cardHint.textContent = '首次选择免费';
-        this.cardHint.classList.remove('warn');
-    } else if (this.activeCard === 'glass') {
-        // Glass switches in and out free — the hint must match the free rule.
-        this.cardHint.textContent = '玻璃大炮：更换卡片免费';
-        this.cardHint.classList.remove('warn');
-    } else {
-        this.cardHint.textContent = '保持当前卡免费，更换需扣除1点生命';
-        this.cardHint.classList.add('warn');
-    }
-
-    this.cardPanel.style.display = 'flex';
-};
-
-Game.selectCard = function(cardId) {
-    if (!this.isCardSelectionOpen || !(this.CARDS[cardId] || this.GREEN_CARDS[cardId])) return;
-
-    // Green cards: free, stackable, never touch the equipped effect card.
-    if (this.GREEN_CARDS[cardId]) {
-        this.greenStacks[cardId] = Math.min((this.greenStacks[cardId] || 0) + 1, CONFIG.greenCards.maxPicks);
-        this.cardPickCount = this.cardPickCount || {};
-        this.cardPickCount[cardId] = (this.cardPickCount[cardId] || 0) + 1;
-        if (cardId === 'g_vitality') this.applyLifeGain(CONFIG.greenCards.vitality.perStack);
-
-        this.updateCardHighlight();
-        this.updateGreenBuffUI();
-        this.cardPanel.style.display = 'none';
-        this.isCardSelectionOpen = false;
-
-        this.isRunning = true;
-        this.accumulator = 0;
-        this.lastTime = performance.now();
-        this.enableControlArea(true);
-        return;
-    }
-
-    const previousCard = this.activeCard;
-    const isSwitch = previousCard !== null && cardId !== previousCard;
-    // Glass locks the life cap to 1: switching in or out must be free,
-    // otherwise leaving glass would cost the last life = instant death.
-    const isGlassFreeSwitch = cardId === 'glass' || previousCard === 'glass';
-    if (isSwitch && !isGlassFreeSwitch) {
-        this.lives -= CONFIG.cards.switchCost;
-        this.updateUI(true);
-        if (this.lives <= 0) {
-            this.cardPanel.style.display = 'none';
-            this.isCardSelectionOpen = false;
-            this.gameOver();
-            return;
+    if (this.cardHint) {
+        if (this.cardSelectionModel.canSkip) {
+            this.cardHint.textContent = '本轮无合法选项，可保底跳过';
+            this.cardHint.classList.remove('warn');
+        } else if (firstPick || !this.activeCard) {
+            this.cardHint.textContent = '首次选择免费';
+            this.cardHint.classList.remove('warn');
+        } else if (this.activeCard === 'glass') {
+            this.cardHint.textContent = '玻璃大炮：更换卡片免费，离开不回血';
+            this.cardHint.classList.remove('warn');
+        } else {
+            this.cardHint.textContent = '保持当前卡免费，更换需扣除1点生命';
+            this.cardHint.classList.add('warn');
         }
     }
 
-    this.activeCard = cardId;
-    // Glass: the cap drops to 1 via getMaxLives, so clamp current lives to it.
-    if (cardId === 'glass') {
-        this.lives = 1;
-    }
+    if (this.cardPanel) this.cardPanel.style.display = 'flex';
+};
 
-    // Each card equips at most cardMaxPicks times per run; keeping the
-    // current card also counts as a use.
+Game.resumeAfterCardSelection = function() {
+    this.isCardSelectionOpen = false;
+    if (this.cardPanel) this.cardPanel.style.display = 'none';
+    this.isRunning = true;
+    this.accumulator = 0;
+    this.lastTime = performance.now();
+    if (typeof this.enableControlArea === 'function') this.enableControlArea(true);
+};
+
+Game.skipCardSelection = function() {
+    const model = this.getCardSelectionModel();
+    if (!model.canSkip) return false;
+    this.cardSelectionModel = model;
+    this.resumeAfterCardSelection();
+    return true;
+};
+
+Game.completeCoreCardSelection = function(cardId) {
+    if (cardId === null) return this.skipCardSelection();
+    const preview = this.getCardSwitchPreview(cardId);
+    if (!preview.legal) return false;
+
+    this.lives = preview.livesAfter;
+    this.activeCard = cardId;
     this.cardPickCount = this.cardPickCount || {};
     this.cardPickCount[cardId] = (this.cardPickCount[cardId] || 0) + 1;
 
     this.updateCardHighlight();
     this.updateCardChipUI();
-    this.cardPanel.style.display = 'none';
-    this.isCardSelectionOpen = false;
+    if (typeof this.updateUI === 'function') this.updateUI(true);
+    this.resumeAfterCardSelection();
+    return true;
+};
 
-    this.isRunning = true;
-    this.accumulator = 0;
-    this.lastTime = performance.now();
-    this.enableControlArea(true);
+Game.selectCard = function(cardId) {
+    if (!this.isCardSelectionOpen) return false;
+    return this.completeCoreCardSelection(cardId);
 };
 
 // Damage rounding: player bullet damage is always a multiple of 0.5, min 0.5
@@ -234,19 +252,12 @@ Game.roundBulletDamage = function(d) {
 // Bullet damage (no per-target split; see getDamageFor), rounded to 0.5.
 Game.getBulletDamage = function() {
     let d = this.bulletDamage;
-    if (this.activeCard === 'survival') {
-        d *= CONFIG.cards.damageMult;
-    }
+    if (this.activeCard === 'survival') d *= CONFIG.cards.damageMult;
     if (this.activeCard === 'comeback' && this.lives >= 1 && this.lives <= CONFIG.cards.comebackMaxLives) {
         d *= CONFIG.cards.comebackMult;
     }
-    if (this.activeCard === 'glass') {
-        d *= CONFIG.cards.glassDamageMult;
-    }
-    if (this.activeCard === 'bloodlust') {
-        // Bloodlust: the damage halving is the price paid; lifesteal only compensates.
-        d *= CONFIG.cards.bloodlustDamageMult;
-    }
+    if (this.activeCard === 'glass') d *= CONFIG.cards.glassDamageMult;
+    if (this.activeCard === 'bloodlust') d *= CONFIG.cards.bloodlustDamageMult;
     return this.roundBulletDamage(d);
 };
 
@@ -261,17 +272,11 @@ Game.getDamageFor = function(target) {
 
 Game.getPlayerShotDelay = function() {
     let delay = this.player.shotDelay;
-    if (this.activeCard === 'passion') {
-        delay /= CONFIG.cards.speedMult;
-    }
+    if (this.activeCard === 'passion') delay /= CONFIG.cards.speedMult;
     if (this.activeCard === 'comeback' && this.lives >= 1 && this.lives <= CONFIG.cards.comebackMaxLives) {
         delay /= CONFIG.cards.comebackMult;
     }
-    if (this.activeCard === 'glass') {
-        delay /= CONFIG.cards.glassShotSpeedMult;
-    }
-    // g_rate stacks: additive x0.5 each (delay /1.5, /2, /2.5 at 1/2/3 stacks).
-    delay /= 1 + (this.greenStacks.g_rate || 0) * CONFIG.greenCards.rate.perStack;
+    if (this.activeCard === 'glass') delay /= CONFIG.cards.glassShotSpeedMult;
     return delay;
 };
 
@@ -279,7 +284,6 @@ Game.getEnemyShotRate = function() {
     let rate = this.enemyShotRate;
     if (this.activeCard === 'passion') rate *= CONFIG.cards.speedMult;
     if (this.activeCard === 'supply') rate *= CONFIG.cards.supplyEnemyShotMult;
-    // Easy mode: enemy fire rate x0.5.
     if (this.difficulty === 'easy') rate *= CONFIG.difficulty.easy.enemyFireRateMult;
     return rate;
 };
@@ -290,65 +294,48 @@ Game.getItemSpawnRate = function() {
 
 Game.getBossShotDelay = function() {
     const delay = this.boss.shotDelay / (this.activeCard === 'passion' ? CONFIG.cards.speedMult : 1);
-    // Easy mode: boss shot delay x1.5.
     return this.difficulty === 'easy' ? delay * CONFIG.difficulty.easy.bossShotDelayMult : delay;
 };
 
-// Blitz: extra bullets per shot, on top of baseBulletCount. g_bullets stacks
-// add +1 bullet each.
 Game.getBulletCount = function() {
-    return this.baseBulletCount
-        + (this.activeCard === 'blitz' ? CONFIG.cards.bulletCountBonus : 0)
-        + (this.greenStacks.g_bullets || 0) * CONFIG.greenCards.bullets.perStack;
+    return this.baseBulletCount + (this.activeCard === 'blitz' ? CONFIG.cards.bulletCountBonus : 0);
 };
 
-// Blitz: player bullet speed multiplier.
 Game.getBulletSpeedMult = function() {
     return this.activeCard === 'blitz' ? CONFIG.cards.bulletSpeedMult : 1;
 };
 
-// Chain: enemy spawn-rate multiplier.
 Game.getEnemySpawnRate = function() {
     let rate = this.enemySpawnRate * (this.activeCard === 'chain' ? CONFIG.cards.chainSpawnMult : 1);
-    // Easy mode: spawn rate x0.7.
     if (this.difficulty === 'easy') rate *= CONFIG.difficulty.easy.spawnRateMult;
     return rate;
 };
 
-// Thorns: enemy bullet speed multiplier.
 Game.getEnemyBulletSpeed = function() {
     let speed = this.enemyBulletSpeed * (this.activeCard === 'thorns' ? CONFIG.cards.thornsBulletSpeedMult : 1);
-    // Easy mode: all enemy bullet speeds x0.7.
     if (this.difficulty === 'easy') speed *= CONFIG.difficulty.easy.slowMult;
     return speed;
 };
 
-// Easy mode: enemy/boss movement multiplier (everything but the player slowed).
 Game.getEnemySpeedMult = function() {
     return this.difficulty === 'easy' ? CONFIG.difficulty.easy.slowMult : 1;
 };
 
-// Bloodlust: chance to regain a life on killing a normal enemy (the boss-side
-// chance is lifeStealBoss, consumed by the collision layer).
 Game.getLifeStealChance = function() {
     return this.activeCard === 'bloodlust' ? CONFIG.cards.lifeStealEnemy : 0;
 };
 
-// Blitz/glass: glass (1-life cap) and blitz (skill-oriented) cannot heal via effects.
 Game.canHeal = function() {
     return !(this.activeCard === 'blitz' || this.activeCard === 'glass');
 };
 
-// Life cap: glass locks it to 1, otherwise base + 5 per vitality green stack.
 Game.getMaxLives = function() {
-    if (this.activeCard === 'glass') return 1;
-    return CONFIG.player.maxLives + (this.greenStacks.g_vitality || 0) * CONFIG.greenCards.vitality.perStack;
+    return this.getMaxLivesForCard(this.activeCard);
 };
 
-// Single life-gain entry point, capped by getMaxLives().
 Game.applyLifeGain = function(n) {
     this.lives = Math.min(this.lives + n, this.getMaxLives());
-    this.updateUI(true);
+    if (typeof this.updateUI === 'function') this.updateUI(true);
 };
 
 Game.updateCardEffects = function(deltaTime) {
@@ -357,44 +344,22 @@ Game.updateCardEffects = function(deltaTime) {
     this.cardRegenTimer += deltaTime;
     if (this.cardRegenTimer >= CONFIG.cards.regenIntervalMs) {
         this.cardRegenTimer -= CONFIG.cards.regenIntervalMs;
-        // Survival: +1 life per interval via applyLifeGain (maxLives-capped).
         this.applyLifeGain(1);
     }
 };
 
 Game.updateCardHighlight = function() {
+    if (!this.cardButtons) return;
     for (const button of this.cardButtons) {
         const id = button.dataset.card;
-        if (this.GREEN_CARDS[id]) {
-            // Green cards light up by stack count; badge shows the stack total.
-            const stacks = this.greenStacks[id] || 0;
-            button.classList.toggle('cardActive', stacks > 0);
-            const badge = button.querySelector('.cardBadge');
-            if (badge) badge.textContent = stacks > 0 ? `×${stacks}` : '';
-        } else {
-            button.classList.toggle('cardActive', id === this.activeCard);
-        }
+        button.classList.toggle('cardActive', id === this.activeCard);
     }
 };
 
-// Green buff HUD: one chip per stacked green card; hidden while no stacks.
-Game.updateGreenBuffUI = function() {
-    if (!this.greenBuffBar) this.greenBuffBar = document.getElementById('greenBuffBar');
-    if (!this.greenBuffBar) return;
-    let html = '';
-    for (const id of Object.keys(this.GREEN_CARDS)) {
-        const stacks = this.greenStacks[id] || 0;
-        if (stacks <= 0) continue;
-        html += `<span class="buffChip"><span class="buffIcon">${this.GREEN_ICONS[id]}</span><span class="buffStack">×${stacks}</span></span>`;
-    }
-    this.greenBuffBar.innerHTML = html;
-    this.greenBuffBar.style.display = html ? '' : 'none';
-};
-
-// Effect-card HUD chip: shows the first glyph of the equipped card's name;
-// hidden while no card is equipped.
 Game.updateCardChipUI = function() {
-    if (!this.cardIndicator) this.cardIndicator = document.getElementById('cardIndicator');
+    if (!this.cardIndicator && typeof document !== 'undefined') {
+        this.cardIndicator = document.getElementById('cardIndicator');
+    }
     if (!this.cardIndicator) return;
     if (this.activeCard) {
         this.cardIndicator.textContent = this.CARDS[this.activeCard].name[0];
