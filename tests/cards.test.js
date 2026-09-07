@@ -91,23 +91,73 @@ test('skip is allowed only for an exhausted or otherwise optionless pool', () =>
     Game.activeCard = 'peace';
     Game.cardPickCount = Object.fromEntries(Object.keys(Game.CARDS).map((id) => [id, 3]));
     Game.isCardSelectionOpen = true;
+    Game.cardSelectionModel = Game.getCardSelectionModel(() => 0);
     const before = { ...Game.cardPickCount };
 
-    assert.equal(Game.getCardSelectionModel(() => 0).canSkip, true);
+    assert.equal(Game.cardSelectionModel.canSkip, true);
     assert.equal(Game.skipCardSelection(), true);
     assert.deepEqual(Game.cardPickCount, before);
     assert.equal(Game.activeCard, 'peace');
 
     Game.cardPickCount = {};
     Game.isCardSelectionOpen = true;
-    assert.equal(Game.getCardSelectionModel(() => 0).canSkip, false);
+    Game.cardSelectionModel = Game.getCardSelectionModel(() => 0);
+    assert.equal(Game.cardSelectionModel.canSkip, false);
     assert.equal(Game.skipCardSelection(), false);
+});
+
+test('selection rejects legal cards omitted from the current options without mutation', () => {
+    const assertRejectedWithoutMutation = (choose) => {
+        resetCards();
+        Game.activeCard = 'peace';
+        Game.lives = 3;
+        Game.cardPickCount = { peace: 1 };
+        Game.isCardSelectionOpen = true;
+        Game.cardSelectionModel = {
+            options: ['survival', 'comeback', 'peace', 'blitz'],
+        };
+        const before = {
+            activeCard: Game.activeCard,
+            lives: Game.lives,
+            cardPickCount: { ...Game.cardPickCount },
+            isRunning: Game.isRunning,
+        };
+
+        assert.equal(choose(), false);
+        assert.equal(Game.activeCard, before.activeCard);
+        assert.equal(Game.lives, before.lives);
+        assert.deepEqual(Game.cardPickCount, before.cardPickCount);
+        assert.equal(Game.isRunning, before.isRunning);
+    };
+
+    assertRejectedWithoutMutation(() => Game.selectCard('passion'));
+    assertRejectedWithoutMutation(() => Game.completeCoreCardSelection('passion'));
+});
+
+test('skip and null completion require an open selection with a current model', () => {
+    resetCards();
+    Game.cardPickCount = Object.fromEntries(Object.keys(Game.CARDS).map((id) => [id, 3]));
+    Game.isRunning = false;
+    Game.cardSelectionModel = { options: [], canSkip: true };
+
+    assert.equal(Game.skipCardSelection(), false);
+    assert.equal(Game.completeCoreCardSelection(null), false);
+    assert.equal(Game.isRunning, false);
+
+    resetCards();
+    Game.cardPickCount = Object.fromEntries(Object.keys(Game.CARDS).map((id) => [id, 3]));
+    Game.isRunning = false;
+    Game.isCardSelectionOpen = true;
+
+    assert.equal(Game.skipCardSelection(), false);
+    assert.equal(Game.completeCoreCardSelection(null), false);
+    assert.equal(Game.isRunning, false);
 });
 
 test('completing a core selection applies one pick and keeps combat helpers compatible', () => {
     resetCards();
     Game.isCardSelectionOpen = true;
-    Game.cardSelectionModel = Game.getCardSelectionModel(() => 0);
+    Game.cardSelectionModel = { options: ['glass'] };
 
     assert.equal(Game.completeCoreCardSelection('glass'), true);
     assert.equal(Game.activeCard, 'glass');

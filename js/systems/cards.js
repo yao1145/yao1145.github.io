@@ -214,15 +214,23 @@ Game.resumeAfterCardSelection = function() {
 };
 
 Game.skipCardSelection = function() {
-    const model = this.getCardSelectionModel();
-    if (!model.canSkip) return false;
-    this.cardSelectionModel = model;
+    const model = this.cardSelectionModel;
+    if (!this.isCardSelectionOpen
+        || !model
+        || !Array.isArray(model.options)
+        || model.options.length !== 0
+        || !model.canSkip) return false;
     this.resumeAfterCardSelection();
     return true;
 };
 
 Game.completeCoreCardSelection = function(cardId) {
+    const model = this.cardSelectionModel;
+    if (!this.isCardSelectionOpen
+        || !model
+        || !Array.isArray(model.options)) return false;
     if (cardId === null) return this.skipCardSelection();
+    if (!model.options.includes(cardId)) return false;
     const preview = this.getCardSwitchPreview(cardId);
     if (!preview.legal) return false;
 
