@@ -1,4 +1,29 @@
 import { Game } from '../core/game.js';
+import { CONFIG } from '../core/config.js';
+
+// Presentation state intentionally lives outside the simulation clocks. A
+// hit-stop deadline only makes render() retain the previous canvas frame; the
+// fixed-step update loop keeps advancing while the deadline is active.
+Game.visualHitStopUntil = 0;
+
+Game.requestVisualHitStop = function(ms = CONFIG.builds.hunter.hitStopMs) {
+    const duration = Math.max(0, Number(ms) || 0);
+    if (duration <= 0) return;
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const current = Number(this.visualHitStopUntil) || 0;
+    this.visualHitStopUntil = Math.max(current, now + duration);
+};
+
+Game.clearVisualHitStop = function() {
+    this.visualHitStopUntil = 0;
+};
+
+Game.isVisualHitStopped = function(now) {
+    const clock = now == null
+        ? (typeof performance !== 'undefined' ? performance.now() : Date.now())
+        : now;
+    return Number(this.visualHitStopUntil) > clock;
+};
 
 // The build HUD is intentionally DOM-only. Combat timers continue to advance
 // from the fixed-step simulation; this method only paints the latest snapshot
@@ -7,12 +32,16 @@ Game.updateBuildHUD = function(force = false) {
     if (typeof document === 'undefined') return;
 
     const hud = this.buildHud || document.getElementById('buildHud');
-    if (!hud) return;
+    if (!hud) {
+        this.updateCardEffectHUD(force);
+        return;
+    }
     this.buildHud = hud;
 
     if (this.isMenu || this.isGameOver) {
         hud.replaceChildren();
         hud.hidden = true;
+        this.updateCardEffectHUD(force);
         return;
     }
 
@@ -23,7 +52,10 @@ Game.updateBuildHUD = function(force = false) {
 
     hud.replaceChildren();
     hud.hidden = rows.length === 0;
-    if (hud.hidden) return;
+    if (hud.hidden) {
+        this.updateCardEffectHUD(force);
+        return;
+    }
 
     for (const state of rows) {
         if (!state) continue;
@@ -33,18 +65,94 @@ Game.updateBuildHUD = function(force = false) {
         if (state.key) row.dataset.key = state.key;
         if (state.active) row.classList.add('isActive');
 
+        const cooldown = Boolean(state.cooldown || state.cooldownActive
+            || (Number(state.cooldownMs) > 0 && state.active === false));
+        if (cooldown) {
+            row.classList.add('isCooldown');
+            row.dataset.cooldown = 'true';
+            row.setAttribute('aria-disabled', 'true');
+        }
+
         const label = document.createElement('span');
         label.className = 'buildHudLabel';
         label.textContent = state.label || state.key || '强化';
 
         const value = document.createElement('span');
         value.className = 'buildHudValue';
-        value.textContent = state.value == null ? '' : String(state.value);
+        let valueText = state.value == null ? '' : String(state.value);
+        // Rapid's active value always uses the authored six-second scale, so
+        // the player can compare a warm-up that was extended by a kill.
+        if (state.line === 'rapid' && state.active) {
+            const remainingMs = Number(this.buildState?.timers?.rapidWarmup);
+            const remaining = Number.isFinite(remainingMs)
+                ? remainingMs / 1000
+                : Number.parseFloat(valueText);
+            if (Number.isFinite(remaining)) valueText = `${remaining.toFixed(1)}/6.0s`;
+        }
+        value.textContent = valueText;
 
-        row.append(label, value);
+        const rawTags = state.tags ?? state.tag;
+        const tags = Array.isArray(rawTags) ? rawTags : rawTags ? [rawTags] : [];
+        if (tags.length) {
+            const tag = document.createElement('span');
+            tag.className = 'buildHudTags';
+            tag.textContent = tags.join('·');
+            row.append(label, value, tag);
+        } else {
+            row.append(label, value);
+        }
+
         hud.append(row);
     }
 
+    this.updateCardEffectHUD(force);
+};
+
+// Card effects have their own painter and state model. In particular, the
+// survival timer and bloodlust meter must never share a counter or overwrite
+// one another when a run changes cards.
+Game.updateCardEffectHUD = function(force = false) {
+    if (typeof document === 'undefined') return;
+    const hud = this.cardEffectHud || document.getElementById('cardEffectHud');
+    if (!hud) return;
+    this.cardEffectHud = hud;
+
+    if (this.isMenu || this.isGameOver) {
+        hud.replaceChildren();
+        hud.hidden = true;
+        return;
+    }
+
+    const source = typeof this.getCardEffectHudStates === 'function'
+        ? this.getCardEffectHudStates()
+        : (typeof this.getCardEffectHudState === 'function' ? this.getCardEffectHudState() : null);
+    const states = Array.isArray(source) ? source : source ? [source] : [];
+    hud.replaceChildren();
+    hud.hidden = states.length === 0;
+    if (hud.hidden) return;
+
+    for (const state of states) {
+        if (!state) continue;
+        const row = document.createElement('div');
+        row.className = 'cardEffectHudRow';
+        if (state.cardId) row.dataset.card = state.cardId;
+        if (state.paused || state.cooldown) row.classList.add('isPaused');
+
+        const label = document.createElement('span');
+        label.className = 'cardEffectHudLabel';
+        label.textContent = state.label || state.cardId || '';
+        row.append(label);
+
+        const rawTags = state.tags ?? state.tag;
+        const tags = Array.isArray(rawTags) ? rawTags : rawTags ? [rawTags] : [];
+        if (tags.length) {
+            const tag = document.createElement('span');
+            tag.className = 'cardEffectHudTags';
+            tag.textContent = tags.join('·');
+            row.append(tag);
+        }
+        hud.append(row);
+    }
 };
 
 const LINE_LABELS = {
@@ -132,6 +240,11 @@ Game.updatePauseBuildDetails = function() {
 Game.updatePauseDetails = Game.updatePauseBuildDetails;
 
 Game.render = function() {
+    if (this.isMenu || this.isGameOver) this.clearVisualHitStop();
+    // Do this before clearing the canvas. The previous frame therefore remains
+    // visible while simulation timers, collisions and event queues continue.
+    if (this.isVisualHitStopped()) return;
+
     const ctx = this.ctx;
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, this.width, this.height);
@@ -147,41 +260,9 @@ Game.render = function() {
         return;
     }
 
-    if (this.player.shieldTime > 0) {
-        ctx.strokeStyle = '#0af';
-        ctx.lineWidth = 2;
-        ctx.globalAlpha = 0.5;
-        ctx.beginPath();
-        ctx.arc(
-            this.player.x + this.player.width/2,
-            this.player.y + this.player.height/2,
-            Math.max(this.player.width, this.player.height)/2 + 3,
-            0, Math.PI * 2
-        );
-        ctx.stroke();
-        ctx.globalAlpha = 1.0;
-    }
-
-    // 稳态屏障: a single green outline sits inside the original temporal
-    // shield ring. It is purely visual; consumption creates one short ring
-    // through the shared particle path.
-    if (this.buildState && this.buildState.locks.fortressBarrier) {
-        ctx.strokeStyle = '#7cff8a';
-        ctx.lineWidth = 2;
-        ctx.globalAlpha = 0.9;
-        ctx.beginPath();
-        ctx.arc(
-            this.player.x + this.player.width / 2,
-            this.player.y + this.player.height / 2,
-            Math.max(this.player.width, this.player.height) / 2 + 1,
-            0, Math.PI * 2
-        );
-        ctx.stroke();
-        ctx.globalAlpha = 1.0;
-    }
-
-    this.drawPlayerSprite();
-
+    // World layer: every entity that fog is allowed to conceal is drawn before
+    // the fog overlay. Player and critical feedback are deliberately deferred
+    // until after drawFogBand().
     const bulletPool = this.objectPools.bullets;
     for (const bullet of bulletPool.active) {
         this.drawBulletSprite(bullet);
@@ -211,8 +292,6 @@ Game.render = function() {
         ctx.fillStyle = healthPercent > 0.5 ? '#0f0' : '#f00';
         ctx.fillRect(healthBarX, healthBarY, healthBarWidth * healthPercent, healthBarHeight);
 
-        // 破甲猎王 feedback: thin edge arc + mark count on the locked target.
-        this.drawHunterMark(enemy.entityId, enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, Math.max(enemy.width, enemy.height) / 2 + 4);
     }
 
     const itemPool = this.objectPools.items;
@@ -222,7 +301,6 @@ Game.render = function() {
 
     if (this.boss) {
         this.drawBoss(this.boss.x, this.boss.y, this.boss.width, this.boss.height, this.boss.color);
-        this.drawHunterMark(this.boss.entityId, this.boss.x + this.boss.width / 2, this.boss.y + this.boss.height / 2, Math.max(this.boss.width, this.boss.height) / 2 + 6);
     }
 
     const particlePool = this.objectPools.particles;
@@ -245,32 +323,88 @@ Game.render = function() {
     }
     ctx.globalAlpha = 1.0;
 
-    // Opaque fog of war: the mist bank is drawn AFTER the whole world,
-    // so enemies/boss and their bullets above the fog line are concealed by an
-    // opaque layer; anything crossing below the line emerges into view. A single
-    // gradient fill per frame is the whole cost (no per-sprite work).
+    // Opaque fog of war: draw it after the world, before the player and
+    // critical UI. No trajectory is inferred or painted here.
     if (this.activeCard === 'fog') {
-        this.drawFogBand(this.height * 0.5);
+        this.drawFogBand(this.height * CONFIG.cards.fogLineRatio);
+    }
+
+    this.drawPlayerShieldAndBarrier();
+    this.drawPlayerSprite();
+    this.drawFogWarningHighlights();
+
+    // Critical feedback is intentionally above fog: hunter fracture marks,
+    // effect radii, and the player's supply/route indicators remain legible.
+    this.drawVisualFeedbackEvents();
+    for (const enemy of enemyPool.active) {
+        this.drawHunterMark(enemy.entityId, enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, Math.max(enemy.width, enemy.height) / 2 + 4);
+    }
+    if (this.boss) {
+        this.drawHunterMark(this.boss.entityId, this.boss.x + this.boss.width / 2, this.boss.y + this.boss.height / 2, Math.max(this.boss.width, this.boss.height) / 2 + 6);
     }
 };
 
-// Fog bank: an opaque vertical mist covering the top half of the
-// screen. Fully solid from the top edge to FOG_MARGIN pixels ABOVE the fog
-// line, then a smooth FOG_MARGIN-up/FOG_MARGIN-down gradient so enemies
-// "emerge" progressively across the boundary instead of popping in at a hard
-// cut. Inside the solid zone enemies are completely invisible.
-Game.drawFogBand = function(fogLine) {
+Game.drawPlayerShieldAndBarrier = function() {
+    if (!this.player) return;
     const ctx = this.ctx;
-    const margin = 50; // gradient fade band, 50px above/below the fog line
-    const bottom = fogLine + margin;
-    const fadeStart = Math.max(0, fogLine - margin);
+    const cx = this.player.x + this.player.width / 2;
+    const cy = this.player.y + this.player.height / 2;
+    if (this.player.shieldTime > 0) {
+        ctx.strokeStyle = '#0af';
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.5;
+        ctx.beginPath();
+        ctx.arc(cx, cy, Math.max(this.player.width, this.player.height) / 2 + 3, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+    }
+    if (this.buildState?.locks?.fortressBarrier) {
+        ctx.strokeStyle = '#7cff8a';
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.9;
+        ctx.beginPath();
+        ctx.arc(cx, cy, Math.max(this.player.width, this.player.height) / 2 + 1, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+    }
+};
+
+// Fog is fully opaque through 35% of the canvas, then fades out over exactly
+// the configured 40px. The overlay is a single fill and never draws a path.
+Game.drawFogBand = function(fogLine = this.height * CONFIG.cards.fogLineRatio) {
+    const ctx = this.ctx;
+    const fade = Math.max(0, Number(CONFIG.cards.fogFadePx) || 0);
+    const line = Math.max(0, Math.min(this.height, Number(fogLine) || 0));
+    const bottom = Math.min(this.height, line + fade);
 
     const gradient = ctx.createLinearGradient(0, 0, 0, bottom);
     gradient.addColorStop(0, 'rgba(10, 17, 30, 1)');
-    gradient.addColorStop(fadeStart / bottom, 'rgba(10, 17, 30, 1)');
-    gradient.addColorStop(1, 'rgba(10, 17, 30, 0)');
+    gradient.addColorStop(bottom > 0 ? line / bottom : 1, 'rgba(10, 17, 30, 1)');
+    if (bottom > line) gradient.addColorStop(1, 'rgba(10, 17, 30, 0)');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, this.width, bottom);
+};
+
+Game.drawFogWarningHighlights = function() {
+    if (this.activeCard !== 'fog') return;
+    const pool = this.objectPools?.enemyBullets;
+    if (!pool || !Array.isArray(pool.active)) return;
+    const now = Number(this.gameTime) || 0;
+    const line = this.height * CONFIG.cards.fogLineRatio;
+    const ctx = this.ctx;
+    for (const bullet of pool.active) {
+        if (!bullet || !bullet.fogWarningShown || Number(bullet.fogWarningUntil) <= now) continue;
+        const x = bullet.x + (bullet.width || 0) / 2;
+        ctx.strokeStyle = 'rgba(255, 240, 128, 0.95)';
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.9;
+        ctx.beginPath();
+        // A small boundary marker is all the player sees; no line connects it
+        // to the projectile, so the warning cannot reveal a trajectory.
+        ctx.arc(x, line, Math.max(4, (bullet.width || 0) * 0.9), 0, Math.PI * 2);
+        ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
 };
 
 // 破甲猎王 target mark: a thin arc at the entity edge plus the mark count,
@@ -289,7 +423,150 @@ Game.drawHunterMark = function(targetId, cx, cy, radius) {
     ctx.font = '10px Consolas, monospace';
     ctx.textAlign = 'center';
     ctx.fillText(String(lock.hunterHits), cx, cy - radius - 4);
+
+    const feedback = this.getVisualFeedbackEvents()
+        .find((event) => String(event.kind || event.type || '').replace(/-(?:clear|ring|fracture|magnet)$/, '') === 'hunter'
+            && event.targetId === targetId
+            && this.isFeedbackEventActive(event));
+    if (feedback) this.drawHunterFracture(cx, cy, radius, feedback.damageLabel || feedback.label || '2D');
 };
+
+Game.drawHunterFracture = function(cx, cy, radius, label = '2D') {
+    const ctx = this.ctx;
+    const r = Math.max(8, Number(radius) || 8);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(cx - r * 0.55, cy - r * 0.2);
+    ctx.lineTo(cx - r * 0.1, cy + r * 0.05);
+    ctx.lineTo(cx - r * 0.35, cy + r * 0.55);
+    ctx.moveTo(cx + r * 0.55, cy + r * 0.2);
+    ctx.lineTo(cx + r * 0.1, cy - r * 0.05);
+    ctx.lineTo(cx + r * 0.35, cy - r * 0.55);
+    ctx.stroke();
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 11px Consolas, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(String(label), cx, cy - r - 8);
+};
+
+Game.drawRadiusRing = function(x, y, radius, color = 'rgba(255, 209, 102, 0.8)', lineWidth = 2) {
+    const r = Number(radius);
+    if (!Number.isFinite(r) || r <= 0) return;
+    const ctx = this.ctx;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lineWidth;
+    ctx.globalAlpha = 0.85;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+};
+
+Game.drawSupplyAttraction = function(item) {
+    if (!item || !this.player) return;
+    const cfg = CONFIG.builds.supply;
+    const playerX = this.player.x + this.player.width / 2;
+    const playerY = this.player.y + this.player.height / 2;
+    const itemX = item.x + item.width / 2;
+    const itemY = item.y + item.height / 2;
+    const distance = Math.hypot(playerX - itemX, playerY - itemY);
+    const active = item.attractionActive || item.supplyMagnetActive
+        || (typeof this.hasBuild === 'function' && this.hasBuild('supply_magnet') && distance <= cfg.magnetRadius);
+    if (!active) return;
+    const ctx = this.ctx;
+    ctx.strokeStyle = 'rgba(255, 210, 88, 0.75)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash?.([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(itemX, itemY);
+    ctx.lineTo(playerX, playerY);
+    ctx.stroke();
+    ctx.setLineDash?.([]);
+};
+
+Game.getVisualFeedbackEvents = function() {
+    const stateEvents = this.buildState?.visualFeedbackEvents || this.buildState?.feedbackEvents;
+    const candidates = [this.visualFeedbackEvents, this.visualFeedbackQueue, this.feedbackEvents, stateEvents];
+    const source = candidates.find((candidate) => Array.isArray(candidate) && candidate.length > 0)
+        || candidates.find((candidate) => Array.isArray(candidate));
+    if (!Array.isArray(source)) return [];
+    // Route code owns event creation; the painter drops expired presentation
+    // records so the queue cannot grow across a long run.
+    const active = source.filter((event) => this.isFeedbackEventActive(event));
+    if (active.length !== source.length && source === stateEvents) {
+        source.splice(0, source.length, ...active);
+    }
+    return active;
+};
+
+Game.isFeedbackEventActive = function(event) {
+    if (!event) return false;
+    const now = Number(this.gameTime) || 0;
+    if (event.until != null && Number(event.until) <= now) return false;
+    if (event.expiresAt != null && Number(event.expiresAt) <= now) return false;
+    return true;
+};
+
+// Shared read-only feedback painter. Combat code owns the events and their
+// effects; this method only draws them, so an exhausted particle pool cannot
+// suppress damage, kills, or route progress.
+Game.drawEffectFeedback = function(event) {
+    if (!event || !this.isFeedbackEventActive(event)) return;
+    const rawKind = event.kind || event.type || event.route;
+    const kind = String(rawKind || '').replace(/-(?:clear|ring|fracture|magnet)$/, '');
+    const x = Number(event.x) || 0;
+    const y = Number(event.y) || 0;
+    const cfg = CONFIG.builds;
+
+    if (kind === 'fortress') {
+        const isEcho = Boolean(event.echo || event.variant === 'echo');
+        const isClear = Boolean(event.clear || event.variant === 'clear');
+        if (isEcho) this.drawRadiusRing(x, y, event.radius ?? cfg.fortress.echoRadius, '#ffad66');
+        if (isClear) this.drawRadiusRing(x, y, event.secondaryRadius ?? event.radius ?? cfg.fortress.clearRadius, '#72c8ff');
+        if (!isEcho && !isClear && event.radius != null) this.drawRadiusRing(x, y, event.radius, '#ffad66');
+        if (!isEcho && !isClear && event.secondaryRadius != null) this.drawRadiusRing(x, y, event.secondaryRadius, '#72c8ff');
+        return;
+    }
+    if (kind === 'desperate') {
+        this.drawRadiusRing(x, y, cfg.desperate.clearRadius, '#ff506e');
+        return;
+    }
+    if (kind === 'chain') {
+        let radius = Number(event.radius);
+        if (!Number.isFinite(radius)) {
+            if (event.capstone || event.stage === 'capstone') radius = cfg.chain.capstoneRadius;
+            else if (event.wide || event.stage === 'wide') radius = cfg.chain.wideRadius;
+            else if (Number(event.generation) > 0) radius = cfg.chain.spreadRadius;
+            else radius = cfg.chain.baseRadius;
+        }
+        this.drawRadiusRing(x, y, radius, Number(event.generation) > 0 ? '#ffb3a1' : '#ff7a45');
+        return;
+    }
+    if (kind === 'hunter') {
+        this.drawRadiusRing(x, y, cfg.hunter.clearRadius, '#8ef');
+        if (event.damageLabel || event.label) this.drawHunterFracture(x, y, 20, event.damageLabel || event.label);
+        return;
+    }
+    if (kind === 'supply') {
+        const item = event.item || {
+            x: x - 1,
+            y: y - 1,
+            width: 2,
+            height: 2,
+            attractionActive: true,
+        };
+        this.drawSupplyAttraction(item);
+    }
+};
+
+Game.drawVisualFeedbackEvents = function() {
+    for (const event of this.getVisualFeedbackEvents()) this.drawEffectFeedback(event);
+};
+
+// Alias used by route implementations that emit a semantic build feedback
+// event rather than a card/effect event.
+Game.drawBuildFeedback = Game.drawEffectFeedback;
 
 Game.drawBoss = function(x, y, width, height, color) {
     const ctx = this.ctx;
@@ -493,6 +770,7 @@ Game.drawMenuEmblem = function(nowMs) {
 const coreGameOver = Game.gameOver;
 if (typeof coreGameOver === 'function') {
     Game.gameOver = function() {
+        this.clearVisualHitStop();
         coreGameOver.call(this);
         this.updatePauseBuildDetails();
         this.updateBuildHUD(true);
@@ -502,8 +780,25 @@ if (typeof coreGameOver === 'function') {
 const coreReturnToMainMenu = Game.returnToMainMenu;
 if (typeof coreReturnToMainMenu === 'function') {
     Game.returnToMainMenu = function() {
+        this.clearVisualHitStop();
         coreReturnToMainMenu.call(this);
         this.updatePauseBuildDetails();
         this.updateBuildHUD(true);
+    };
+}
+
+const coreResizeCanvas = Game.resizeCanvas;
+if (typeof coreResizeCanvas === 'function') {
+    Game.resizeCanvas = function() {
+        this.clearVisualHitStop();
+        return coreResizeCanvas.call(this);
+    };
+}
+
+const coreStartGame = Game.startGame;
+if (typeof coreStartGame === 'function') {
+    Game.startGame = function() {
+        this.clearVisualHitStop();
+        return coreStartGame.call(this);
     };
 }

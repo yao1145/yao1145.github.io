@@ -113,17 +113,28 @@ Game.drawEnemySprite = function(enemy) {
 
 Game.drawBulletSprite = function(bullet) {
     this.ctx.drawImage(this.getBulletSprite(bullet.width, bullet.height, bullet.color), bullet.x, bullet.y, bullet.width, bullet.height);
-    // 疾速压制 feedback: a heated primary bullet carries a short tail flame
-    // (pure decoration — the collision box is unchanged).
-    if (bullet.rapidBoosted) {
+    // 疾速压制 feedback: the whole strengthened batch gets an outline, while
+    // the actual primary gets a bright core. These are render-only fields and
+    // never alter the collision box or bullet contribution values.
+    if (bullet.rapidBatchBoosted) {
         const ctx = this.ctx;
-        ctx.fillStyle = 'rgba(255, 176, 80, 0.7)';
+        ctx.strokeStyle = 'rgba(80, 238, 255, 0.95)';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(bullet.x - 2, bullet.y - 2, bullet.width + 4, bullet.height + 4);
+        ctx.fillStyle = 'rgba(255, 176, 80, 0.9)';
         ctx.beginPath();
         ctx.moveTo(bullet.x + bullet.width / 2, bullet.y + bullet.height);
         ctx.lineTo(bullet.x + 1, bullet.y + bullet.height + 7);
         ctx.lineTo(bullet.x + bullet.width - 1, bullet.y + bullet.height + 7);
         ctx.closePath();
         ctx.fill();
+
+        if (bullet.isPrimary) {
+            ctx.fillStyle = '#fff4bd';
+            ctx.fillRect(bullet.x + bullet.width / 2 - 1, bullet.y + 2, 2, Math.max(3, bullet.height - 4));
+            ctx.strokeStyle = '#fff';
+            ctx.strokeRect(bullet.x - 1, bullet.y - 1, bullet.width + 2, bullet.height + 2);
+        }
     }
 };
 
@@ -139,6 +150,11 @@ Game.drawItemSprite = function(item) {
     const cy = item.y + item.height / 2;
     const angle = spin + this.gameTime * CONFIG.itemSpinSpeed;
     const scale = 1 + 0.08 * Math.sin(angle * 1.5);
+
+    // Supply's 200px magnet gets a visible attraction line. The check is
+    // intentionally outside the cached sprite so it follows the live item
+    // and player positions without invalidating the cache.
+    if (typeof this.drawSupplyAttraction === 'function') this.drawSupplyAttraction(item);
 
     // Rotate the cached badge around its center and gently breathe its scale.
     ctx.save();
