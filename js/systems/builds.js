@@ -138,6 +138,11 @@ function randomize(ids, rng) {
 Game.BUILDS = builds;
 
 Game.resetBuildState = function() {
+    // Card history belongs to the current run even though its recording hook
+    // lives with the core-card flow. Resetting the build state is the single
+    // run-start reset shared by both systems.
+    if (typeof this.resetCardHistory === 'function') this.resetCardHistory();
+    else this.cardHistory = [];
     this.buildState = {
         owned: [],
         rewardCount: 0,
@@ -161,6 +166,25 @@ Game.resetBuildState = function() {
         metrics: {},
     };
 };
+
+function getBuildMetrics(state) {
+    state.metrics = state.metrics || {};
+    return state.metrics;
+}
+
+function numericMetric(metrics, key) {
+    const value = Number(metrics[key]);
+    return Number.isFinite(value) && value >= 0 ? value : 0;
+}
+
+function escapeSummaryText(value) {
+    return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+}
 
 Game.hasBuild = function(id) {
     return getOwned().includes(id);
@@ -571,6 +595,8 @@ Game.onItemCollected = function(event) {
 
     this.buildState.counters.supplyPickups = 0;
     this.buildState.timers.supplyPulse = this.getSupplyPulseDuration();
+    const metrics = getBuildMetrics(this.buildState);
+    metrics.supplyPulseCount = numericMetric(metrics, 'supplyPulseCount') + 1;
 };
 
 Game.onEnemyKilled = function(killEvent) {
@@ -590,6 +616,8 @@ Game.onActualPlayerDamage = function(event) {
 Game.onFortressBarrierConsumed = function() {
     const state = this.buildState;
     const cfg = CONFIG.builds.fortress;
+    const metrics = getBuildMetrics(state);
+    metrics.fortressBlocks = numericMetric(metrics, 'fortressBlocks') + 1;
     const playerCX = this.player.x + this.player.width / 2;
     const playerCY = this.player.y + this.player.height / 2;
 
@@ -692,6 +720,8 @@ Game.createDamageExplosion = function(spec) {
             enemy.health -= damage;
             if (enemy.health <= 0) {
                 chainKills++;
+                const metrics = getBuildMetrics(state);
+                metrics.chainKills = numericMetric(metrics, 'chainKills') + 1;
                 const killX = enemy.x + enemy.width / 2;
                 const killY = enemy.y + enemy.height / 2;
                 this.killEnemy(enemy, { source: 'explosion', chainId });
@@ -989,6 +1019,9 @@ Game.updateBuildEffects = function(deltaTime) {
 
     if (this.hasBuild('supply_entry')) {
         if ((state.timers.supplyPulse || 0) > 0) {
+            const activePulseMs = Math.min(Math.max(deltaTime, 0), state.timers.supplyPulse);
+            const metrics = getBuildMetrics(state);
+            metrics.supplyPulseMs = numericMetric(metrics, 'supplyPulseMs') + activePulseMs;
             state.timers.supplyPulse -= deltaTime;
             if (state.timers.supplyPulse <= 0) state.timers.supplyPulse = 0;
         }
@@ -1010,57 +1043,196 @@ Game.updateBuildEffects = function(deltaTime) {
 };
 
 // Candidate HUD rows for the owned build routes, ordered by visibility: the
-// two most relevant rows win. Active states (a running heat-up, an open
-// window, a primed charge) rank first, then partial progress, and ties break
-// by the stable six-route order. Later tasks add the remaining routes' rows.
+// two most relevant rows win. Active states rank first, then near-trigger
+// progress, then the active card's associated route, with the six-route order
+// as the final stable tie-breaker.
 Game.getBuildHudStates = function() {
     if (!this.buildState) return [];
     const state = this.buildState;
     const cfg = CONFIG.builds;
-    const rows = [];
+    const candidates = [];
+    const associated = new Set(associatedLines[this.activeCard] || []);
+    const addRow = (row, active, near) => {
+        candidates.push({
+            row,
+            active,
+            near,
+            associated: associated.has(row.line),
+        });
+    };
 
     const rapidWarm = state.timers.rapidWarmup || 0;
     if (this.hasBuild('rapid_entry')) {
         if (rapidWarm > 0) {
-            rows.push({ key: 'rapid', line: 'rapid', label: '热机', value: `${(rapidWarm / 1000).toFixed(1)}s`, active: true });
-        } else if ((state.counters.rapidHits || 0) > 0) {
-            rows.push({ key: 'rapid', line: 'rapid', label: '热机', value: `${state.counters.rapidHits}/${cfg.rapid.hits}`, active: false });
+            addRow({ key: 'rapid', line: 'rapid', label: '热机', value: `${(rapidWarm / 1000).toFixed(1)}s`, active: true }, true, true);
+        } else {
+            const hits = state.counters.rapidHits || 0;
+            addRow({ key: 'rapid', line: 'rapid', label: '热机', value: `${hits}/${cfg.rapid.hits}`, active: false }, false, hits > 0);
         }
     }
-    if (this.hasBuild('hunter_entry')) {
-        if ((state.timers.hunterWindow || 0) > 0) {
-            rows.push({ key: 'hunterWindow', line: 'hunter', label: '猎王窗口', value: `${((state.timers.hunterWindow) / 1000).toFixed(1)}s`, active: true });
-        }
-        if (state.locks.hunterTargetId != null) {
-            rows.push({ key: 'hunter', line: 'hunter', label: '猎王', value: `${state.locks.hunterHits}/${cfg.hunter.hits}`, active: false });
-        }
-    }
-
     if (this.hasBuild('fortress_entry')) {
-        if (state.locks.fortressBarrier) {
-            rows.push({ key: 'fortress', line: 'fortress', label: '稳态屏障', value: '就绪', active: true });
-        } else if ((state.timers.fortressBarrier || 0) > 0) {
-            const chargeMs = this.hasBuild('fortress_regroup')
-                ? cfg.fortress.regroupChargeMs : cfg.fortress.chargeMs;
-            rows.push({ key: 'fortress', line: 'fortress', label: '屏障', value: `${(state.timers.fortressBarrier / chargeMs * 100).toFixed(0)}%`, active: false });
-        }
+        const barrierReady = Boolean(state.locks.fortressBarrier);
+        const chargeMs = this.hasBuild('fortress_regroup')
+            ? cfg.fortress.regroupChargeMs : cfg.fortress.chargeMs;
+        const charge = state.timers.fortressBarrier || 0;
+        addRow({
+            key: 'fortress',
+            line: 'fortress',
+            label: '屏障',
+            value: barrierReady ? '就绪' : `${(charge / chargeMs * 100).toFixed(0)}%`,
+            active: barrierReady,
+        }, barrierReady, barrierReady || charge > 0);
     }
-    if (this.hasBuild('desperate_entry') && this.isDesperateActive()) {
-        rows.push({
+    if (this.hasBuild('desperate_entry')) {
+        const desperateActive = typeof this.isDesperateActive === 'function' && this.isDesperateActive();
+        const hits = state.counters.desperateHits || 0;
+        const reserves = state.counters.desperateKills || 0;
+        const value = this.hasBuild('desperate_capstone')
+            ? `${hits}/${cfg.desperate.hits} · 储备${reserves}/${cfg.desperate.killsForHeal}`
+            : `${hits}/${cfg.desperate.hits}`;
+        addRow({
             key: 'desperate',
             line: 'desperate',
-            label: '绝境',
-            value: `${state.counters.desperateHits || 0}/${cfg.desperate.hits}`,
-            active: false,
-        });
+            label: '背水',
+            value,
+            active: desperateActive,
+        }, desperateActive, desperateActive || hits > 0 || reserves > 0);
+    }
+    if (this.hasBuild('chain_entry')) {
+        const shockCooldown = state.timers.chainShockCooldown || 0;
+        const hasShock = this.hasBuild('chain_capstone');
+        const shockReady = hasShock && shockCooldown <= 0;
+        const blasts = state.counters.chainBlasts || 0;
+        addRow({
+            key: 'chain',
+            line: 'chain',
+            label: hasShock ? '震荡' : '连锁',
+            value: hasShock
+                ? shockCooldown > 0 ? `${(shockCooldown / 1000).toFixed(1)}s` : '就绪'
+                : `${blasts}次`,
+            active: shockReady && hasShock,
+        }, shockReady && hasShock, shockCooldown > 0 || blasts > 0);
+    }
+    if (this.hasBuild('hunter_entry')) {
+        const hunterWindow = state.timers.hunterWindow || 0;
+        const hasWindow = hunterWindow > 0;
+        const locked = state.locks.hunterTargetId != null;
+        if (hasWindow) {
+            addRow({ key: 'hunterWindow', line: 'hunter', label: '猎王窗口', value: `${(hunterWindow / 1000).toFixed(1)}s`, active: true }, true, true);
+        } else {
+            addRow({ key: 'hunter', line: 'hunter', label: '猎王', value: `${state.locks.hunterHits || 0}/${cfg.hunter.hits}`, active: false }, false, locked);
+        }
+    }
+    if (this.hasBuild('supply_entry')) {
+        const pulse = state.timers.supplyPulse || 0;
+        const pickups = state.counters.supplyPickups || 0;
+        const pulseActive = pulse > 0;
+        addRow({
+            key: 'supply',
+            line: 'supply',
+            label: pulseActive ? '补给脉冲' : '物资',
+            value: pulseActive ? `${(pulse / 1000).toFixed(1)}s` : `${pickups}/${cfg.supply.pickups}`,
+            active: pulseActive,
+        }, pulseActive, pulseActive || pickups > 0);
+        const candidate = candidates[candidates.length - 1];
+        if (candidate) {
+            candidate.active = pulseActive;
+            candidate.near = pulseActive || pickups > 0;
+        }
     }
 
-    const routeRank = { rapid: 0, fortress: 1, desperate: 2, chain: 3, hunter: 4, supply: 5 };
-    const sorted = rows.sort((a, b) => {
-        if (a.active !== b.active) return a.active ? -1 : 1;
-        return routeRank[a.line] - routeRank[b.line];
+    const sorted = candidates.sort((a, b) => {
+        const statusA = a.active ? 2 : a.near ? 1 : 0;
+        const statusB = b.active ? 2 : b.near ? 1 : 0;
+        if (statusA !== statusB) return statusB - statusA;
+        if (a.associated !== b.associated) return a.associated ? -1 : 1;
+        return routeOrder.indexOf(a.row.line) - routeOrder.indexOf(b.row.line);
     });
-    return sorted.slice(0, 2);
+    return sorted.slice(0, 2).map(({ row }) => row);
+};
+
+// Build a serializable end-of-run model first, then paint it only when the
+// optional summary body exists. This keeps gameOver/headless tests independent
+// of the DOM and lets the later UI layer choose its own surrounding panel.
+Game.renderRunSummary = function() {
+    const state = this.buildState || { owned: [], metrics: {} };
+    const rawMetrics = state.metrics || {};
+    const elapsedMs = Math.max(0, Number(this.gameTime) || 0);
+    const supplyPulseMs = numericMetric(rawMetrics, 'supplyPulseMs');
+    const supplyPulseCoverage = elapsedMs > 0
+        ? Math.min(1, supplyPulseMs / elapsedMs)
+        : 0;
+    const metrics = {
+        ...rawMetrics,
+        fortressBlocks: numericMetric(rawMetrics, 'fortressBlocks'),
+        chainKills: numericMetric(rawMetrics, 'chainKills'),
+        hunterPrecisionDamage: numericMetric(rawMetrics, 'hunterPrecisionDamage'),
+        hunterWindowDamage: numericMetric(rawMetrics, 'hunterWindowDamage'),
+        desperateStrikeDamage: numericMetric(rawMetrics, 'desperateStrikeDamage'),
+        supplyPulseMs,
+        supplyPulseCount: numericMetric(rawMetrics, 'supplyPulseCount'),
+        supplyPulseCoverage,
+    };
+    const cardHistory = (Array.isArray(this.cardHistory) ? this.cardHistory : []).map((entry) => ({
+        ...entry,
+        name: entry.name || this.CARDS?.[entry.cardId]?.name || entry.cardId || '未知卡片',
+    }));
+    const buildsOwned = (Array.isArray(state.owned) ? state.owned : [])
+        .map((id) => this.BUILDS[id])
+        .filter(Boolean)
+        .map((build) => ({
+            id: build.id,
+            line: build.line,
+            stage: build.stage,
+            name: build.name,
+            summary: build.summary,
+        }));
+    const contributions = {
+        fortressBlocks: metrics.fortressBlocks,
+        chainKills: metrics.chainKills,
+        hunterPrecisionDamage: metrics.hunterPrecisionDamage,
+        hunterWindowDamage: metrics.hunterWindowDamage,
+        desperateStrikeDamage: metrics.desperateStrikeDamage,
+        supplyPulseCoverage,
+        supplyPulseMs,
+        supplyPulseCount: metrics.supplyPulseCount,
+    };
+    const summary = {
+        score: Number(this.score) || 0,
+        crowns: Number(this.crowns) || 0,
+        elapsedMs,
+        activeCard: this.activeCard ? {
+            id: this.activeCard,
+            name: this.CARDS?.[this.activeCard]?.name || this.activeCard,
+        } : null,
+        cardHistory,
+        cards: cardHistory,
+        builds: buildsOwned,
+        ownedBuilds: buildsOwned,
+        metrics,
+        contributions,
+    };
+    this.runSummary = summary;
+
+    if (typeof document !== 'undefined') {
+        const body = document.getElementById('runSummaryBody');
+        if (body) {
+            const cardRows = cardHistory.length > 0
+                ? cardHistory.map((entry) => `<div class="summaryRow"><span class="summaryLabel">第${escapeSummaryText(entry.rewardIndex + 1)}轮核心卡</span><span class="summaryValue">${escapeSummaryText(entry.name)}${entry.kept ? ' · 保留' : ' · 更换'}</span></div>`).join('')
+                : '<div class="summaryRow"><span class="summaryLabel">核心卡轨迹</span><span class="summaryValue">无</span></div>';
+            const buildRows = buildsOwned.length > 0
+                ? buildsOwned.map((build) => `<div class="summaryRow"><span class="summaryLabel">${escapeSummaryText(LINE_NAMES[build.line])}</span><span class="summaryValue">${escapeSummaryText(build.name)}</span></div>`).join('')
+                : '<div class="summaryRow"><span class="summaryLabel">本局强化</span><span class="summaryValue">无</span></div>';
+            body.innerHTML = cardRows
+                + buildRows
+                + `<div class="summarySectionTitle">强化贡献</div>`
+                + `<div class="summaryRow"><span class="summaryLabel">屏障阻挡</span><span class="summaryValue">${metrics.fortressBlocks}</span></div>`
+                + `<div class="summaryRow"><span class="summaryLabel">连锁击杀</span><span class="summaryValue">${metrics.chainKills}</span></div>`
+                + `<div class="summaryRow"><span class="summaryLabel">精准伤害</span><span class="summaryValue">${contributions.hunterPrecisionDamage}</span></div>`
+                + `<div class="summaryRow"><span class="summaryLabel">补给覆盖率</span><span class="summaryValue">${(supplyPulseCoverage * 100).toFixed(1)}%</span></div>`;
+        }
+    }
+    return summary;
 };
 
 Game.resetBuildState();

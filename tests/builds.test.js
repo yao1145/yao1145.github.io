@@ -235,6 +235,200 @@ test('resetBuildState clears run state without resetting entity identity', () =>
     assert.deepEqual(Game.buildState.metrics, {});
 });
 
+test('build HUD exposes one stable row for every owned route and caps the visible rows at two', () => {
+    resetBuilds();
+    Game.activeCard = 'supply';
+    Game.lives = 20;
+    Game.buildState.owned = [
+        'rapid_entry',
+        'fortress_entry',
+        'desperate_entry',
+        'chain_entry',
+        'hunter_entry',
+        'supply_entry',
+    ];
+
+    const routeLines = ['rapid', 'fortress', 'desperate', 'chain', 'hunter', 'supply'];
+    for (const line of routeLines) {
+        resetBuilds();
+        Game.activeCard = Game.BUILDS[`${line}_entry`].cards[0];
+        Game.buildState.owned = [`${line}_entry`];
+        const rows = Game.getBuildHudStates();
+        assert.equal(rows.length, 1);
+        assert.equal(rows[0].line, line);
+    }
+
+    resetBuilds();
+    Game.activeCard = 'supply';
+    Game.lives = 20;
+    Game.buildState.owned = [
+        'rapid_entry',
+        'fortress_entry',
+        'desperate_entry',
+        'chain_entry',
+        'hunter_entry',
+        'supply_entry',
+    ];
+    Game.buildState.counters.supplyPickups = 1;
+    const rows = Game.getBuildHudStates();
+    assert.equal(rows.length, 2);
+    assert.deepEqual(rows.map((row) => row.line), ['supply', 'rapid']);
+});
+
+test('build HUD prioritizes active and near-trigger states before card association and route order', () => {
+    resetBuilds();
+    Game.activeCard = 'supply';
+    Game.buildState.owned = ['rapid_entry', 'fortress_entry', 'supply_entry'];
+    Game.buildState.counters.rapidHits = 1;
+    Game.buildState.timers.supplyPulse = 500;
+
+    assert.deepEqual(Game.getBuildHudStates().map((row) => row.line), ['supply', 'rapid']);
+
+    Game.buildState.timers.supplyPulse = 0;
+    Game.buildState.counters.rapidHits = 0;
+    assert.deepEqual(Game.getBuildHudStates().map((row) => row.line), ['supply', 'rapid']);
+});
+
+test('resetBuildState clears card history and all run-local contribution state', () => {
+    resetBuilds();
+    Game.cardHistory = [{ rewardIndex: 1, cardId: 'passion', kept: true }];
+    Game.buildState.timers.rapidWarmup = 1000;
+    Game.buildState.locks.hunterTargetId = 12;
+    Game.buildState.metrics.chainKills = 3;
+
+    Game.resetBuildState();
+
+    assert.deepEqual(Game.cardHistory, []);
+    assert.deepEqual(Game.buildState.timers, {
+        rapidWarmup: 0,
+        fortressBarrier: 0,
+        fortressClearCooldown: 0,
+        desperateClearCooldown: 0,
+        chainShockCooldown: 0,
+        hunterWindow: 0,
+        supplyPulse: 0,
+    });
+    assert.deepEqual(Game.buildState.locks, {
+        fortressBarrier: false,
+        hunterTargetId: null,
+        hunterHits: 0,
+        desperateCycleHeal: false,
+    });
+    assert.deepEqual(Game.buildState.metrics, {});
+});
+
+test('build events record fortress blocks, chain kills, and supply pulse coverage metrics', () => {
+    resetBuilds();
+    Game.player = { x: 0, y: 0, width: 10, height: 10 };
+    const previousEnemies = Game.objectPools.enemies.active;
+    const previousClearEnemyBullets = Game.clearEnemyBulletsInRadius;
+    const previousShockwave = Game.createShockwave;
+    Game.objectPools.enemies.active = [];
+    Game.clearEnemyBulletsInRadius = () => {};
+    Game.createShockwave = () => {};
+    Game.buildState.owned = ['fortress_entry', 'supply_entry'];
+    Game.buildState.locks.fortressBarrier = true;
+    Game.onFortressBarrierConsumed();
+
+    Game.buildState.timers.supplyPulse = 1000;
+    Game.updateBuildEffects(400);
+
+    assert.equal(Game.buildState.metrics.fortressBlocks, 1);
+    assert.equal(Game.buildState.metrics.supplyPulseMs, 400);
+
+    Game.buildState.timers.supplyPulse = 0;
+    Game.onItemCollected({ spawnSource: 'natural', type: 1, healingAllowed: true, wasFull: false });
+    Game.onItemCollected({ spawnSource: 'natural', type: 1, healingAllowed: true, wasFull: false });
+    Game.onItemCollected({ spawnSource: 'natural', type: 1, healingAllowed: true, wasFull: false });
+    assert.equal(Game.buildState.metrics.supplyPulseCount, 1);
+    Game.objectPools.enemies.active = previousEnemies;
+    Game.clearEnemyBulletsInRadius = previousClearEnemyBullets;
+    Game.createShockwave = previousShockwave;
+});
+
+test('chain explosions record each settled chain kill in run metrics', () => {
+    resetGameFixture();
+    resetBuilds();
+    Game.buildState.owned = ['chain_entry'];
+    const enemy = {
+        entityId: 1,
+        x: -5,
+        y: -5,
+        width: 10,
+        height: 10,
+        health: 0.5,
+        maxHealth: 0.5,
+        _dead: false,
+    };
+    const previousGrid = Game.spatialGrid;
+    const previousKillEnemy = Game.killEnemy;
+    const previousExplosion = Game.createExplosion;
+    const previousShockwave = Game.createShockwave;
+    Game.spatialGrid = { getWithinRadius: () => [{ poolType: 'enemies', obj: enemy }] };
+    Game.killEnemy = (target) => { target._dead = true; };
+    Game.createExplosion = () => {};
+    Game.createShockwave = () => {};
+
+    try {
+        Game.createDamageExplosion({ x: 0, y: 0, damage: 1 });
+        assert.equal(Game.buildState.metrics.chainKills, 1);
+    } finally {
+        Game.spatialGrid = previousGrid;
+        Game.killEnemy = previousKillEnemy;
+        Game.createExplosion = previousExplosion;
+        Game.createShockwave = previousShockwave;
+    }
+});
+
+test('renderRunSummary returns a headless model with card history, builds, and contributions', () => {
+    resetBuilds();
+    Game.activeCard = 'passion';
+    Game.gameTime = 2000;
+    Game.score = 240;
+    Game.crowns = 1;
+    Game.cardHistory = [
+        { rewardIndex: 0, cardId: 'passion', name: '激情岁月', kept: true },
+        { rewardIndex: 1, cardId: 'blitz', name: '电光火石', kept: false },
+    ];
+    Game.buildState.owned = ['rapid_entry', 'fortress_entry'];
+    Game.buildState.metrics = {
+        fortressBlocks: 2,
+        chainKills: 4,
+        hunterPrecisionDamage: 6,
+        supplyPulseMs: 500,
+        supplyPulseCount: 1,
+    };
+
+    const summary = Game.renderRunSummary();
+
+    assert.deepEqual(summary.cardHistory, Game.cardHistory);
+    assert.deepEqual(summary.builds.map((build) => build.id), ['rapid_entry', 'fortress_entry']);
+    assert.equal(summary.contributions.fortressBlocks, 2);
+    assert.equal(summary.contributions.chainKills, 4);
+    assert.equal(summary.contributions.hunterPrecisionDamage, 6);
+    assert.equal(summary.contributions.supplyPulseCoverage, 0.25);
+});
+
+test('renderRunSummary updates #runSummaryBody when a DOM target exists', () => {
+    resetBuilds();
+    const body = { innerHTML: '' };
+    const previousDocument = globalThis.document;
+    globalThis.document = {
+        getElementById(id) {
+            return id === 'runSummaryBody' ? body : null;
+        },
+    };
+
+    try {
+        Game.cardHistory = [{ rewardIndex: 0, cardId: 'peace', name: '平安无事', kept: true }];
+        Game.renderRunSummary();
+        assert.match(body.innerHTML, /平安无事/);
+        assert.match(body.innerHTML, /强化贡献/);
+    } finally {
+        globalThis.document = previousDocument;
+    }
+});
+
 // --- Two-stage boss reward flow (core card -> build -> summary) ---
 
 test('reward flow advances core -> build -> summary and only the summary resumes', () => {
