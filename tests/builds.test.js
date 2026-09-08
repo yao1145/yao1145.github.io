@@ -6,6 +6,7 @@ import { resetGameFixture } from './helpers/game-fixture.js';
 import '../js/systems/cards.js';
 import '../js/systems/builds.js';
 import '../js/systems/collisions.js';
+import '../js/core/grid.js';
 
 function resetBuilds() {
     Game.resetBuildState();
@@ -415,6 +416,26 @@ test('build events record fortress blocks, chain kills, and supply pulse coverag
     Game.objectPools.enemies.active = previousEnemies;
     Game.clearEnemyBulletsInRadius = previousClearEnemyBullets;
     Game.createShockwave = previousShockwave;
+});
+
+test('real enemy-bullet collision carries a fortress block into the run summary', () => {
+    resetGameFixture();
+    resetBuilds();
+    Game.player = { x: 100, y: 100, width: 20, height: 20, shieldTime: 0 };
+    Game.buildState.owned = ['fortress_entry'];
+    Game.buildState.locks.fortressBarrier = true;
+    Game.gameTime = 1000;
+
+    const bullet = Game.getObject('enemyBullets');
+    Object.assign(bullet, { x: 105, y: 105, width: 4, height: 4, canBeCleared: true });
+
+    Game.checkCollisions();
+
+    assert.equal(Game.objectPools.enemyBullets.active.includes(bullet), false);
+    assert.equal(Game.buildState.locks.fortressBarrier, false);
+    const summary = Game.renderRunSummary();
+    assert.equal(summary.metrics.fortressBlocks, 1);
+    assert.equal(summary.contributions.fortressBlocks, 1);
 });
 
 test('chain explosions record each settled chain kill in run metrics', () => {
