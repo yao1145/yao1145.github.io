@@ -70,20 +70,17 @@ Game.spawnBullet = function() {
     const gap = 6;
     // One shot id per trigger of fire: every bullet of the burst shares it, so
     // per-shot progress (heat-up, marks) counts the batch once no matter how
-    // many bullets land. The middle bullet is the designated primary.
+    // many bullets land. The middle bullet is the planned primary; actual
+    // primary assignment waits until the pool allocation pass is complete.
     const shotId = ++this.nextShotId;
     const primaryIndex = Math.floor((count - 1) / 2);
-    // 疾速压制: while heated, every third shot's primary bullet pierces.
-    const primaryPierce = this.getPrimaryPierceForShot(shotId);
-    let firstSpawned = null;
-    let primarySpawned = false;
+    const spawned = [];
 
     for (let i = 0; i < count; i++) {
         const bullet = this.getObject('bullets');
-        if (!bullet) break;
-        if (!firstSpawned) firstSpawned = bullet;
-        const isPrimary = i === primaryIndex;
-        if (isPrimary) primarySpawned = true;
+        // A transient pool miss must not prevent later planned slots from
+        // being attempted; the first actual bullet can become the primary.
+        if (!bullet) continue;
 
         bullet.x = this.player.x + this.player.width / 2 - 2 + (i - (count - 1) / 2) * gap;
         bullet.y = this.player.y;
@@ -91,22 +88,39 @@ Game.spawnBullet = function() {
         bullet.height = 12;
         bullet.speed = 8 * this.getBulletSpeedMult();
         bullet.color = color;
-        // Per-shot identity + effect fields: every pooled bullet is fully
-        // re-initialized because getObject() deletes all keys on reuse.
+        // Per-shot identity + neutral effect fields: every pooled bullet is
+        // fully re-initialized because getObject() deletes all keys on reuse.
         bullet.shotId = shotId;
-        bullet.isPrimary = isPrimary;
-        bullet.pierceRemaining = isPrimary ? primaryPierce : 0;
-        // Visual marker: the heated primary keeps its tail flame even after
-        // its pierce charge is spent mid-flight.
-        bullet.rapidBoosted = isPrimary && primaryPierce > 0;
+        bullet.isPrimary = false;
+        bullet.rapidBatchBoosted = false;
+        bullet.rapidDamageBonus = 0;
+        bullet.pierceRemaining = 0;
+        bullet.supplyDamageBonus = 0;
         bullet.hitEntityIds = [];
-        bullet.buildDamageBonus = this.getSupplyPrimaryDamageBonus();
+        spawned.push({ bullet, index: i });
     }
 
-    // A pool shortage can skip the intended primary bullet; promote the first
-    // actually-spawned bullet so the shot always has exactly one primary.
-    if (firstSpawned && !primarySpawned) {
-        firstSpawned.isPrimary = true;
-        firstSpawned.buildDamageBonus = this.getSupplyPrimaryDamageBonus();
+    // No actual projectile means no rapid sequence consumption. This also
+    // avoids manufacturing a primary/effect event for a fully exhausted pool.
+    if (spawned.length === 0) return;
+
+    const actualPrimary = spawned.find(({ index }) => index === primaryIndex)?.bullet
+        || spawned[0].bullet;
+    actualPrimary.isPrimary = true;
+
+    // Rapid is consumed exactly once per actual batch, after allocation and
+    // primary selection. Supply's pulse bonus is likewise attached only to
+    // that actual primary bullet.
+    const rapidEffect = this.consumeRapidBatchEffect();
+    const rapidBatchBoosted = Boolean(rapidEffect?.rapidBatchBoosted);
+    const rapidDamageBonus = Number(rapidEffect?.rapidDamageBonus) || 0;
+    const pierceRemaining = Number(rapidEffect?.pierceRemaining) || 0;
+    const supplyDamageBonus = Number(this.getSupplyPrimaryDamageBonus?.()) || 0;
+
+    for (const { bullet } of spawned) {
+        bullet.rapidBatchBoosted = rapidBatchBoosted;
     }
+    actualPrimary.rapidDamageBonus = rapidDamageBonus;
+    actualPrimary.pierceRemaining = pierceRemaining;
+    actualPrimary.supplyDamageBonus = supplyDamageBonus;
 };
