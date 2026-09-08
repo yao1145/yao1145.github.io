@@ -300,6 +300,35 @@ test('checkCollisions routes a bullet kill through the unified pipeline once', (
     assert.equal(Game.objectPools.enemies.active.length, 0);
 });
 
+test('boss-hit bullets are terminal even when pierced, so later bullets still land', () => {
+    resetCombat();
+    Game.isBossStage = true;
+    Game.boss = {
+        entityId: 5001,
+        x: 0,
+        y: 0,
+        width: 30,
+        height: 30,
+        health: 10,
+        maxHealth: 10,
+        type: 0,
+    };
+
+    // Put the later bullet first in the pool so a retained pierced bullet would
+    // be visited again and block it on the next collision pass.
+    const laterBullet = makeBullet(12, 0, 0);
+    const piercedBullet = makeBullet(11, 0, 0);
+    piercedBullet.pierceRemaining = 1;
+
+    Game.checkCollisions();
+    assert.equal(Game.boss.health, 9);
+    assert.equal(Game.objectPools.bullets.active.includes(piercedBullet), false);
+
+    Game.checkCollisions();
+    assert.equal(Game.boss.health, 8);
+    assert.equal(Game.objectPools.bullets.active.includes(laterBullet), false);
+});
+
 // --- Task 6: rapid heat-up + hunter mark combat loops -----------------------
 
 function applyBuild(...ids) {
@@ -734,6 +763,50 @@ test('chain: damage lands even when the particle pool is exhausted', () => {
     assert.equal(b.health, 0.5);
 });
 
+test('chain explosion uses quantized attribution and settles one enemy death once', () => {
+    resetCombat();
+    Game.resetBuildState();
+    applyBuild('chain_entry');
+    const killEvents = [];
+    const realKillHook = Game.onEnemyKilled;
+    Game.onEnemyKilled = (event) => {
+        killEvents.push(event);
+        realKillHook.call(Game, event);
+    };
+    const damageCalls = [];
+    const realApplyCombatDamage = Game.applyCombatDamage;
+    Game.applyCombatDamage = function(...args) {
+        damageCalls.push(args);
+        return realApplyCombatDamage.apply(this, args);
+    };
+
+    try {
+        const seed = placeAt(0, 0, 0);
+        const target = placeAt(40, 0, 0.5);
+        seedGrid();
+
+        Game.killEnemy(seed, { source: 'direct', damage: 1 });
+
+        const explosionCall = damageCalls.find((args) => args[0] === target);
+        assert.ok(explosionCall);
+        assert.equal(explosionCall[1], 'enemy');
+        assert.equal(explosionCall[2], 0.5);
+        assert.equal(explosionCall[3], 'explosion');
+        assert.equal(typeof explosionCall[4].chainId, 'number');
+
+        const explosionKills = killEvents.filter((event) => event.source === 'explosion');
+        assert.equal(explosionKills.length, 1);
+        assert.equal(explosionKills[0].damage, 0.5);
+        assert.equal(explosionKills[0].chainId, explosionCall[4].chainId);
+        assert.equal(Game.score, 20);
+        assert.equal(Game.buildState.metrics.chainKills, 1);
+        assert.equal(Game.objectPools.enemies.active.includes(target), false);
+    } finally {
+        Game.onEnemyKilled = realKillHook;
+        Game.applyCombatDamage = realApplyCombatDamage;
+    }
+});
+
 test('chain capstone: the 3rd chain kill clears 60px of bullets once per chain with a global cooldown', () => {
     resetCombat();
     Game.resetBuildState();
@@ -803,6 +876,51 @@ test('fortress: barrier blocks only enemy bullets and collision damage still tri
     assert.equal(Game.lives, 2);
     assert.equal(Game.buildState.locks.fortressBarrier, true);
     assert.equal(Game.objectPools.enemies.active.includes(enemy), false);
+});
+
+test('thorns routes quantized boss retaliation through one death and reward flow', () => {
+    resetCombat();
+    Game.resetBuildState();
+    Game.activeCard = 'thorns';
+    Game.bossHealthBar = { style: {} };
+    Game.summonIndicator = { style: {} };
+    Game.bossWarning = { style: {} };
+    Game.boss = {
+        entityId: 6001,
+        x: 0,
+        y: 0,
+        width: 30,
+        height: 30,
+        health: 0.9,
+        maxHealth: 5.1,
+        type: 0,
+    };
+    const damageCalls = [];
+    const realApplyCombatDamage = Game.applyCombatDamage;
+    Game.applyCombatDamage = function(...args) {
+        damageCalls.push(args);
+        return realApplyCombatDamage.apply(this, args);
+    };
+
+    try {
+        Game.onThornsHit();
+        assert.equal(Game.boss.health, 0.4);
+        assert.equal(damageCalls[0][0].entityId, 6001);
+        assert.equal(damageCalls[0][1], 'boss');
+        assert.equal(damageCalls[0][3], 'retaliation');
+
+        Game.onThornsHit();
+        assert.equal(Game.boss, null);
+        assert.equal(Game.crowns, 1);
+        assert.equal(Game.rewardFlow.phase, 'core');
+        assert.equal(damageCalls.length, 2);
+
+        Game.onThornsHit();
+        assert.equal(Game.crowns, 1);
+        assert.equal(damageCalls.length, 2);
+    } finally {
+        Game.applyCombatDamage = realApplyCombatDamage;
+    }
 });
 
 test('fortress: boost enemy bullets deal two damage, grant the original five-second shield, and gate later hits', () => {

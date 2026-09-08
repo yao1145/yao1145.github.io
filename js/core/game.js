@@ -313,7 +313,11 @@ export const Game = {
     },
 
     updateGameState: function() {
-        if (!this.isBossStage && this.score >= this.bossSpawnThreshold) {
+        const rewardFlowActive = this.isCardSelectionOpen
+            || this.rewardFlow
+            || this.isBuildSelectionOpen
+            || this.isRewardSummaryOpen;
+        if (!this.isBossStage && !rewardFlowActive && this.score >= this.bossSpawnThreshold) {
             this.spawnBoss();
         }
 

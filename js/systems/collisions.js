@@ -53,7 +53,10 @@ Game.checkCollisions = function() {
             const event = this.damageTarget({ bullet, target: this.boss, targetType: 'boss' });
             if (event) {
                 this.createExplosion(event.x, event.y, '#fff', 2);
-                if (!event.pierced) this.releaseObject('bullets', bullet);
+                // Boss hits are terminal even for piercing bullets. Piercing is
+                // for ordinary enemy chains only; a boss-hit shot must not stick
+                // around and re-enter the next collision pass.
+                this.releaseObject('bullets', bullet);
             }
             break;
         }
@@ -416,10 +419,8 @@ Game.onThornsHit = function() {
 
     // Thorns also chips the boss by a fraction of its max health.
     if (this.boss && this.boss.health > 0) {
-        this.boss.health -= this.boss.maxHealth * CONFIG.cards.thornsBossFrac;
-        if (this.boss.health <= 0) {
-            this.handleBossDeath();
-        }
+        const amount = this.boss.maxHealth * CONFIG.cards.thornsBossFrac;
+        this.applyCombatDamage(this.boss, 'boss', amount, 'retaliation');
     }
 };
 

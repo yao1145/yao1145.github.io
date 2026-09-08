@@ -717,14 +717,13 @@ Game.createDamageExplosion = function(spec) {
             if (dx * dx + dy * dy > radius * radius) continue;
             hitIds.add(enemy.entityId);
 
-            enemy.health -= damage;
-            if (enemy.health <= 0) {
+            const killX = enemy.x + enemy.width / 2;
+            const killY = enemy.y + enemy.height / 2;
+            const dealt = this.applyCombatDamage(enemy, 'enemy', damage, 'explosion', { chainId });
+            if (dealt && enemy.health <= 0) {
                 chainKills++;
                 const metrics = getBuildMetrics(state);
                 metrics.chainKills = numericMetric(metrics, 'chainKills') + 1;
-                const killX = enemy.x + enemy.width / 2;
-                const killY = enemy.y + enemy.height / 2;
-                this.killEnemy(enemy, { source: 'explosion', chainId });
                 if (propagate && (hasCore || point.depth + 1 <= cfg.buildMaxDepth)) {
                     queue.push({ x: killX, y: killY, depth: point.depth + 1 });
                 }

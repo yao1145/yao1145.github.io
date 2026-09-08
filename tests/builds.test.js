@@ -360,6 +360,7 @@ test('chain explosions record each settled chain kill in run metrics', () => {
         maxHealth: 0.5,
         _dead: false,
     };
+    Game.objectPools.enemies.active.push(enemy);
     const previousGrid = Game.spatialGrid;
     const previousKillEnemy = Game.killEnemy;
     const previousExplosion = Game.createExplosion;
@@ -615,4 +616,47 @@ test('boss death starts a new cycle, clears the desperate lock, and opens the fl
     assert.equal(Game.isBossStage, false);
     assert.equal(Game.rewardFlow.phase, 'core');
     assert.equal(Game.isRunning, false);
+});
+
+test('boss reward flow suppresses threshold spawning until the summary finishes', () => {
+    resetRewardFlow();
+    Game.activeCard = 'peace';
+    Game.score = 5000;
+    Game.bossSpawnThreshold = 1000;
+    Game.bossSpawnGap = 1000;
+    Game.isRunning = true;
+    Game.boss = { entityId: 7002, health: 0, maxHealth: 100 };
+    Game.bossHealthBar = { style: {} };
+    Game.summonIndicator = { style: {} };
+    Game.bossWarning = { style: {} };
+
+    const previousSpawnBoss = Game.spawnBoss;
+    let spawnCount = 0;
+    Game.spawnBoss = () => {
+        spawnCount++;
+        Game.isBossStage = true;
+    };
+
+    try {
+        Game.handleBossDeath();
+        Game.updateGameState();
+        assert.equal(spawnCount, 0);
+        assert.equal(Game.rewardFlow.phase, 'core');
+
+        assert.equal(Game.completeCoreCardSelection('peace'), true);
+        Game.updateGameState();
+        assert.equal(spawnCount, 0);
+        assert.equal(Game.rewardFlow.phase, 'build');
+
+        assert.equal(Game.selectBuild(Game.rewardFlow.candidates[0]), true);
+        Game.updateGameState();
+        assert.equal(spawnCount, 0);
+        assert.equal(Game.rewardFlow.phase, 'summary');
+
+        Game.finishRewardFlow();
+        Game.updateGameState();
+        assert.equal(spawnCount, 1);
+    } finally {
+        Game.spawnBoss = previousSpawnBoss;
+    }
 });
