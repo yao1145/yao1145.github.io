@@ -530,6 +530,49 @@ Game.onDirectShotBatch = function(batch) {
     this.desperateOnBatch(batch);
 };
 
+Game.getSupplyPulseDuration = function() {
+    const cfg = CONFIG.builds.supply;
+    const baseDuration = this.hasBuild('supply_extended')
+        ? cfg.extendedPulseMs
+        : cfg.pulseMs;
+    const boostedDuration = this.activeCard === 'boost' ? baseDuration + 2000 : baseDuration;
+    return Math.min(boostedDuration, cfg.durationCapMs);
+};
+
+Game.getSupplyPrimaryDamageBonus = function() {
+    return this.hasBuild('supply_entry') && (this.buildState.timers.supplyPulse || 0) > 0
+        ? CONFIG.builds.supply.primaryDamageBonus
+        : 0;
+};
+
+Game.onItemCollected = function(event) {
+    if (!this.buildState || !this.hasBuild('supply_entry')) return;
+    if (!event || event.spawnSource !== 'natural') return;
+
+    const cfg = CONFIG.builds.supply;
+    let progress = 1;
+    if (event.type === 0) {
+        if (!event.healingAllowed) progress = 0;
+        else if (event.wasFull && this.hasBuild('supply_capstone')) progress = cfg.fullHealthHeartProgress;
+    }
+    if (progress <= 0) return;
+
+    if ((this.buildState.timers.supplyPulse || 0) > 0) {
+        this.buildState.counters.supplyPickups = 0;
+        this.buildState.timers.supplyPulse = this.getSupplyPulseDuration();
+        return;
+    }
+
+    const pickups = (this.buildState.counters.supplyPickups || 0) + progress;
+    if (pickups < cfg.pickups) {
+        this.buildState.counters.supplyPickups = pickups;
+        return;
+    }
+
+    this.buildState.counters.supplyPickups = 0;
+    this.buildState.timers.supplyPulse = this.getSupplyPulseDuration();
+};
+
 Game.onEnemyKilled = function(killEvent) {
     this.rapidOnKill(killEvent);
     this.chainSeedFromKill(killEvent);
@@ -942,6 +985,16 @@ Game.updateBuildEffects = function(deltaTime) {
     } else {
         state.timers.fortressBarrier = 0;
         state.locks.fortressBarrier = false;
+    }
+
+    if (this.hasBuild('supply_entry')) {
+        if ((state.timers.supplyPulse || 0) > 0) {
+            state.timers.supplyPulse -= deltaTime;
+            if (state.timers.supplyPulse <= 0) state.timers.supplyPulse = 0;
+        }
+    } else {
+        state.timers.supplyPulse = 0;
+        state.counters.supplyPickups = 0;
     }
 
     if (!this.hasBuild('desperate_entry')

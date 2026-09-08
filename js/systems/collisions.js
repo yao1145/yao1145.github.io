@@ -131,27 +131,7 @@ Game.checkCollisions = function() {
             const item = nearby.obj;
 
             if (this.isColliding(this.player, item)) {
-                this.createExplosion(item.x + item.width/2, item.y + item.height/2, item.color, 4);
-
-                switch (item.type) {
-                    case 0:
-                        // Heart is still consumed even when the active card forbids healing (wasted).
-                        if (this.canHeal()) this.applyLifeGain(this.activeCard === 'boost' ? CONFIG.cards.boostHeartHeal : 1);
-                        else this.updateUI(true);
-                        break;
-                    case 1:
-                        this.isDamageBoost = true;
-                        this.damageBoostTime = this.activeCard === 'boost' ? CONFIG.cards.boostDamageTime : 10;
-                        this.bulletDamage = 2;
-                        this.updateAttackUI(true);
-                        break;
-                    case 2:
-                        this.player.shieldTime = this.activeCard === 'boost' ? CONFIG.cards.boostShieldTime : 5;
-                        this.updateShieldUI(true);
-                        break;
-                }
-
-                this.releaseObject('items', item);
+                this.collectItem(item);
                 break;
             }
         }

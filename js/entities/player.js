@@ -100,10 +100,13 @@ Game.spawnBullet = function() {
         // its pierce charge is spent mid-flight.
         bullet.rapidBoosted = isPrimary && primaryPierce > 0;
         bullet.hitEntityIds = [];
-        bullet.buildDamageBonus = 0;
+        bullet.buildDamageBonus = isPrimary ? this.getSupplyPrimaryDamageBonus() : 0;
     }
 
     // A pool shortage can skip the intended primary bullet; promote the first
     // actually-spawned bullet so the shot always has exactly one primary.
-    if (firstSpawned && !primarySpawned) firstSpawned.isPrimary = true;
+    if (firstSpawned && !primarySpawned) {
+        firstSpawned.isPrimary = true;
+        firstSpawned.buildDamageBonus = this.getSupplyPrimaryDamageBonus();
+    }
 };
