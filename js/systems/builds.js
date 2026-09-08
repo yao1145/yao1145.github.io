@@ -177,6 +177,7 @@ Game.resetBuildState = function() {
             desperateCycleHeal: false,
         },
         metrics: {},
+        visualFeedbackEvents: [],
     };
 };
 
@@ -553,14 +554,88 @@ Game.updateRewardSummaryUI = function() {
 };
 
 // --- Combat-event hooks -----------------------------------------------------
-// flushDirectShotBatches() delivers one batch per shot id after the collision
-// pass; killEnemy() broadcasts one event per settled death. Each owned route
-// subscribes through its own handler so unowned routes cost nothing.
+// This section is the only route runtime. Direct hits arrive once per shotId
+// batch, while kill events arrive once per settled entity death. The helpers
+// below deliberately keep route-local bookkeeping out of the combat modules.
+
+function runtimeFor(state) {
+    if (!state._runtime) {
+        state._runtime = {
+            rapidSeenShots: new Set(),
+            rapidIdleMs: 0,
+            desperateSeenShots: new Set(),
+            hunterTargets: new Map(),
+            cycleSeen: state.cycle,
+            killKeys: new Set(),
+        };
+    }
+    return state._runtime;
+}
+
+function addMetric(state, key, value = 1) {
+    const metrics = getBuildMetrics(state);
+    metrics[key] = numericMetric(metrics, key) + (Number(value) || 0);
+    return metrics[key];
+}
+
+function centerOf(entity) {
+    return {
+        x: entity.x + entity.width / 2,
+        y: entity.y + entity.height / 2,
+    };
+}
+
+function targetIdFor(event) {
+    return `${event.targetType}:${event.entityId}`;
+}
+
+function syncBossCycle(game) {
+    const state = game.buildState;
+    if (!state) return;
+    const runtime = runtimeFor(state);
+    if (runtime.cycleSeen === state.cycle) return;
+    runtime.cycleSeen = state.cycle;
+    state.counters.desperateHits = 0;
+    state.counters.desperateKills = 0;
+    state.locks.desperateCycleHeal = false;
+}
+
+// Route logic owns semantic feedback events; render.js only paints the events
+// later.  Keeping the queue on buildState makes feedback observable in
+// headless tests and, more importantly, prevents a full particle pool from
+// suppressing route damage, clears, or progress.
+Game.emitBuildFeedback = function(event = {}) {
+    if (!this.buildState || !event || typeof event !== 'object') return null;
+    const state = this.buildState;
+    if (!Array.isArray(state.visualFeedbackEvents)) state.visualFeedbackEvents = [];
+    const now = Number(this.gameTime) || 0;
+    const feedback = {
+        ...event,
+        until: event.until == null ? now + 400 : event.until,
+    };
+    state.visualFeedbackEvents.push(feedback);
+    // Feedback is presentation-only. Bound the retained history without ever
+    // changing the gameplay result of the route trigger that emitted it.
+    if (state.visualFeedbackEvents.length > 64) state.visualFeedbackEvents.splice(0, state.visualFeedbackEvents.length - 64);
+    return feedback;
+};
+
+function clearCount(game, x, y, radius, metric) {
+    if (typeof game.clearEnemyBulletsInRadius !== 'function') return 0;
+    const cleared = Number(game.clearEnemyBulletsInRadius(x, y, radius)) || 0;
+    if (cleared > 0) addMetric(game.buildState, metric, cleared);
+    return cleared;
+}
 
 Game.onDirectShotBatch = function(batch) {
-    const first = batch.events[0];
-    // D for this shot: bonus strikes read the same single damage computation.
-    this.buildState.counters.directBaseDamage = first ? first.baseDamage : 0;
+    if (!this.buildState || !batch || !Array.isArray(batch.events) || batch.events.length === 0) return;
+    syncBossCycle(this);
+    // Scatter/piercing batches may report a secondary event before the actual
+    // primary.  The primary event is the canonical shared D source; only when
+    // no primary exists do we use the first landed event as a safe fallback.
+    const first = batch.events.find((event) => event && event.isPrimary) || batch.events[0] || {};
+    // D is captured once, before any route bonus. Every bonus reads this value.
+    this.buildState.counters.directBaseDamage = Number(first.baseDamage ?? first.amount) || 0;
     this.hunterWindowOnBatch(batch);
     this.rapidOnBatch(batch);
     this.hunterOnBatch(batch);
@@ -569,469 +644,448 @@ Game.onDirectShotBatch = function(batch) {
 
 Game.getSupplyPulseDuration = function() {
     const cfg = CONFIG.builds.supply;
-    const baseDuration = this.hasBuild('supply_extended')
-        ? cfg.extendedPulseMs
-        : cfg.pulseMs;
-    const boostedDuration = this.activeCard === 'boost' ? baseDuration + 2000 : baseDuration;
-    return Math.min(boostedDuration, cfg.durationCapMs);
+    const duration = this.hasBuild('supply_duration') ? cfg.longPulseMs : cfg.pulseMs;
+    return Math.min(duration, cfg.maxPulseMs);
 };
 
 Game.getSupplyPrimaryDamageBonus = function() {
-    return this.hasBuild('supply_entry') && (this.buildState.timers.supplyPulse || 0) > 0
-        ? CONFIG.builds.supply.damageBonus
+    return this.hasBuild('supply_entry') && (this.buildState?.timers?.supplyPulse || 0) > 0
+        ? CONFIG.builds.supply.primaryDamageBonus
         : 0;
 };
 
 Game.onItemCollected = function(event) {
-    if (!this.buildState || !this.hasBuild('supply_entry')) return;
-    if (!event || event.spawnSource !== 'natural') return;
-
+    if (!this.buildState || !this.hasBuild('supply_entry') || !event || event.spawnSource !== 'natural') return;
+    const state = this.buildState;
     const cfg = CONFIG.builds.supply;
-    if ((this.buildState.timers.supplyPulse || 0) > 0) {
-        this.buildState.counters.supplyPickups = 0;
-        this.buildState.timers.supplyPulse = this.getSupplyPulseDuration();
-        return;
-    }
+    const magnetPickup = Boolean(event.collectedByMagnet || event.magnetized || event.viaMagnet || event.wasMagnet);
+    addMetric(state, 'supplyNaturalPickups');
+    if (magnetPickup) addMetric(state, 'supplyMagnetPickups');
 
     let progress = 1;
     if (event.type === 0) {
-        if (!event.healingAllowed) progress = 0;
-        else if (event.wasFull && this.hasBuild('supply_capstone')) progress = cfg.fullHealthHeartProgress;
+        if (!event.healingAllowed && !event.wasFull) progress = 0;
+        if (event.wasFull && this.hasBuild('supply_capstone')) progress = cfg.fullHeartProgress;
     }
     if (progress <= 0) return;
 
-    const pickups = (this.buildState.counters.supplyPickups || 0) + progress;
-    if (pickups < cfg.pickups) {
-        this.buildState.counters.supplyPickups = pickups;
+    const next = (state.counters.supplyPickups || 0) + progress;
+    if (next < cfg.pickups) {
+        state.counters.supplyPickups = next;
         return;
     }
 
-    this.buildState.counters.supplyPickups = 0;
-    this.buildState.timers.supplyPulse = this.getSupplyPulseDuration();
-    const metrics = getBuildMetrics(this.buildState);
-    metrics.supplyPulseCount = numericMetric(metrics, 'supplyPulseCount') + 1;
+    state.counters.supplyPickups = 0;
+    const duration = this.getSupplyPulseDuration();
+    const current = state.timers.supplyPulse || 0;
+    state.timers.supplyPulse = Math.min(cfg.maxPulseMs, current + duration);
+    addMetric(state, 'supplyPulseCount');
 };
 
-Game.onEnemyKilled = function(killEvent) {
+Game.onEnemyKilled = function(killEvent = {}) {
+    if (!this.buildState) return;
+    syncBossCycle(this);
+    const runtime = runtimeFor(this.buildState);
+    const killKey = `${this.buildState.cycle}:${killEvent.entityId ?? ''}:${killEvent.source || ''}`;
+    if (runtime.killKeys.has(killKey)) return;
+    runtime.killKeys.add(killKey);
     this.rapidOnKill(killEvent);
     this.chainSeedFromKill(killEvent);
     this.desperateOnKill(killEvent);
 };
 
-// One actual life loss is the only event that resets fortress charge and
-// triggers thorns. Temporal shields and fortress barriers never reach here.
-Game.onActualPlayerDamage = function(event) {
+// One actual life loss resets fortress charge; shields/barriers never reach
+// this hook. Core thorns remains owned by the combat module.
+Game.onActualPlayerDamage = function() {
     if (!this.buildState) return;
     this.buildState.timers.fortressBarrier = 0;
-    if (this.activeCard === 'thorns') this.onThornsHit();
+    if (this.activeCard === 'thorns' && typeof this.onThornsHit === 'function') this.onThornsHit();
 };
 
 Game.onFortressBarrierConsumed = function() {
     const state = this.buildState;
+    if (!state || !this.player) return;
     const cfg = CONFIG.builds.fortress;
     const metrics = getBuildMetrics(state);
-    metrics.fortressBlocks = numericMetric(metrics, 'fortressBlocks') + 1;
-    const playerCX = this.player.x + this.player.width / 2;
-    const playerCY = this.player.y + this.player.height / 2;
+    addMetric(state, 'fortressBlocks');
+    const { x, y } = centerOf(this.player);
 
     if (this.hasBuild('fortress_echo')) {
+        this.emitBuildFeedback({ kind: 'fortress', echo: true, x, y, radius: cfg.echoRadius });
         const radiusSquared = cfg.echoRadius * cfg.echoRadius;
-        for (const enemy of this.objectPools.enemies.active.slice()) {
+        for (const enemy of (this.objectPools?.enemies?.active || []).slice()) {
             if (!enemy || enemy._dead || enemy.health <= 0) continue;
-            const enemyCX = enemy.x + enemy.width / 2;
-            const enemyCY = enemy.y + enemy.height / 2;
-            const dx = enemyCX - playerCX;
-            const dy = enemyCY - playerCY;
-            if (dx * dx + dy * dy <= radiusSquared) {
-                this.applyCombatDamage(enemy, 'enemy', cfg.echoDamage, 'retaliation');
+            const enemyCenter = centerOf(enemy);
+            const dx = enemyCenter.x - x;
+            const dy = enemyCenter.y - y;
+            if (dx * dx + dy * dy <= radiusSquared && typeof this.applyCombatDamage === 'function') {
+                const dealt = this.applyCombatDamage(enemy, 'enemy', cfg.echoDamage, 'retaliation');
+                addMetric(state, 'fortressEchoDamage', dealt ? cfg.echoDamage : 0);
             }
         }
     }
 
     if (this.hasBuild('fortress_capstone') && (state.timers.fortressClearCooldown || 0) <= 0) {
-        this.clearEnemyBulletsInRadius(playerCX, playerCY, cfg.clearRadius);
+        this.emitBuildFeedback({ kind: 'fortress', clear: true, x, y, radius: cfg.clearRadius });
+        clearCount(this, x, y, cfg.clearRadius, 'fortressBulletClears');
         state.timers.fortressClearCooldown = cfg.clearCooldownMs;
     }
-
-    // One short ring is the complete barrier-consumption feedback.
-    this.createShockwave(playerCX, playerCY, '#7cff8a');
+    if (typeof this.createShockwave === 'function') this.createShockwave(x, y, '#7cff8a');
+    void metrics;
 };
 
-// --- 连锁清场 chain: merged kill-explosions --------------------------------
-// The chain card's 200px cascade and the 爆破种子 seed are ONE event per kill:
-// they share a radius/damage (the larger of both) and one chain id, so the
-// core card and the build never detonate two independent explosions.
+// --- 连锁清场 chain ---------------------------------------------------------
 
-Game.chainSeedFromKill = function(killEvent) {
-    if (killEvent.source !== 'direct') return;
-    if (this.activeCard !== 'chain' && !this.hasBuild('chain_entry')) return;
-    this.createDamageExplosion({
-        x: killEvent.x,
-        y: killEvent.y,
-        damage: killEvent.damage,
-    });
+Game.chainSeedFromKill = function(killEvent = {}) {
+    if (killEvent.source !== 'direct') return false;
+    if (this.activeCard !== 'chain' && !this.hasBuild('chain_entry')) return false;
+    return this.createDamageExplosion({ x: killEvent.x, y: killEvent.y });
 };
 
-// Seeds and runs one kill-explosion chain. spec = { x, y, damage } where
-// damage is the direct hit that caused the kill (D for the seed's 0.5D).
-// Geometry uses a 200px core radius; the wide branch adds 50px. Both routes
-// use the same merged chain event. The core card propagates for
-// two layers; the seed route propagates for three with 二次引燃, and a merged
-// route takes the stricter two-layer limit. Seed-only chains are capped at 12
-// blasts. Each entity is hit once per chain; the boss takes only the seed part
-// at half and never propagates; VFX failure never cancels damage.
-Game.createDamageExplosion = function(spec) {
+Game.createDamageExplosion = function(spec = {}) {
     const hasCore = this.activeCard === 'chain';
-    const hasSeed = this.hasBuild('chain_entry');
-    if (!hasCore && !hasSeed) return false;
-
-    const cfg = CONFIG.builds.chain;
+    const hasEntry = this.hasBuild('chain_entry');
+    if (!hasCore && !hasEntry) return false;
     const state = this.buildState;
-    const coreRadius = hasCore ? CONFIG.cards.chainRadius : 0;
-    const seedRadius = hasSeed ? cfg.seedRadius : 0;
-    const radius = Math.max(coreRadius, seedRadius)
-        + (this.hasBuild('chain_wide') ? cfg.wideBonusRadius : 0);
-    const seedDamage = hasSeed
-        ? this.roundCombatDamage(cfg.seedDamageMult * (spec.damage || 0))
-        : 0;
-    const coreDamage = hasCore
-        ? this.roundCombatDamage(CONFIG.cards.chainDamage * (spec.damage || 0))
-        : 0;
-    // Normal enemies receive the seed and card portions once each. With both
-    // effects active this is 0.5D + 0.5D = 1D, not two separate chains.
-    const damage = this.roundCombatDamage(seedDamage + coreDamage);
-    // The boss only ever takes the seed part, at half (新增爆炸部分半伤).
-    const bossDamage = hasSeed
-        ? this.roundCombatDamage(seedDamage * cfg.bossDamageMult)
-        : 0;
-    const seedOnly = !hasCore;
-    const maxBlasts = seedOnly ? cfg.buildMaxExplosions : 80;
-    const ignite = seedOnly && this.hasBuild('chain_ignite');
-    // Propagation depth is the number of cascade layers after the initial blast.
-    const maxPropagationDepth = hasCore && hasSeed
-        ? Math.min(cfg.cardMaxDepth, cfg.buildMaxDepth)
-        : hasCore
-            ? cfg.cardMaxDepth
-            : ignite
-                ? cfg.buildMaxDepth
-                : 0;
-    const propagate = maxPropagationDepth > 0;
+    const cfg = CONFIG.builds.chain;
+    const radius = this.hasBuild('chain_radius') ? cfg.wideRadius : cfg.baseRadius;
     const chainId = ++this.nextChainId;
-
-    const queue = [{ x: spec.x, y: spec.y, depth: 0 }];
-    const hitIds = new Set(); // every entity is hit at most once per chain
-    let blasts = 0;
+    const hitIds = new Set();
+    const queue = [{ x: spec.x, y: spec.y, generation: 0 }];
     let chainKills = 0;
-    let shocked = false;
+    let clearTriggered = false;
+    const runtime = runtimeFor(state);
 
-    while (queue.length > 0 && blasts < maxBlasts) {
-        const point = queue.pop();
-        blasts++;
+    while (queue.length > 0) {
+        const point = queue.shift();
+        const pointRadius = point.generation === 0 ? radius : cfg.spreadRadius;
+        const pointDamage = point.generation === 0 ? cfg.baseDamage : cfg.spreadDamage;
+        state.counters.chainGeneration = Math.max(state.counters.chainGeneration || 0, point.generation);
         state.counters.chainBlasts = (state.counters.chainBlasts || 0) + 1;
-        // Light blast VFX; a drained particle pool never cancels the damage.
-        this.createExplosion(point.x, point.y, '#ff0', 2);
-        this.createShockwave(point.x, point.y);
+        addMetric(state, 'chainBlasts');
+        this.emitBuildFeedback({
+            kind: 'chain',
+            x: point.x,
+            y: point.y,
+            generation: point.generation,
+            wide: point.generation === 0 && this.hasBuild('chain_radius'),
+            radius: pointRadius,
+        });
+        if (typeof this.createExplosion === 'function') this.createExplosion(point.x, point.y, point.generation ? '#ff9f68' : '#ff6b00', 2);
+        if (typeof this.createShockwave === 'function') this.createShockwave(point.x, point.y);
 
-        const candidates = this.spatialGrid.getWithinRadius(point.x, point.y, radius);
+        const candidates = typeof this.spatialGrid?.getWithinRadius === 'function'
+            ? this.spatialGrid.getWithinRadius(point.x, point.y, pointRadius)
+            : (this.objectPools?.enemies?.active || []).map((obj) => ({ poolType: 'enemies', obj }));
         for (const entry of candidates) {
-            if (entry.poolType !== 'enemies') continue;
-            const enemy = entry.obj;
+            if (entry.poolType && entry.poolType !== 'enemies') continue;
+            const enemy = entry.obj || entry;
             if (!enemy || enemy._dead || enemy.health <= 0) continue;
-            if (hitIds.has(enemy.entityId)) continue;
-            const dx = enemy.x + enemy.width / 2 - point.x;
-            const dy = enemy.y + enemy.height / 2 - point.y;
-            if (dx * dx + dy * dy > radius * radius) continue;
-            hitIds.add(enemy.entityId);
-
-            const killX = enemy.x + enemy.width / 2;
-            const killY = enemy.y + enemy.height / 2;
-            const dealt = this.applyCombatDamage(enemy, 'enemy', damage, 'explosion', { chainId });
-            if (dealt && enemy.health <= 0) {
-                chainKills++;
-                const metrics = getBuildMetrics(state);
-                metrics.chainKills = numericMetric(metrics, 'chainKills') + 1;
-                if (propagate && point.depth < maxPropagationDepth) {
-                    queue.push({ x: killX, y: killY, depth: point.depth + 1 });
-                }
-                // 连锁震荡: the 3rd chain kill clears nearby enemy bullets —
-                // once per chain, and the clear respects the global 5s cooldown.
-                if (this.hasBuild('chain_capstone')
-                    && !shocked && chainKills >= cfg.shockKills
-                    && (state.timers.chainShockCooldown || 0) <= 0) {
-                    shocked = true;
-                    state.timers.chainShockCooldown = cfg.shockCooldownMs;
-                    this.clearEnemyBulletsInRadius(killX, killY, cfg.shockRadius);
-                }
+            const id = enemy.entityId ?? enemy;
+            if (hitIds.has(id)) continue;
+            const enemyCenter = centerOf(enemy);
+            const dx = enemyCenter.x - point.x;
+            const dy = enemyCenter.y - point.y;
+            if (dx * dx + dy * dy > pointRadius * pointRadius) continue;
+            hitIds.add(id);
+            const before = enemy.health;
+            const dealt = typeof this.applyCombatDamage === 'function'
+                && this.applyCombatDamage(enemy, 'enemy', pointDamage, 'explosion', { chainId });
+            if (!dealt || enemy.health > 0) continue;
+            chainKills += 1;
+            addMetric(state, 'chainKills');
+            addMetric(state, 'chainExplosionKills');
+            addMetric(state, 'chainBonusDamage', Math.max(0, before - Math.max(0, enemy.health)));
+            if (this.hasBuild('chain_spread') && point.generation < cfg.maxGeneration) {
+                queue.push({ x: enemyCenter.x, y: enemyCenter.y, generation: point.generation + 1 });
             }
-        }
-
-        // The boss is not grid-inserted: check it per blast, once per chain.
-        if (this.boss && !hitIds.has(this.boss.entityId)) {
-            const bdx = this.boss.x + this.boss.width / 2 - point.x;
-            const bdy = this.boss.y + this.boss.height / 2 - point.y;
-            if (bdx * bdx + bdy * bdy <= radius * radius) {
-                hitIds.add(this.boss.entityId);
-                this.applyCombatDamage(this.boss, 'boss', bossDamage, 'explosion');
+            if (this.hasBuild('chain_capstone') && !clearTriggered && chainKills >= cfg.capstoneKills) {
+                clearTriggered = true;
+                this.emitBuildFeedback({ kind: 'chain', capstone: true, x: enemyCenter.x, y: enemyCenter.y, radius: cfg.capstoneRadius });
+                clearCount(this, enemyCenter.x, enemyCenter.y, cfg.capstoneRadius, 'chainBulletClears');
             }
         }
     }
+    runtime.lastChainId = chainId;
+    runtime.lastChainKills = chainKills;
     return true;
 };
 
-// --- 疾速压制 rapid: heat-up -> pierced primary shots -----------------------
+// --- 疾速压制 rapid ---------------------------------------------------------
 
-// Reserves pierce for the primary bullet of every third shot fired while the
-// heat-up is running; the ordinal only advances during the heat-up. Called
-// once per shot by spawnBullet.
-Game.getPrimaryPierceForShot = function(shotId) {
-    if (!this.hasBuild('rapid_entry') || (this.buildState.timers.rapidWarmup || 0) <= 0) return 0;
-    this.buildState.counters.rapidHeatupShots = (this.buildState.counters.rapidHeatupShots || 0) + 1;
-    if (this.buildState.counters.rapidHeatupShots % 3 !== 0) return 0;
+Game.consumeRapidBatchEffect = function() {
+    const result = {
+        rapidBatchBoosted: false,
+        rapidDamageBonus: 0,
+        pierceRemaining: 0,
+        rapidPierce: 0,
+    };
+    if (!this.buildState || !this.hasBuild('rapid_entry') || (this.buildState.timers.rapidWarmup || 0) <= 0) return result;
+    const state = this.buildState;
     const cfg = CONFIG.builds.rapid;
-    return this.hasBuild('rapid_wide') ? cfg.widePierce : cfg.basePierce;
+    state.counters.rapidHeatupShots = (state.counters.rapidHeatupShots || 0) + 1;
+    if (state.counters.rapidHeatupShots % cfg.strengthenEveryShots !== 0) return result;
+    const pierce = this.hasBuild('rapid_wide') ? cfg.widePierce : cfg.basePierce;
+    result.rapidBatchBoosted = true;
+    result.rapidDamageBonus = cfg.primaryDamageBonus;
+    result.pierceRemaining = pierce;
+    result.rapidPierce = pierce;
+    addMetric(state, 'rapidBoostedBatches');
+    return result;
+};
+
+// Existing player code asks for the primary pierce count. It is now only a
+// thin adapter over actual-batch consumption; it carries no legacy cadence.
+Game.getPrimaryPierceForShot = function() {
+    return this.consumeRapidBatchEffect().pierceRemaining;
+};
+
+Game.extendRapidWarmup = function(ms) {
+    if (!this.buildState || !this.hasBuild('rapid_capstone')) return 0;
+    const state = this.buildState;
+    const cfg = CONFIG.builds.rapid;
+    if ((state.timers.rapidWarmup || 0) <= 0) return 0;
+    const remainingExtension = Math.max(0, cfg.maxExtensionMs - (state.counters.rapidExtendedMs || 0));
+    const room = Math.max(0, cfg.maxActiveMs - state.timers.rapidWarmup);
+    const gain = Math.min(Math.max(0, Number(ms) || 0), remainingExtension, room);
+    if (gain <= 0) return 0;
+    state.timers.rapidWarmup += gain;
+    state.counters.rapidExtendedMs = (state.counters.rapidExtendedMs || 0) + gain;
+    addMetric(state, 'rapidExtensionMs', gain);
+    return gain;
 };
 
 Game.rapidOnBatch = function(batch) {
     if (!this.hasBuild('rapid_entry')) return;
-    const cfg = CONFIG.builds.rapid;
     const state = this.buildState;
-
-    // One heat-up tick per shot, no matter how many bullets of the batch
-    // landed; heated shots never accumulate the next round.
-    if ((state.timers.rapidWarmup || 0) > 0) return;
-    state.counters.rapidHits = (state.counters.rapidHits || 0) + 1;
+    const runtime = runtimeFor(state);
+    const shotId = batch.shotId ?? batch.events[0]?.shotId;
+    if (shotId != null && runtime.rapidSeenShots.has(shotId)) return;
+    if (shotId != null) runtime.rapidSeenShots.add(shotId);
+    runtime.rapidIdleMs = 0;
     state.counters.rapidLastHit = this.gameTime;
-    if (state.counters.rapidHits >= cfg.hits) {
-        state.counters.rapidHits = 0;
-        state.timers.rapidWarmup = cfg.activeMs;
-        state.counters.rapidHeatupShots = 0;
-        state.counters.rapidExtendedMs = 0;
+
+    if ((state.timers.rapidWarmup || 0) > 0) {
+        if (batch.events.some((event) => event.targetType === 'boss')) {
+            state.counters.rapidBossHits = (state.counters.rapidBossHits || 0) + 1;
+            if (state.counters.rapidBossHits >= CONFIG.builds.rapid.bossHitsForExtension) {
+                state.counters.rapidBossHits = 0;
+                this.extendRapidWarmup(CONFIG.builds.rapid.extensionMs);
+            }
+        }
+        return;
+    }
+
+    state.counters.rapidHits = (state.counters.rapidHits || 0) + 1;
+    if (state.counters.rapidHits < CONFIG.builds.rapid.hits) return;
+    state.counters.rapidHits = 0;
+    state.timers.rapidWarmup = CONFIG.builds.rapid.activeMs;
+    state.counters.rapidHeatupShots = 0;
+    state.counters.rapidBossHits = 0;
+    state.counters.rapidExtendedMs = 0;
+    addMetric(state, 'rapidActivations');
+};
+
+Game.rapidOnKill = function(killEvent = {}) {
+    if (killEvent.source !== 'direct' || !this.hasBuild('rapid_capstone')) return;
+    if ((this.buildState.timers.rapidWarmup || 0) <= 0) return;
+    this.extendRapidWarmup(CONFIG.builds.rapid.extensionMs);
+};
+
+// --- 破甲猎王 hunter --------------------------------------------------------
+
+Game.resolveBuildTarget = function(targetType, entityId) {
+    if (targetType === 'boss') return this.boss && this.boss.entityId === entityId ? this.boss : null;
+    if (typeof this.resolveLiveTarget === 'function') return this.resolveLiveTarget(targetType, entityId);
+    return (this.objectPools?.enemies?.active || []).find((enemy) => enemy.entityId === entityId) || null;
+};
+
+Game.triggerBonusStrike = function(targetRef, multiplier, metric) {
+    const state = this.buildState;
+    const d = Number(state.counters.directBaseDamage) || 0;
+    const amount = typeof this.roundCombatDamage === 'function'
+        ? this.roundCombatDamage(d * multiplier)
+        : Math.max(0, d * multiplier);
+    const target = this.resolveBuildTarget(targetRef.targetType, targetRef.entityId);
+    if (!target || amount <= 0 || typeof this.applyCombatDamage !== 'function') return false;
+    if (!this.applyCombatDamage(target, targetRef.targetType, amount, 'bonus')) return false;
+    addMetric(state, metric, amount);
+    addMetric(state, 'bonusDamage', amount);
+    if (typeof this.requestVisualHitStop === 'function' && metric === 'hunterPrecisionDamage') {
+        this.requestVisualHitStop(CONFIG.builds.hunter.hitStopMs);
+    }
+    if (typeof this.createShockwave === 'function') {
+        const { x, y } = centerOf(target);
+        this.createShockwave(x, y, '#8ef');
+    }
+    return true;
+};
+
+Game.hunterWindowOnBatch = function(batch) {
+    const state = this.buildState;
+    if (!this.hasBuild('hunter_capstone') || (state.timers.hunterWindow || 0) <= 0) return;
+    const event = batch.events.find((candidate) => this.resolveBuildTarget(candidate.targetType, candidate.entityId));
+    if (!event) return;
+    if (this.triggerBonusStrike(event, CONFIG.builds.hunter.windowMult, 'hunterWindowDamage')) {
+        state.timers.hunterWindow = 0;
     }
 };
-
-// 持续火力: a direct kill while heated extends the heat-up by 300ms per kill,
-// up to 1.5s of total extension per round.
-Game.rapidOnKill = function(killEvent) {
-    if (killEvent.source !== 'direct' || !this.hasBuild('rapid_capstone')) return;
-    const state = this.buildState;
-    if ((state.timers.rapidWarmup || 0) <= 0) return;
-    const cfg = CONFIG.builds.rapid;
-    const used = state.counters.rapidExtendedMs || 0;
-    if (used >= cfg.maxExtensionMs) return;
-    const gain = Math.min(cfg.killExtensionMs, cfg.maxExtensionMs - used);
-    state.timers.rapidWarmup += gain;
-    state.counters.rapidExtendedMs = used + gain;
-};
-
-// --- 破甲猎王 hunter: single-target marks -> precision strike -> window -----
 
 Game.hunterOnBatch = function(batch) {
     if (!this.hasBuild('hunter_entry')) return;
     const state = this.buildState;
-    const lock = state.locks;
-    const lockedId = lock.hunterTargetId;
-
-    // Batch target: the still-active locked target when it was hit in this
-    // batch, otherwise this batch's first hit that is still alive.
-    let target = null;
-    if (lockedId != null) {
-        const hit = batch.events.find((e) => e.entityId === lockedId);
-        if (hit) target = { targetType: hit.targetType, entityId: hit.entityId };
-    }
-    if (!target) {
-        const hit = batch.events.find((e) => {
-            return e.targetType === 'boss'
-                ? this.boss && this.boss.entityId === e.entityId
-                : this.isActiveEntity('enemies', e.entityId);
-        });
-        if (hit) target = { targetType: hit.targetType, entityId: hit.entityId };
-    }
-    if (!target) return;
-
-    // Switching targets clears the accumulated marks.
-    if (lockedId !== target.entityId) {
-        lock.hunterTargetId = target.entityId;
-        lock.hunterHits = 0;
-    }
-    lock.hunterHits += 1;
+    const runtime = runtimeFor(state);
+    const events = batch.events.filter((event) => this.resolveBuildTarget(event.targetType, event.entityId));
+    if (events.length === 0) return;
+    const locked = events.find((event) => event.entityId === state.locks.hunterTargetId) || events[0];
+    const id = targetIdFor(locked);
+    let targetState = runtime.hunterTargets.get(id);
+    if (!targetState) targetState = { targetType: locked.targetType, entityId: locked.entityId, hits: 0, lastShotId: null, idleMs: 0 };
+    const shotId = batch.shotId ?? locked.shotId;
+    if (!targetState.seenShots) targetState.seenShots = new Set();
+    if (targetState.seenShots.has(shotId)) return;
+    targetState.seenShots.add(shotId);
+    targetState.lastShotId = shotId;
+    targetState.hits += 1;
+    targetState.idleMs = 0;
+    runtime.hunterTargets.set(id, targetState);
+    state.locks.hunterTargetId = targetState.entityId;
+    state.locks.hunterHits = targetState.hits;
     state.counters.hunterLastHit = this.gameTime;
 
-    if (lock.hunterHits >= CONFIG.builds.hunter.hits) {
-        lock.hunterHits = 0;
-        const live = this.resolveLiveTarget(target.targetType, target.entityId);
-        // Target died or was recycled mid-batch: clear the lock, no strike.
-        if (!live) {
-            lock.hunterTargetId = null;
-            return;
-        }
-        const cfg = CONFIG.builds.hunter;
-        // 处决校准: 3D against targets at 30% health or below, else 2D.
-        const execute = live.health <= cfg.executeHealthRatio * live.maxHealth;
-        const mult = execute ? cfg.executeMult : cfg.strikeMult;
-        if (this.triggerBonusStrike(target, mult, 'hunterPrecisionDamage')
-            && target.targetType === 'boss' && this.hasBuild('hunter_capstone')) {
-            // 猎王窗口: a boss precision strike opens the 2s window.
-            state.timers.hunterWindow = cfg.windowMs;
-        }
-    }
-};
-
-// A precision strike is bonus damage: 2D/3D of the triggering batch's D dealt
-// to the target with one feedback ring. Never counted back as a direct hit.
-Game.triggerBonusStrike = function(targetRef, multiplier, metric) {
-    const d = this.buildState.counters.directBaseDamage || 0;
-    const amount = this.roundCombatDamage(d * multiplier);
-    const target = this.resolveLiveTarget(targetRef.targetType, targetRef.entityId);
-    if (!target) return false;
-    if (!this.applyCombatDamage(target, targetRef.targetType, amount, 'bonus')) return false;
-
-    this.buildState.metrics = this.buildState.metrics || {};
-    this.buildState.metrics[metric] = (this.buildState.metrics[metric] || 0) + amount;
-    // 追加打击单环: one expanding ring marks the strike point.
-    this.createShockwave(target.x + target.width / 2, target.y + target.height / 2, '#8ef');
-    return true;
-};
-
-// 猎王窗口: the first direct hit inside the 2s window after a boss strike
-// deals +2D to its target and closes the window (windows never stack).
-Game.hunterWindowOnBatch = function(batch) {
-    const state = this.buildState;
-    if ((state.timers.hunterWindow || 0) <= 0 || !this.hasBuild('hunter_capstone')) return;
-    const first = batch.events[0];
-    if (!first) return;
-
+    if (targetState.hits < CONFIG.builds.hunter.hits) return;
+    targetState.hits = 0;
+    targetState.seenShots.clear();
+    state.locks.hunterHits = 0;
+    const target = this.resolveBuildTarget(targetState.targetType, targetState.entityId);
+    if (!target) return;
     const cfg = CONFIG.builds.hunter;
-    const amount = this.roundCombatDamage(first.baseDamage * cfg.windowMult);
-    const target = this.resolveLiveTarget(first.targetType, first.entityId);
-    if (target && this.applyCombatDamage(target, first.targetType, amount, 'bonus')) {
-        state.metrics = state.metrics || {};
-        state.metrics.hunterWindowDamage = (state.metrics.hunterWindowDamage || 0) + amount;
-        this.createShockwave(target.x + target.width / 2, target.y + target.height / 2, '#8ef');
+    const execute = target.health <= cfg.executeHealthRatio * target.maxHealth;
+    const multiplier = execute ? cfg.executeMult : cfg.strikeMult;
+    if (!this.triggerBonusStrike(targetState, multiplier, 'hunterPrecisionDamage')) return;
+    addMetric(state, 'hunterPrecisionCount');
+    if (targetState.targetType === 'boss' && this.hasBuild('hunter_capstone')) {
+        state.timers.hunterWindow = cfg.windowMs;
     }
-    state.timers.hunterWindow = 0;
+    if (this.hasBuild('hunter_capstone') && (state.timers.hunterClearCooldown || 0) <= 0) {
+        const { x, y } = centerOf(target);
+        this.emitBuildFeedback({
+            kind: 'hunter',
+            x,
+            y,
+            radius: cfg.clearRadius,
+            targetId: targetState.entityId,
+            damageLabel: `${multiplier}D`,
+        });
+        clearCount(this, x, y, cfg.clearRadius, 'hunterBulletClears');
+        state.timers.hunterClearCooldown = cfg.clearCooldownMs;
+    }
 };
 
-// --- 绝境反攻 desperate: low-health batches -> bonus strike ----------------
+// --- 绝境反攻 desperate -----------------------------------------------------
 
 Game.isDesperateActive = function() {
     const cfg = CONFIG.builds.desperate;
+    const maxLives = this.getMaxLives();
     return this.hasBuild('desperate_entry')
-        && this.getMaxLives() >= cfg.minimumMaxLives
-        && this.lives <= this.getMaxLives() * cfg.maxLifeRatio;
+        && maxLives >= 3
+        && this.lives <= Math.floor(maxLives / 3);
 };
 
 Game.desperateOnBatch = function(batch) {
-    if (!this.hasBuild('desperate_entry')) return;
+    if (!this.hasBuild('desperate_entry') || !this.isDesperateActive()) return;
     const state = this.buildState;
-    if (!this.isDesperateActive()) {
-        state.counters.desperateHits = 0;
-        return;
-    }
-
+    const runtime = runtimeFor(state);
+    const shotId = batch.shotId ?? batch.events[0]?.shotId;
+    if (runtime.desperateSeenShots.has(shotId)) return;
+    runtime.desperateSeenShots.add(shotId);
     state.counters.desperateHits = (state.counters.desperateHits || 0) + 1;
     if (state.counters.desperateHits < CONFIG.builds.desperate.hits) return;
     state.counters.desperateHits = 0;
 
-    const hit = batch.events.find((event) => {
-        return event.targetType === 'boss'
-            ? this.boss && this.boss.entityId === event.entityId
-            : this.isActiveEntity('enemies', event.entityId);
-    });
+    const hit = batch.events.find((event) => this.resolveBuildTarget(event.targetType, event.entityId));
     if (!hit) return;
-
-    const target = this.resolveLiveTarget(hit.targetType, hit.entityId);
+    const target = this.resolveBuildTarget(hit.targetType, hit.entityId);
     if (!target) return;
     const cfg = CONFIG.builds.desperate;
-    const execute = this.hasBuild('desperate_execute')
-        && target.health <= cfg.executeHealthRatio * target.maxHealth;
+    const execute = this.hasBuild('desperate_execute') && target.health <= cfg.executeHealthRatio * target.maxHealth;
     const multiplier = execute ? cfg.executeMult : cfg.strikeMult;
-    if (!this.triggerBonusStrike({ targetType: hit.targetType, entityId: hit.entityId }, multiplier, 'desperateStrikeDamage')) {
-        return;
-    }
-
-    if (this.hasBuild('desperate_strike') && (state.timers.desperateClearCooldown || 0) <= 0) {
-        const x = this.player.x + this.player.width / 2;
-        const y = this.player.y + this.player.height / 2;
-        this.clearEnemyBulletsInRadius(x, y, cfg.clearRadius);
-        state.timers.desperateClearCooldown = cfg.clearCooldownMs;
+    if (!this.triggerBonusStrike(hit, multiplier, 'desperateStrikeDamage')) return;
+    addMetric(state, 'desperateStrikeCount');
+    if (this.hasBuild('desperate_clear')) {
+        const { x, y } = centerOf(target);
+        this.emitBuildFeedback({ kind: 'desperate', x, y, radius: cfg.clearRadius });
+        clearCount(this, x, y, cfg.clearRadius, 'desperateBulletClears');
     }
 };
 
-// 最后储备 counts only direct ordinary-enemy deaths while the low-health
-// condition and healing rules are currently valid. Blocked or spent healing
-// never leaves a banked counter behind.
-Game.desperateOnKill = function(killEvent) {
-    if (killEvent.source !== 'direct' || !this.hasBuild('desperate_capstone')) return;
+Game.desperateOnKill = function(killEvent = {}) {
+    if (killEvent.source !== 'direct' || killEvent.targetType === 'boss' || !this.hasBuild('desperate_capstone')) return;
+    if (!this.isDesperateActive() || this.buildState.locks.desperateCycleHeal) return;
     const state = this.buildState;
-    if (!this.isDesperateActive() || !this.canHeal() || state.locks.desperateCycleHeal) {
+    const cfg = CONFIG.builds.desperate;
+    state.counters.desperateKills = Math.min(
+        cfg.killsForHeal,
+        (state.counters.desperateKills || 0) + 1,
+    );
+    if (state.counters.desperateKills < cfg.killsForHeal) return;
+    if (typeof this.canHeal === 'function' && !this.canHeal()) return;
+    const before = this.lives;
+    const gained = typeof this.applyLifeGain === 'function' ? this.applyLifeGain(1) : 0;
+    if (gained > 0 || this.lives > before) {
         state.counters.desperateKills = 0;
-        return;
+        state.locks.desperateCycleHeal = true;
+        addMetric(state, 'effectiveHealing', this.lives - before);
     }
-
-    state.counters.desperateKills = (state.counters.desperateKills || 0) + 1;
-    if (state.counters.desperateKills < CONFIG.builds.desperate.killsForHeal) return;
-    state.counters.desperateKills = 0;
-
-    const livesBefore = this.lives;
-    this.applyLifeGain(1);
-    if (this.lives > livesBefore) state.locks.desperateCycleHeal = true;
 };
 
-// --- Per-tick build timers (called from Game.update) ------------------------
+// --- Per-tick route timers --------------------------------------------------
 
-Game.updateBuildEffects = function(deltaTime) {
+Game.updateBuildEffects = function(deltaTime = 0) {
     if (!this.buildState) return;
     const state = this.buildState;
     const cfg = CONFIG.builds;
+    const dt = Math.max(0, Number(deltaTime) || 0);
+    const runtime = runtimeFor(state);
+    syncBossCycle(this);
 
-    // Rapid heat-up runs down; a natural end keeps 4 progress with 快速复燃.
     if ((state.timers.rapidWarmup || 0) > 0) {
-        state.timers.rapidWarmup -= deltaTime;
-        if (state.timers.rapidWarmup <= 0) {
-            state.timers.rapidWarmup = 0;
+        state.timers.rapidWarmup = Math.max(0, state.timers.rapidWarmup - dt);
+        if (state.timers.rapidWarmup === 0) {
             state.counters.rapidHeatupShots = 0;
+            state.counters.rapidBossHits = 0;
             state.counters.rapidExtendedMs = 0;
-            state.counters.rapidHits = this.hasBuild('rapid_reignite')
-                ? cfg.rapid.retainedHits : 0;
+            state.counters.rapidHits = this.hasBuild('rapid_reignite') ? cfg.rapid.retainedHits : 0;
         }
-    } else if (this.hasBuild('rapid_entry')) {
-        // 1.5s without a landed shot decays the accumulated progress.
-        const lastHit = state.counters.rapidLastHit || 0;
-        if ((state.counters.rapidHits || 0) > 0
-            && lastHit > 0 && this.gameTime - lastHit >= cfg.rapid.decayMs) {
-            state.counters.rapidHits = 0;
-        }
+    } else if (this.hasBuild('rapid_entry') && (state.counters.rapidHits || 0) > 0) {
+        runtime.rapidIdleMs += dt;
+        if (runtime.rapidIdleMs >= cfg.rapid.decayMs) state.counters.rapidHits = 0;
     }
 
-    // Hunter lock and window time out in simulation time.
-    if (this.hasBuild('hunter_entry') && state.locks.hunterTargetId != null) {
-        const lastHit = state.counters.hunterLastHit || 0;
-        const timeout = this.hasBuild('hunter_stable')
-            ? cfg.hunter.stableResetMs : cfg.hunter.resetMs;
-        if (this.gameTime - lastHit >= timeout) {
+    if ((state.timers.hunterWindow || 0) > 0) state.timers.hunterWindow = Math.max(0, state.timers.hunterWindow - dt);
+    if ((state.timers.hunterClearCooldown || 0) > 0) state.timers.hunterClearCooldown = Math.max(0, state.timers.hunterClearCooldown - dt);
+    if ((state.timers.fortressClearCooldown || 0) > 0) state.timers.fortressClearCooldown = Math.max(0, state.timers.fortressClearCooldown - dt);
+    state.timers.desperateClearCooldown = 0;
+    state.timers.chainShockCooldown = 0;
+
+    if (this.hasBuild('hunter_entry')) {
+        for (const [id, target] of runtime.hunterTargets) {
+            target.idleMs += dt;
+            const timeout = this.hasBuild('hunter_lock') ? cfg.hunter.lockMemoryMs : cfg.hunter.resetMs;
+            if (target.idleMs >= timeout) runtime.hunterTargets.delete(id);
+        }
+        const currentHunterTarget = [...runtime.hunterTargets.values()]
+            .some((target) => target.entityId === state.locks.hunterTargetId);
+        if (!currentHunterTarget) {
             state.locks.hunterTargetId = null;
             state.locks.hunterHits = 0;
         }
     }
-    if ((state.timers.hunterWindow || 0) > 0) {
-        state.timers.hunterWindow -= deltaTime;
-        if (state.timers.hunterWindow < 0) state.timers.hunterWindow = 0;
-    }
-    if ((state.timers.chainShockCooldown || 0) > 0) {
-        state.timers.chainShockCooldown -= deltaTime;
-        if (state.timers.chainShockCooldown < 0) state.timers.chainShockCooldown = 0;
-    }
-
-    if ((state.timers.fortressClearCooldown || 0) > 0) {
-        state.timers.fortressClearCooldown -= deltaTime;
-        if (state.timers.fortressClearCooldown <= 1e-6) state.timers.fortressClearCooldown = 0;
-    }
 
     if (this.hasBuild('fortress_entry')) {
         if (!state.locks.fortressBarrier) {
-            const chargeMs = this.hasBuild('fortress_regroup')
-                ? cfg.fortress.regroupChargeMs : cfg.fortress.chargeMs;
-            state.timers.fortressBarrier += deltaTime;
+            const chargeMs = this.hasBuild('fortress_regroup') ? cfg.fortress.regroupChargeMs : cfg.fortress.chargeMs;
+            state.timers.fortressBarrier += dt;
             if (state.timers.fortressBarrier >= chargeMs) {
                 state.timers.fortressBarrier = 0;
                 state.locks.fortressBarrier = true;
@@ -1042,30 +1096,126 @@ Game.updateBuildEffects = function(deltaTime) {
         state.locks.fortressBarrier = false;
     }
 
-    if (this.hasBuild('supply_entry')) {
-        if ((state.timers.supplyPulse || 0) > 0) {
-            const activePulseMs = Math.min(Math.max(deltaTime, 0), state.timers.supplyPulse);
-            const metrics = getBuildMetrics(state);
-            metrics.supplyPulseMs = numericMetric(metrics, 'supplyPulseMs') + activePulseMs;
-            state.timers.supplyPulse -= deltaTime;
-            if (state.timers.supplyPulse <= 0) state.timers.supplyPulse = 0;
-        }
-    } else {
+    if (this.hasBuild('supply_entry') && (state.timers.supplyPulse || 0) > 0) {
+        const activePulseMs = Math.min(dt, state.timers.supplyPulse);
+        state.timers.supplyPulse = Math.max(0, state.timers.supplyPulse - dt);
+        addMetric(state, 'supplyPulseMs', activePulseMs);
+    } else if (!this.hasBuild('supply_entry')) {
         state.timers.supplyPulse = 0;
         state.counters.supplyPickups = 0;
     }
-
-    if (!this.hasBuild('desperate_entry')
-        || !this.hasBuild('desperate_capstone')
-        || !this.isDesperateActive()
-        || !this.canHeal()
-        || state.locks.desperateCycleHeal) {
-        state.counters.desperateKills = 0;
-    }
-    if (this.hasBuild('desperate_entry') && !this.isDesperateActive()) {
-        state.counters.desperateHits = 0;
-    }
 };
+
+// Candidate HUD rows are read-only projections. Active countdowns use tenths
+// of seconds, counters use x/n, and cooldown rows expose disabled=true.
+Game.getBuildHudStates = function() {
+    if (!this.buildState) return [];
+    const state = this.buildState;
+    const cfg = CONFIG.builds;
+    const associated = new Set(associatedLines[this.activeCard] || []);
+    const candidates = [];
+    const addRow = (row, active = false, near = false, cooldown = false) => candidates.push({ row: { ...row, active, cooldown, disabled: cooldown }, active, near, associated: associated.has(row.line) });
+    if (this.hasBuild('rapid_entry')) {
+        const warmup = state.timers.rapidWarmup || 0;
+        addRow({ key: 'rapid', line: 'rapid', label: '热机', value: warmup > 0 ? `${(warmup / 1000).toFixed(1)}s/6.0s` : `${state.counters.rapidHits || 0}/${cfg.rapid.hits}` }, warmup > 0, warmup > 0 || (state.counters.rapidHits || 0) > 0);
+    }
+    if (this.hasBuild('fortress_entry')) {
+        const chargeMs = this.hasBuild('fortress_regroup') ? cfg.fortress.regroupChargeMs : cfg.fortress.chargeMs;
+        const barrier = Boolean(state.locks.fortressBarrier);
+        const cooldown = this.hasBuild('fortress_capstone') && (state.timers.fortressClearCooldown || 0) > 0;
+        addRow({ key: 'fortress', line: 'fortress', label: '屏障', value: barrier ? '就绪' : `${((state.timers.fortressBarrier || 0) / 1000).toFixed(1)}s/${(chargeMs / 1000).toFixed(1)}s` }, barrier, !barrier && (state.timers.fortressBarrier || 0) > 0, cooldown);
+    }
+    if (this.hasBuild('desperate_entry')) {
+        const active = this.isDesperateActive();
+        const reserve = this.hasBuild('desperate_capstone') ? ` · ${state.counters.desperateKills || 0}/${cfg.desperate.killsForHeal}` : '';
+        addRow({ key: 'desperate', line: 'desperate', label: '背水', value: `${state.counters.desperateHits || 0}/${cfg.desperate.hits}${reserve}` }, active, active || (state.counters.desperateHits || 0) > 0);
+    }
+    if (this.hasBuild('chain_entry')) {
+        const cooldown = state.timers.chainShockCooldown || 0;
+        addRow({ key: 'chain', line: 'chain', label: '连锁', value: `${runtimeFor(state).lastChainKills || 0}/${cfg.chain.capstoneKills}` }, false, Boolean(runtimeFor(state).lastChainKills), cooldown > 0);
+    }
+    if (this.hasBuild('hunter_entry')) {
+        const window = state.timers.hunterWindow || 0;
+        const cooldown = this.hasBuild('hunter_capstone') && (state.timers.hunterClearCooldown || 0) > 0;
+        addRow({ key: window > 0 ? 'hunterWindow' : 'hunter', line: 'hunter', label: window > 0 ? '猎王窗口' : '猎王', value: window > 0 ? `${(window / 1000).toFixed(1)}s/2.0s` : `${state.locks.hunterHits || 0}/${cfg.hunter.hits}` }, window > 0, window > 0 || (state.locks.hunterHits || 0) > 0, cooldown);
+    }
+    if (this.hasBuild('supply_entry')) {
+        const pulse = state.timers.supplyPulse || 0;
+        addRow({ key: 'supply', line: 'supply', label: pulse > 0 ? '补给脉冲' : '物资', value: pulse > 0 ? `${(pulse / 1000).toFixed(1)}s/8.0s` : `${state.counters.supplyPickups || 0}/${cfg.supply.pickups}` }, pulse > 0, pulse > 0 || (state.counters.supplyPickups || 0) > 0);
+    }
+    return candidates.sort((a, b) => {
+        const statusA = a.active ? 2 : a.near ? 1 : 0;
+        const statusB = b.active ? 2 : b.near ? 1 : 0;
+        if (statusA !== statusB) return statusB - statusA;
+        if (a.associated !== b.associated) return a.associated ? -1 : 1;
+        return routeOrder.indexOf(a.row.line) - routeOrder.indexOf(b.row.line);
+    }).slice(0, 2).map(({ row }) => row);
+};
+
+Game.renderRunSummary = function() {
+    const state = this.buildState || { owned: [], metrics: {} };
+    const rawMetrics = state.metrics || {};
+    const elapsedMs = Math.max(0, Number(this.gameTime) || 0);
+    const supplyPulseMs = numericMetric(rawMetrics, 'supplyPulseMs');
+    const supplyPulseCoverage = elapsedMs > 0 ? Math.min(1, supplyPulseMs / elapsedMs) : 0;
+    const metrics = {
+        ...rawMetrics,
+        fortressBlocks: numericMetric(rawMetrics, 'fortressBlocks'),
+        chainKills: numericMetric(rawMetrics, 'chainKills'),
+        hunterPrecisionDamage: numericMetric(rawMetrics, 'hunterPrecisionDamage'),
+        hunterWindowDamage: numericMetric(rawMetrics, 'hunterWindowDamage'),
+        desperateStrikeDamage: numericMetric(rawMetrics, 'desperateStrikeDamage'),
+        bonusDamage: numericMetric(rawMetrics, 'bonusDamage'),
+        bulletClears: ['fortressBulletClears', 'desperateBulletClears', 'chainBulletClears', 'hunterBulletClears'].reduce((sum, key) => sum + numericMetric(rawMetrics, key), 0),
+        effectiveHealing: numericMetric(rawMetrics, 'effectiveHealing'),
+        supplyNaturalPickups: numericMetric(rawMetrics, 'supplyNaturalPickups'),
+        supplyMagnetPickups: numericMetric(rawMetrics, 'supplyMagnetPickups'),
+        supplyPulseCount: numericMetric(rawMetrics, 'supplyPulseCount'),
+        supplyPulseMs,
+        supplyPulseCoverage,
+    };
+    const cardHistory = (Array.isArray(this.cardHistory) ? this.cardHistory : []).map((entry) => ({ ...entry, name: entry.name || this.CARDS?.[entry.cardId]?.name || entry.cardId || '未知卡片' }));
+    const buildsOwned = (Array.isArray(state.owned) ? state.owned : []).map((id) => this.BUILDS[id]).filter(Boolean).map((build) => ({ id: build.id, line: build.line, stage: build.stage, name: build.name, summary: build.summary }));
+    const contributions = { ...metrics };
+    const summary = {
+        score: Number(this.score) || 0,
+        crowns: Number(this.crowns) || 0,
+        elapsedMs,
+        activeCard: this.activeCard ? { id: this.activeCard, name: this.CARDS?.[this.activeCard]?.name || this.activeCard } : null,
+        cardHistory,
+        cards: cardHistory,
+        builds: buildsOwned,
+        ownedBuilds: buildsOwned,
+        metrics,
+        contributions,
+    };
+    this.runSummary = summary;
+    if (typeof document !== 'undefined') {
+        const body = document.getElementById('runSummaryBody');
+        if (body) {
+            const cardRows = cardHistory.length > 0
+                ? cardHistory.map((entry) => `<div class="summaryRow"><span class="summaryLabel">第${escapeSummaryText(entry.rewardIndex + 1)}轮核心卡</span><span class="summaryValue">${escapeSummaryText(entry.name)}${entry.kept ? ' · 保留' : ' · 更换'}</span></div>`).join('')
+                : '<div class="summaryRow"><span class="summaryLabel">核心卡轨迹</span><span class="summaryValue">无</span></div>';
+            const buildRows = buildsOwned.length > 0
+                ? buildsOwned.map((build) => `<div class="summaryRow"><span class="summaryLabel">${escapeSummaryText(LINE_NAMES[build.line])}</span><span class="summaryValue">${escapeSummaryText(build.name)}</span></div>`).join('')
+                : '<div class="summaryRow"><span class="summaryLabel">本局强化</span><span class="summaryValue">无</span></div>';
+            body.innerHTML = cardRows + buildRows
+                + `<div class="summarySectionTitle">强化贡献</div>`
+                + `<div class="summaryRow"><span class="summaryLabel">屏障阻挡</span><span class="summaryValue">${metrics.fortressBlocks}</span></div>`
+                + `<div class="summaryRow"><span class="summaryLabel">额外伤害</span><span class="summaryValue">${metrics.bonusDamage.toFixed(1)}</span></div>`
+                + `<div class="summaryRow"><span class="summaryLabel">清弹数</span><span class="summaryValue">${metrics.bulletClears}</span></div>`
+                + `<div class="summaryRow"><span class="summaryLabel">有效回血</span><span class="summaryValue">${metrics.effectiveHealing}</span></div>`
+                + `<div class="summaryRow"><span class="summaryLabel">自然/牵引拾取</span><span class="summaryValue">${metrics.supplyNaturalPickups}/${metrics.supplyMagnetPickups}</span></div>`
+                + `<div class="summaryRow"><span class="summaryLabel">补给覆盖率</span><span class="summaryValue">${(supplyPulseCoverage * 100).toFixed(1)}%</span></div>`;
+        }
+    }
+    return summary;
+};
+
+// Keep the v2.1 projections authoritative if the legacy panel helpers below
+// remain in this file for the existing DOM integration surface.
+const renderV21BuildHudStates = Game.getBuildHudStates;
+const renderV21RunSummary = Game.renderRunSummary;
 
 // Candidate HUD rows for the owned build routes, ordered by visibility: the
 // two most relevant rows win. Active states rank first, then near-trigger
@@ -1259,5 +1409,8 @@ Game.renderRunSummary = function() {
     }
     return summary;
 };
+
+Game.getBuildHudStates = renderV21BuildHudStates;
+Game.renderRunSummary = renderV21RunSummary;
 
 Game.resetBuildState();
