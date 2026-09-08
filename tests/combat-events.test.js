@@ -772,3 +772,188 @@ test('chain capstone: the 3rd chain kill clears 60px of bullets once per chain w
     Game.updateBuildEffects(5000);
     assert.equal(Game.buildState.timers.chainShockCooldown, 0);
 });
+
+// --- Task 8: fortress barrier + desperate counterattack --------------------
+
+test('fortress: time shield has priority and does not consume the barrier', () => {
+    resetCombat();
+    Game.resetBuildState();
+    applyBuild('fortress_entry');
+    Game.buildState.locks.fortressBarrier = true;
+    Game.player.shieldTime = 2;
+    const bullet = makeEnemyBullet(10, 10);
+
+    Game.resolveEnemyBulletHit(bullet);
+
+    assert.equal(Game.lives, 3);
+    assert.equal(Game.player.shieldTime, 2);
+    assert.equal(Game.buildState.locks.fortressBarrier, true);
+});
+
+test('fortress: barrier blocks only enemy bullets and collision damage still triggers thorns', () => {
+    resetCombat();
+    Game.resetBuildState();
+    applyBuild('fortress_entry');
+    Game.activeCard = 'thorns';
+    Game.buildState.locks.fortressBarrier = true;
+    const enemy = makeEnemy(1, 0, 0);
+
+    Game.applyPlayerHit(1, 'enemyCollision');
+
+    assert.equal(Game.lives, 2);
+    assert.equal(Game.buildState.locks.fortressBarrier, true);
+    assert.equal(Game.objectPools.enemies.active.includes(enemy), false);
+});
+
+test('fortress: boost enemy bullets deal two damage, grant the original five-second shield, and gate later hits', () => {
+    resetCombat();
+    Game.resetBuildState();
+    applyBuild('fortress_entry');
+    Game.activeCard = 'boost';
+    const first = makeEnemyBullet(10, 10);
+    const second = makeEnemyBullet(10, 10);
+
+    Game.resolveEnemyBulletHit(first);
+    Game.resolveEnemyBulletHit(second);
+
+    assert.equal(Game.lives, 1);
+    assert.equal(Game.player.shieldTime, 5);
+    assert.equal(Game.buildState.locks.fortressBarrier, false);
+});
+
+test('fortress: barrier consumption echoes on ordinary enemies and clears bullets without touching the boss', () => {
+    resetCombat();
+    Game.resetBuildState();
+    applyBuild('fortress_entry', 'fortress_echo', 'fortress_capstone');
+    Game.buildState.locks.fortressBarrier = true;
+    const enemy = makeEnemy(1, 0, 0);
+    const near = makeEnemyBullet(50, 15);
+    const far = makeEnemyBullet(200, 200);
+    Game.boss = { entityId: 7001, health: 10, maxHealth: 10, x: 0, y: 0, width: 30, height: 30 };
+
+    Game.resolveEnemyBulletHit(makeEnemyBullet(10, 10));
+
+    assert.equal(Game.lives, 3);
+    assert.equal(Game.objectPools.enemies.active.includes(enemy), false);
+    assert.equal(Game.boss.health, 10);
+    assert.equal(Game.objectPools.enemyBullets.active.includes(near), false);
+    assert.equal(Game.objectPools.enemyBullets.active.includes(far), true);
+    assert.equal(Game.buildState.timers.fortressClearCooldown, 10000);
+});
+
+test('fortress: no-damage time charges one barrier, regroup shortens it, and damage resets the charge', () => {
+    resetCombat();
+    Game.resetBuildState();
+    applyBuild('fortress_entry', 'fortress_regroup');
+
+    Game.updateBuildEffects(11999);
+    assert.equal(Game.buildState.locks.fortressBarrier, false);
+    Game.updateBuildEffects(1);
+    assert.equal(Game.buildState.locks.fortressBarrier, true);
+    assert.equal(Game.buildState.timers.fortressBarrier, 0);
+
+    Game.buildState.locks.fortressBarrier = false;
+    Game.updateBuildEffects(12000);
+    assert.equal(Game.buildState.locks.fortressBarrier, true);
+    Game.applyPlayerHit(1, 'enemyBullet');
+    assert.equal(Game.buildState.timers.fortressBarrier, 0);
+});
+
+test('desperate: glass never activates low-health progress', () => {
+    resetCombat();
+    Game.resetBuildState();
+    applyBuild('desperate_entry');
+    const enemy = makeEnemy(100, 0, 0);
+
+    Game.activeCard = 'comeback';
+    Game.lives = 1;
+    for (let shotId = 1; shotId <= 12; shotId++) {
+        Game.onDirectShotBatch(batch(shotId, 'enemy', enemy.entityId));
+    }
+    assert.equal(enemy.health, 98);
+
+    resetCombat();
+    Game.resetBuildState();
+    applyBuild('desperate_entry');
+    Game.activeCard = 'glass';
+    Game.lives = 1;
+    const glassEnemy = makeEnemy(100, 0, 0);
+
+    for (let shotId = 1; shotId <= 12; shotId++) {
+        Game.onDirectShotBatch(batch(shotId, 'enemy', glassEnemy.entityId));
+    }
+
+    assert.equal(Game.buildState.counters.desperateHits, 0);
+    assert.equal(glassEnemy.health, 100);
+});
+
+test('desperate: twelve low-health batches trigger a bonus strike and the strike branch clears nearby bullets', () => {
+    resetCombat();
+    Game.resetBuildState();
+    applyBuild('desperate_entry', 'desperate_strike');
+    Game.activeCard = 'comeback';
+    Game.lives = 1;
+    const enemy = makeEnemy(100, 0, 0);
+    const near = makeEnemyBullet(40, 15);
+    const far = makeEnemyBullet(200, 200);
+
+    for (let shotId = 1; shotId <= 12; shotId++) {
+        Game.onDirectShotBatch(batch(shotId, 'enemy', enemy.entityId));
+    }
+
+    assert.equal(enemy.health, 98);
+    assert.equal(Game.objectPools.enemyBullets.active.includes(near), false);
+    assert.equal(Game.objectPools.enemyBullets.active.includes(far), true);
+    assert.equal(Game.buildState.timers.desperateClearCooldown, 8000);
+});
+
+test('desperate: execute branch uses three times the triggering damage on a low-health target', () => {
+    resetCombat();
+    Game.resetBuildState();
+    applyBuild('desperate_entry', 'desperate_execute');
+    Game.activeCard = 'comeback';
+    Game.lives = 1;
+    const enemy = makeEnemy(100, 0, 0);
+    enemy.health = 30;
+
+    for (let shotId = 1; shotId <= 12; shotId++) {
+        Game.onDirectShotBatch(batch(shotId, 'enemy', enemy.entityId));
+    }
+
+    assert.equal(enemy.health, 27);
+});
+
+test('desperate: capstone restores one life once per boss cycle and does not bank blocked healing', () => {
+    resetCombat();
+    Game.resetBuildState();
+    applyBuild('desperate_entry', 'desperate_strike', 'desperate_capstone');
+    Game.activeCard = 'comeback';
+    Game.lives = 1;
+
+    for (let i = 0; i < 8; i++) {
+        const enemy = makeEnemy(1, 100 + i * 40, 0);
+        enemy.health = 0;
+        Game.killEnemy(enemy, { source: 'direct', damage: 1 });
+    }
+    assert.equal(Game.lives, 2);
+    assert.equal(Game.buildState.locks.desperateCycleHeal, true);
+
+    Game.lives = 1;
+    for (let i = 0; i < 8; i++) {
+        const enemy = makeEnemy(1, 100 + i * 40, 0);
+        enemy.health = 0;
+        Game.killEnemy(enemy, { source: 'direct', damage: 1 });
+    }
+    assert.equal(Game.lives, 1);
+    assert.equal(Game.buildState.counters.desperateKills, 0);
+
+    Game.activeCard = 'blitz';
+    Game.buildState.locks.desperateCycleHeal = false;
+    for (let i = 0; i < 8; i++) {
+        const enemy = makeEnemy(1, 100 + i * 40, 0);
+        enemy.health = 0;
+        Game.killEnemy(enemy, { source: 'direct', damage: 1 });
+    }
+    assert.equal(Game.lives, 1);
+    assert.equal(Game.buildState.counters.desperateKills, 0);
+});

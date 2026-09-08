@@ -31,6 +31,24 @@ Game.render = function() {
         ctx.globalAlpha = 1.0;
     }
 
+    // 稳态屏障: a single green outline sits inside the original temporal
+    // shield ring. It is purely visual; consumption creates one short ring
+    // through the shared particle path.
+    if (this.buildState && this.buildState.locks.fortressBarrier) {
+        ctx.strokeStyle = '#7cff8a';
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.9;
+        ctx.beginPath();
+        ctx.arc(
+            this.player.x + this.player.width / 2,
+            this.player.y + this.player.height / 2,
+            Math.max(this.player.width, this.player.height) / 2 + 1,
+            0, Math.PI * 2
+        );
+        ctx.stroke();
+        ctx.globalAlpha = 1.0;
+    }
+
     this.drawPlayerSprite();
 
     const bulletPool = this.objectPools.bullets;

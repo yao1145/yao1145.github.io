@@ -523,11 +523,50 @@ Game.onDirectShotBatch = function(batch) {
     this.hunterWindowOnBatch(batch);
     this.rapidOnBatch(batch);
     this.hunterOnBatch(batch);
+    this.desperateOnBatch(batch);
 };
 
 Game.onEnemyKilled = function(killEvent) {
     this.rapidOnKill(killEvent);
     this.chainSeedFromKill(killEvent);
+    this.desperateOnKill(killEvent);
+};
+
+// One actual life loss is the only event that resets fortress charge and
+// triggers thorns. Temporal shields and fortress barriers never reach here.
+Game.onActualPlayerDamage = function(event) {
+    if (!this.buildState) return;
+    this.buildState.timers.fortressBarrier = 0;
+    if (this.activeCard === 'thorns') this.onThornsHit();
+};
+
+Game.onFortressBarrierConsumed = function() {
+    const state = this.buildState;
+    const cfg = CONFIG.builds.fortress;
+    const playerCX = this.player.x + this.player.width / 2;
+    const playerCY = this.player.y + this.player.height / 2;
+
+    if (this.hasBuild('fortress_echo')) {
+        const radiusSquared = cfg.echoRadius * cfg.echoRadius;
+        for (const enemy of this.objectPools.enemies.active.slice()) {
+            if (!enemy || enemy._dead || enemy.health <= 0) continue;
+            const enemyCX = enemy.x + enemy.width / 2;
+            const enemyCY = enemy.y + enemy.height / 2;
+            const dx = enemyCX - playerCX;
+            const dy = enemyCY - playerCY;
+            if (dx * dx + dy * dy <= radiusSquared) {
+                this.applyCombatDamage(enemy, 'enemy', cfg.echoDamage, 'retaliation');
+            }
+        }
+    }
+
+    if (this.hasBuild('fortress_capstone') && (state.timers.fortressClearCooldown || 0) <= 0) {
+        this.clearEnemyBulletsInRadius(playerCX, playerCY, cfg.clearRadius);
+        state.timers.fortressClearCooldown = cfg.clearCooldownMs;
+    }
+
+    // One short ring is the complete barrier-consumption feedback.
+    this.createShockwave(playerCX, playerCY, '#7cff8a');
 };
 
 // --- 连锁清场 chain: merged kill-explosions --------------------------------
@@ -770,6 +809,72 @@ Game.hunterWindowOnBatch = function(batch) {
     state.timers.hunterWindow = 0;
 };
 
+// --- 绝境反攻 desperate: low-health batches -> bonus strike ----------------
+
+Game.isDesperateActive = function() {
+    const cfg = CONFIG.builds.desperate;
+    return this.hasBuild('desperate_entry')
+        && this.getMaxLives() >= cfg.minimumMaxLives
+        && this.lives <= this.getMaxLives() * cfg.maxLifeRatio;
+};
+
+Game.desperateOnBatch = function(batch) {
+    if (!this.hasBuild('desperate_entry')) return;
+    const state = this.buildState;
+    if (!this.isDesperateActive()) {
+        state.counters.desperateHits = 0;
+        return;
+    }
+
+    state.counters.desperateHits = (state.counters.desperateHits || 0) + 1;
+    if (state.counters.desperateHits < CONFIG.builds.desperate.hits) return;
+    state.counters.desperateHits = 0;
+
+    const hit = batch.events.find((event) => {
+        return event.targetType === 'boss'
+            ? this.boss && this.boss.entityId === event.entityId
+            : this.isActiveEntity('enemies', event.entityId);
+    });
+    if (!hit) return;
+
+    const target = this.resolveLiveTarget(hit.targetType, hit.entityId);
+    if (!target) return;
+    const cfg = CONFIG.builds.desperate;
+    const execute = this.hasBuild('desperate_execute')
+        && target.health <= cfg.executeHealthRatio * target.maxHealth;
+    const multiplier = execute ? cfg.executeMult : cfg.strikeMult;
+    if (!this.triggerBonusStrike({ targetType: hit.targetType, entityId: hit.entityId }, multiplier, 'desperateStrikeDamage')) {
+        return;
+    }
+
+    if (this.hasBuild('desperate_strike') && (state.timers.desperateClearCooldown || 0) <= 0) {
+        const x = this.player.x + this.player.width / 2;
+        const y = this.player.y + this.player.height / 2;
+        this.clearEnemyBulletsInRadius(x, y, cfg.clearRadius);
+        state.timers.desperateClearCooldown = cfg.clearCooldownMs;
+    }
+};
+
+// 最后储备 counts only direct ordinary-enemy deaths while the low-health
+// condition and healing rules are currently valid. Blocked or spent healing
+// never leaves a banked counter behind.
+Game.desperateOnKill = function(killEvent) {
+    if (killEvent.source !== 'direct' || !this.hasBuild('desperate_capstone')) return;
+    const state = this.buildState;
+    if (!this.isDesperateActive() || !this.canHeal() || state.locks.desperateCycleHeal) {
+        state.counters.desperateKills = 0;
+        return;
+    }
+
+    state.counters.desperateKills = (state.counters.desperateKills || 0) + 1;
+    if (state.counters.desperateKills < CONFIG.builds.desperate.killsForHeal) return;
+    state.counters.desperateKills = 0;
+
+    const livesBefore = this.lives;
+    this.applyLifeGain(1);
+    if (this.lives > livesBefore) state.locks.desperateCycleHeal = true;
+};
+
 // --- Per-tick build timers (called from Game.update) ------------------------
 
 Game.updateBuildEffects = function(deltaTime) {
@@ -814,6 +919,31 @@ Game.updateBuildEffects = function(deltaTime) {
         state.timers.chainShockCooldown -= deltaTime;
         if (state.timers.chainShockCooldown < 0) state.timers.chainShockCooldown = 0;
     }
+
+    if ((state.timers.fortressClearCooldown || 0) > 0) {
+        state.timers.fortressClearCooldown -= deltaTime;
+        if (state.timers.fortressClearCooldown < 0) state.timers.fortressClearCooldown = 0;
+    }
+
+    if (this.hasBuild('fortress_entry')) {
+        if (!state.locks.fortressBarrier) {
+            const chargeMs = this.hasBuild('fortress_regroup')
+                ? cfg.fortress.regroupChargeMs : cfg.fortress.chargeMs;
+            state.timers.fortressBarrier += deltaTime;
+            if (state.timers.fortressBarrier >= chargeMs) {
+                state.timers.fortressBarrier = 0;
+                state.locks.fortressBarrier = true;
+            }
+        }
+    } else {
+        state.timers.fortressBarrier = 0;
+        state.locks.fortressBarrier = false;
+    }
+
+    if (this.hasBuild('desperate_entry') && !this.isDesperateActive()) {
+        state.counters.desperateHits = 0;
+        state.counters.desperateKills = 0;
+    }
 };
 
 // Candidate HUD rows for the owned build routes, ordered by visibility: the
@@ -841,6 +971,25 @@ Game.getBuildHudStates = function() {
         if (state.locks.hunterTargetId != null) {
             rows.push({ key: 'hunter', line: 'hunter', label: '猎王', value: `${state.locks.hunterHits}/${cfg.hunter.hits}`, active: false });
         }
+    }
+
+    if (this.hasBuild('fortress_entry')) {
+        if (state.locks.fortressBarrier) {
+            rows.push({ key: 'fortress', line: 'fortress', label: '稳态屏障', value: '就绪', active: true });
+        } else if ((state.timers.fortressBarrier || 0) > 0) {
+            const chargeMs = this.hasBuild('fortress_regroup')
+                ? cfg.fortress.regroupChargeMs : cfg.fortress.chargeMs;
+            rows.push({ key: 'fortress', line: 'fortress', label: '屏障', value: `${(state.timers.fortressBarrier / chargeMs * 100).toFixed(0)}%`, active: false });
+        }
+    }
+    if (this.hasBuild('desperate_entry') && this.isDesperateActive()) {
+        rows.push({
+            key: 'desperate',
+            line: 'desperate',
+            label: '绝境',
+            value: `${state.counters.desperateHits || 0}/${cfg.desperate.hits}`,
+            active: false,
+        });
     }
 
     const routeRank = { rapid: 0, fortress: 1, desperate: 2, chain: 3, hunter: 4, supply: 5 };

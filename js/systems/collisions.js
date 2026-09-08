@@ -96,17 +96,14 @@ Game.checkCollisions = function() {
     // per shot to the build hooks.
     this.flushDirectShotBatches();
 
-    if (this.player.shieldTime <= 0) {
-        const nearbyEnemyBullets = this.spatialGrid.getNearby(this.player);
-        for (const nearby of nearbyEnemyBullets) {
-            if (nearby.poolType === 'enemyBullets') {
-                const bullet = nearby.obj;
+    const nearbyEnemyBullets = this.spatialGrid.getNearby(this.player);
+    for (const nearby of nearbyEnemyBullets) {
+        if (nearby.poolType === 'enemyBullets') {
+            const bullet = nearby.obj;
 
-                if (this.isColliding(bullet, this.player)) {
-                    this.releaseObject('enemyBullets', bullet);
-                    this.applyPlayerHit(this.activeCard === 'boost' ? CONFIG.cards.boostHitLoss : 1);
-                    break;
-                }
+            if (this.isColliding(bullet, this.player)) {
+                this.resolveEnemyBulletHit(bullet);
+                break;
             }
         }
     }
@@ -118,14 +115,14 @@ Game.checkCollisions = function() {
 
             if (this.isColliding(this.player, enemy)) {
                 this.releaseObject('enemies', enemy);
-                this.applyPlayerHit();
+                this.applyPlayerHit(1, 'enemyCollision');
                 break;
             }
         }
     }
 
     if (this.boss && this.isColliding(this.player, this.boss)) {
-        this.applyPlayerHit();
+        this.applyPlayerHit(1, 'bossCollision');
     }
 
     const nearbyItems = this.spatialGrid.getNearby(this.player);
@@ -305,10 +302,37 @@ Game.createShockwave = function(x, y, color = '#ffd166') {
     particle.ringMax = 130;           // growth cap (avoids huge-circle cost)
 };
 
+// Enemy-bullet priority is temporal shield -> fortress barrier -> actual
+// damage. The bullet is consumed by every resolved collision, including a
+// shielded one; only actual damage opens the shared damage-event path.
+Game.resolveEnemyBulletHit = function(bullet) {
+    if (bullet) this.releaseObject('enemyBullets', bullet);
+
+    if (this.player.shieldTime > 0) return 'shield';
+
+    if (this.buildState
+        && this.hasBuild('fortress_entry')
+        && this.buildState.locks.fortressBarrier) {
+        this.buildState.locks.fortressBarrier = false;
+        this.buildState.timers.fortressBarrier = 0;
+        this.onFortressBarrierConsumed();
+        return 'barrier';
+    }
+
+    const damage = this.activeCard === 'boost' ? CONFIG.cards.boostHitLoss : 1;
+    this.applyPlayerHit(damage, 'enemyBullet');
+    return 'damage';
+};
+
 // Shared player-hit handling: lose life, center explosion, red flash, shield
-// reset, thorns counter, death check. Does not release the hit source.
-Game.applyPlayerHit = function(damage = 1) {
+// reset, unified actual-damage hook, and death check. Does not release the hit
+// source. Returning false means no life was actually lost.
+Game.applyPlayerHit = function(damage = 1, source = 'unknown') {
+    const livesBefore = this.lives;
     this.lives -= damage;
+    const actualDamage = livesBefore - this.lives;
+    if (actualDamage <= 0) return false;
+
     this.createExplosion(this.player.x + this.player.width/2, this.player.y + this.player.height/2, '#fff', 4);
 
     this.player.color = '#f00';
@@ -319,16 +343,16 @@ Game.applyPlayerHit = function(damage = 1) {
     this.player.shieldTime = 5;
     this.updateShieldUI();
 
-    // Latch lethality before thorns can grant lives.
+    // Latch lethality before any retaliation can grant lives.
     const lethal = this.lives <= 0;
 
-    // Thorns: counter-attack on every hit taken.
-    if (this.activeCard === 'thorns') this.onThornsHit();
+    this.onActualPlayerDamage({ damage: actualDamage, source, lethal });
 
     // Death latches before thorns resolve: a thorns boss-kill cannot revive the player.
     if (lethal || this.lives <= 0) {
         this.gameOver();
     }
+    return true;
 };
 
 // Unified enemy death (release + score + explosion); settles at most once per
