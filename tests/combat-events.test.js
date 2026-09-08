@@ -877,10 +877,13 @@ test('fortress: clear cooldown blocks a second clear and re-arms after fixed-ste
         Game.resolveEnemyBulletHit(makeEnemyBullet(10, 10));
         assert.equal(Game.buildState.timers.fortressClearCooldown, 10000);
 
-        const blockedClear = makeEnemyBullet(10, 10);
+        // This is the bullet that the second barrier consumption would clear
+        // if the cooldown were not blocking it.
+        const blockedCandidate = makeEnemyBullet(10, 10);
         Game.buildState.locks.fortressBarrier = true;
-        Game.resolveEnemyBulletHit(makeEnemyBullet(10, 10));
-        assert.equal(Game.objectPools.enemyBullets.active.includes(blockedClear), true);
+        const secondImpact = makeEnemyBullet(200, 200);
+        Game.resolveEnemyBulletHit(secondImpact);
+        assert.equal(Game.objectPools.enemyBullets.active.includes(blockedCandidate), true);
         assert.equal(Game.buildState.timers.fortressClearCooldown, 10000);
 
         const originalCooldown = Game.buildState.timers.fortressClearCooldown;
@@ -1018,6 +1021,36 @@ test('desperate: switching to a no-heal card clears seven-kill progress before i
     assert.equal(Game.buildState.counters.desperateKills, 0);
 
     Game.activeCard = 'comeback';
+    const eighth = makeEnemy(1, 500, 0);
+    eighth.health = 0;
+    Game.killEnemy(eighth, { source: 'direct', damage: 1 });
+    assert.equal(Game.lives, 1);
+    assert.equal(Game.buildState.counters.desperateKills, 1);
+});
+
+test('desperate: removing and re-adding the capstone cannot preserve healing progress', () => {
+    resetCombat();
+    Game.resetBuildState();
+    applyBuild(
+        'desperate_entry', 'desperate_strike', 'desperate_capstone',
+        'rapid_entry', 'fortress_entry', 'chain_entry',
+    );
+    Game.activeCard = 'comeback';
+    Game.lives = 1;
+
+    for (let i = 0; i < 7; i++) {
+        const enemy = makeEnemy(1, 100 + i * 40, 0);
+        enemy.health = 0;
+        Game.killEnemy(enemy, { source: 'direct', damage: 1 });
+    }
+    assert.equal(Game.buildState.counters.desperateKills, 7);
+    assert.ok(Game.getLegalBuildRemovals('supply_entry').includes('desperate_capstone'));
+
+    assert.equal(Game.applyBuildChoice('supply_entry', 'desperate_capstone'), true);
+    Game.updateBuildEffects(Game.fixedStepMs);
+    assert.equal(Game.buildState.counters.desperateKills, 0);
+
+    assert.equal(Game.applyBuildChoice('desperate_capstone', 'supply_entry'), true);
     const eighth = makeEnemy(1, 500, 0);
     eighth.health = 0;
     Game.killEnemy(eighth, { source: 'direct', damage: 1 });

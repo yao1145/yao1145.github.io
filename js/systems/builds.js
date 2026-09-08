@@ -941,6 +941,7 @@ Game.updateBuildEffects = function(deltaTime) {
     }
 
     if (!this.hasBuild('desperate_entry')
+        || !this.hasBuild('desperate_capstone')
         || !this.isDesperateActive()
         || !this.canHeal()
         || state.locks.desperateCycleHeal) {
