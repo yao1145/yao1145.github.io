@@ -34,6 +34,19 @@
         padding: 3px 6px;
     }
 
+    .buildHud {
+        top: 132px;
+        right: 8px;
+        width: min(174px, calc(100vw - 16px));
+        max-width: calc(100vw - 16px);
+    }
+
+    .buildHudRow {
+        min-height: 28px;
+        padding: 5px 7px;
+        font-size: 10px;
+    }
+
     /* Card indicator shrinks with the other top-right HUD indicators. */
     .cardIndicator {
         width: 20px;
@@ -43,7 +56,17 @@
 
     /* Boss reward flow panels: tighten the build cards and summary rows. */
     #buildPanel,
-    #rewardSummaryPanel {
+    #rewardSummaryPanel,
+    #cardPanel,
+    #gameStartPanel,
+    #gameOverPanel {
+        width: 94%;
+        max-height: 88vh;
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+
+    #gameOverPanel.runSummaryPanel {
         width: 94%;
     }
 
@@ -59,4 +82,38 @@
         font-size: 13px;
     }
 
+    .pauseBuildDetails {
+        margin-top: 10px;
+        padding: 8px;
+    }
+
+}
+
+@media (max-width: 360px) {
+    .buildHud {
+        top: 128px;
+        right: 6px;
+        width: min(160px, calc(100vw - 12px));
+        max-width: calc(100vw - 12px);
+    }
+
+    .stats {
+        left: 6px;
+        top: 6px;
+        padding: 5px 8px;
+        font-size: 12px;
+    }
+
+    .uiPanel {
+        padding: 10px;
+    }
+
+    .pauseBuildItem {
+        grid-template-columns: 1fr;
+        gap: 2px;
+    }
+
+    .pauseBuildMeta {
+        text-align: left;
+    }
 }

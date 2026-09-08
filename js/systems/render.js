@@ -1,5 +1,136 @@
 import { Game } from '../core/game.js';
 
+// The build HUD is intentionally DOM-only. Combat timers continue to advance
+// from the fixed-step simulation; this method only paints the latest snapshot
+// when updateUI's existing throttle permits a DOM refresh.
+Game.updateBuildHUD = function(force = false) {
+    if (typeof document === 'undefined') return;
+
+    const hud = this.buildHud || document.getElementById('buildHud');
+    if (!hud) return;
+    this.buildHud = hud;
+
+    if (this.isMenu || this.isGameOver) {
+        hud.replaceChildren();
+        hud.hidden = true;
+        return;
+    }
+
+    const states = typeof this.getBuildHudStates === 'function'
+        ? this.getBuildHudStates()
+        : [];
+    const rows = Array.isArray(states) ? states.slice(0, 2) : [];
+
+    hud.replaceChildren();
+    hud.hidden = rows.length === 0;
+    if (hud.hidden) return;
+
+    for (const state of rows) {
+        if (!state) continue;
+        const row = document.createElement('div');
+        row.className = 'buildHudRow';
+        if (state.line) row.dataset.line = state.line;
+        if (state.key) row.dataset.key = state.key;
+        if (state.active) row.classList.add('isActive');
+
+        const label = document.createElement('span');
+        label.className = 'buildHudLabel';
+        label.textContent = state.label || state.key || '强化';
+
+        const value = document.createElement('span');
+        value.className = 'buildHudValue';
+        value.textContent = state.value == null ? '' : String(state.value);
+
+        row.append(label, value);
+        hud.append(row);
+    }
+
+};
+
+const LINE_LABELS = {
+    rapid: '疾速压制',
+    fortress: '坚壁续航',
+    desperate: '绝境反攻',
+    chain: '连锁清场',
+    hunter: '破甲猎王',
+    supply: '补给运营',
+};
+
+// Pause details are read-only and deliberately guarded: card selection, boss
+// rewards, the menu, and game-over must keep the details hidden even though
+// they also leave the simulation stopped.
+Game.updatePauseBuildDetails = function() {
+    if (typeof document === 'undefined') return;
+
+    const panel = document.getElementById('pauseBuildDetails');
+    const list = document.getElementById('pauseBuildList');
+    const warning = document.getElementById('pauseBuildWarning');
+    if (!panel || !list || !warning) return;
+
+    const isPlainPause = !this.isRunning
+        && !this.isGameOver
+        && !this.isMenu
+        && !this.isCardSelectionOpen
+        && !this.rewardFlow;
+    if (!isPlainPause) {
+        panel.hidden = true;
+        list.replaceChildren();
+        warning.hidden = true;
+        warning.textContent = '';
+        return;
+    }
+
+    const owned = this.buildState && Array.isArray(this.buildState.owned)
+        ? this.buildState.owned
+        : [];
+    const builds = this.BUILDS || {};
+    list.replaceChildren();
+
+    if (owned.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'pauseBuildEmpty';
+        empty.textContent = '暂无已获得强化';
+        list.append(empty);
+    } else {
+        for (const id of owned) {
+            const build = builds[id];
+            if (!build) continue;
+
+            const item = document.createElement('div');
+            item.className = 'pauseBuildItem';
+            item.setAttribute('role', 'listitem');
+
+            const name = document.createElement('span');
+            name.className = 'pauseBuildName';
+            name.textContent = build.name;
+
+            const meta = document.createElement('span');
+            meta.className = 'pauseBuildMeta';
+            meta.textContent = LINE_LABELS[build.line] || build.line || '';
+
+            const summary = document.createElement('span');
+            summary.className = 'pauseBuildSummary';
+            summary.textContent = build.summary || '';
+
+            item.append(name, meta, summary);
+            list.append(item);
+        }
+    }
+
+    const hasDesperate = owned.some((id) => builds[id] && builds[id].line === 'desperate');
+    const glassDisablesDesperate = this.activeCard === 'glass' && hasDesperate;
+    warning.hidden = !glassDisablesDesperate;
+    warning.textContent = glassDisablesDesperate
+        ? '绝境反攻暂不生效：当前生命上限为 1'
+        : '';
+    panel.hidden = false;
+};
+
+// game.js calls this hook while entering a normal pause. Keep the descriptive
+// alias here so that the core lifecycle does not need to know presentation
+// details, while the renderer remains safe to load in headless tests.
+Game.updatePauseDetails = Game.updatePauseBuildDetails;
+
 Game.render = function() {
     const ctx = this.ctx;
     ctx.fillStyle = '#000';
@@ -358,3 +489,21 @@ Game.drawMenuEmblem = function(nowMs) {
     ctx.restore();
     ctx.globalAlpha = 1;
 };
+
+const coreGameOver = Game.gameOver;
+if (typeof coreGameOver === 'function') {
+    Game.gameOver = function() {
+        coreGameOver.call(this);
+        this.updatePauseBuildDetails();
+        this.updateBuildHUD(true);
+    };
+}
+
+const coreReturnToMainMenu = Game.returnToMainMenu;
+if (typeof coreReturnToMainMenu === 'function') {
+    Game.returnToMainMenu = function() {
+        coreReturnToMainMenu.call(this);
+        this.updatePauseBuildDetails();
+        this.updateBuildHUD(true);
+    };
+}

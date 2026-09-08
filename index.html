@@ -33,6 +33,7 @@
             <div class="attackIndicator" id="attackIndicator">攻: 0.0</div>
             <div class="cardIndicator" id="cardIndicator" style="display:none"></div>
             <div class="summonIndicator" id="summonIndicator">召唤: 0s</div>
+            <div id="buildHud" class="buildHud" aria-live="polite" aria-label="本局强化进度" hidden></div>
 
             <div id="gameStartPanel" class="uiPanel">
                 <div class="uiMeta">PKUer can fly</div>
@@ -42,6 +43,11 @@
                     <div class="statRow"><span class="statLabel">上次分数</span><span class="statValue" id="lastScoreValue">0</span></div>
                     <div class="statRow"><span class="statLabel">最高分数</span><span class="statValue" id="highScoreValue">0</span></div>
                     <div class="statRow"><span class="statLabel">总皇冠</span><span class="statValue" id="totalCrownsValue">0</span></div>
+                </div>
+                <div id="pauseBuildDetails" class="pauseBuildDetails" hidden>
+                    <div class="pauseBuildTitle">本局强化</div>
+                    <div id="pauseBuildList" class="pauseBuildList" role="list"></div>
+                    <p id="pauseBuildWarning" class="pauseBuildWarning" hidden></p>
                 </div>
                 <div class="difficultyRow" role="group" aria-label="难度选择">
                     <button id="easyModeButton" class="difficultyButton" type="button">简单模式</button>
@@ -54,12 +60,13 @@
                 <button id="introButton" class="uiButton uiButtonSecondary">游戏介绍</button>
             </div>
 
-            <div id="gameOverPanel" class="uiPanel">
+            <div id="gameOverPanel" class="uiPanel runSummaryPanel">
                 <div class="uiTitle">游戏结束</div>
                 <div class="uiText">最终得分</div>
                 <div id="finalScore" class="uiScore">0</div>
                 <div class="uiText">皇冠数量</div>
                 <div id="finalCrowns" class="uiScore">0</div>
+                <div id="runSummaryBody" class="runSummaryBody"></div>
                 <button id="restartButton" class="uiButton">返回主菜单</button>
             </div>
 

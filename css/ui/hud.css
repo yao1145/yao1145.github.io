@@ -51,3 +51,57 @@
     display: none;
     font-family: 'Courier New', monospace;
 }
+
+/* Build progress lives below the existing right-side indicators so it never
+   obscures the left-side score/life/level block. It is informational only and
+   must not intercept movement or pause controls. */
+.buildHud {
+    position: absolute;
+    top: 136px;
+    right: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: min(190px, calc(100vw - 20px));
+    max-width: calc(100vw - 20px);
+    z-index: 15;
+    pointer-events: none;
+    font-family: 'Consolas', 'Courier New', monospace;
+}
+
+.buildHudRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 28px;
+    padding: 5px 8px;
+    box-sizing: border-box;
+    background: rgba(5, 16, 24, 0.82);
+    border: 1px solid rgba(86, 227, 255, 0.42);
+    border-radius: 3px;
+    color: #9cc8d8;
+    font-size: 11px;
+    line-height: 1.2;
+    text-shadow: 0 0 6px rgba(86, 227, 255, 0.25);
+}
+
+.buildHudRow.isActive {
+    border-color: rgba(124, 255, 138, 0.78);
+    color: #d9ffe0;
+    box-shadow: 0 0 10px rgba(124, 255, 138, 0.18);
+}
+
+.buildHudLabel {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.buildHudValue {
+    flex: 0 0 auto;
+    color: #ffd166;
+    font-weight: bold;
+    white-space: nowrap;
+}

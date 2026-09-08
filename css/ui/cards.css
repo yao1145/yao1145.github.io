@@ -63,6 +63,7 @@
     /* Extra top padding reserves the corner strip for the "equipped" badge so
        the vertically-centered title never slides under it on short cards. */
     padding: 22px 12px 12px;
+    min-height: 44px;
     min-width: 0;
     background: linear-gradient(180deg, rgba(86, 227, 255, 0.09), rgba(86, 227, 255, 0.03));
     border: 1px solid rgba(86, 227, 255, 0.45);
@@ -254,6 +255,7 @@
     align-items: center;
     gap: 5px;
     padding: 14px 12px;
+    min-height: 44px;
     min-width: 0;
     background: linear-gradient(180deg, rgba(86, 227, 255, 0.09), rgba(86, 227, 255, 0.03));
     border: 1px solid rgba(86, 227, 255, 0.45);
@@ -375,9 +377,78 @@
     text-align: right;
 }
 
+/* The game-over summary is populated by the run-summary renderer. Keep its
+   sections flexible on desktop, then collapse to one readable column on a
+   phone without imposing assumptions on the summary's data model. */
+.runSummaryBody {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    width: 100%;
+    margin: 14px 0;
+    text-align: left;
+}
+
+.runSummaryBody > * {
+    min-width: 0;
+}
+
+.runSummaryBody .summarySection,
+.runSummaryBody .runSummarySection {
+    min-width: 0;
+    padding: 10px;
+    background: rgba(8, 18, 28, 0.6);
+    border: 1px solid rgba(86, 227, 255, 0.28);
+    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+
+.runSummaryBody .summaryRow,
+.runSummaryBody .runSummaryRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(86, 227, 255, 0.16);
+}
+
+.runSummaryBody .summaryRow:last-child,
+.runSummaryBody .runSummaryRow:last-child {
+    border-bottom: 0;
+}
+
+.runSummaryBody .summarySectionTitle {
+    grid-column: 1 / -1;
+    padding: 4px 0 0;
+    color: #bdf3ff;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 0.16em;
+}
+
+.runSummaryBody .summaryLabel,
+.runSummaryBody .runSummaryLabel {
+    color: #6e93a6;
+    font-size: 11px;
+}
+
+.runSummaryBody .summaryValue,
+.runSummaryBody .runSummaryValue {
+    color: #ffd166;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 12px;
+    font-weight: bold;
+    text-align: right;
+}
+
 @media (max-width: 520px) {
     .buildOptions {
         gap: 8px;
+    }
+
+    .cardGrid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .buildOption {
@@ -389,5 +460,25 @@
         flex-direction: column;
         align-items: flex-start;
         gap: 2px;
+    }
+
+    .rewardSummaryBody .summaryValue {
+        text-align: left;
+    }
+
+    .runSummaryBody {
+        grid-template-columns: 1fr;
+    }
+
+    .runSummaryBody .summaryRow,
+    .runSummaryBody .runSummaryRow {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+    }
+
+    .runSummaryBody .summaryValue,
+    .runSummaryBody .runSummaryValue {
+        text-align: left;
     }
 }

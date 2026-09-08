@@ -9,9 +9,13 @@
     transform: translate(-50%, -50%);
     width: 80%;
     max-width: 320px;
+    max-height: 88vh;
     padding: 22px 18px 20px;
     text-align: center;
     pointer-events: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     z-index: 25;
 
     /* Frosted HUD glass with a faint scanline texture. */
@@ -43,6 +47,78 @@
 
 #gameOverPanel {
     display: none;
+}
+
+#gameOverPanel.runSummaryPanel {
+    width: min(92%, 720px);
+    max-width: 720px;
+}
+
+.pauseBuildDetails {
+    margin: 12px 0 14px;
+    padding: 10px;
+    text-align: left;
+    background: rgba(8, 18, 28, 0.62);
+    border: 1px solid rgba(86, 227, 255, 0.28);
+    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+
+.pauseBuildTitle {
+    margin-bottom: 8px;
+    color: #bdf3ff;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 0.16em;
+}
+
+.pauseBuildList {
+    display: grid;
+    gap: 6px;
+}
+
+.pauseBuildItem {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 2px 8px;
+    padding: 7px 8px;
+    background: rgba(5, 16, 24, 0.72);
+    border-left: 2px solid rgba(86, 227, 255, 0.72);
+}
+
+.pauseBuildName {
+    color: #eaffff;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+.pauseBuildMeta {
+    color: #ffd166;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 10px;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.pauseBuildSummary {
+    grid-column: 1 / -1;
+    color: rgba(168, 200, 216, 0.85);
+    font-size: 11px;
+    line-height: 1.45;
+}
+
+.pauseBuildEmpty {
+    color: #6e93a6;
+    font-size: 12px;
+}
+
+.pauseBuildWarning {
+    margin-top: 8px;
+    color: #ffd166;
+    font-size: 11px;
+    line-height: 1.45;
+    text-align: left;
+    text-shadow: 0 0 8px rgba(255, 190, 80, 0.45);
 }
 
 .uiMeta {
@@ -99,6 +175,7 @@
     border: 1px solid rgba(86, 227, 255, 0.55);
     border-radius: 2px;
     padding: 11px 20px;
+    min-height: 44px;
     font-size: 16px;
     font-weight: bold;
     letter-spacing: 0.2em;
@@ -148,6 +225,7 @@
     border: 1px solid rgba(86, 227, 255, 0.28);
     border-radius: 2px;
     padding: 9px 0;
+    min-height: 44px;
     font-size: 14px;
     font-weight: bold;
     letter-spacing: 0.15em;
