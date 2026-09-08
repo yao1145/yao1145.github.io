@@ -73,6 +73,25 @@ test('natural item spawns carry the natural spawn source', () => {
     assert.equal(Game.objectPools.items.active[0].spawnSource, 'natural');
 });
 
+test('supply pulse doubles item probability while pulse is active and keeps a deterministic RNG hook', () => {
+    resetItems();
+    Game.itemSpawnRate = 0.001;
+    Game.buildState.owned = ['supply_entry'];
+    const random = Math.random;
+    Math.random = () => 0.0015;
+    try {
+        Game.buildState.timers.supplyPulse = 0;
+        Game.spawnItems(() => 0.0015);
+        assert.equal(Game.objectPools.items.active.length, 0);
+
+        Game.buildState.timers.supplyPulse = 1;
+        Game.spawnItems(() => 0.0015);
+        assert.equal(Game.objectPools.items.active.length, 1);
+    } finally {
+        Math.random = random;
+    }
+});
+
 test('supply magnet also moves a non-natural collectible item', () => {
     resetItems();
     Game.buildState.owned = ['supply_entry', 'supply_magnet'];
@@ -192,6 +211,20 @@ test('supply magnet moves nearby items by one fixed step without collecting them
     assert.equal(Game.objectPools.enemyBullets.active.includes(enemyBullet), true);
 });
 
+test('supply magnet reaches 150px but does not pull from beyond that radius', () => {
+    resetItems();
+    Game.buildState.owned = ['supply_entry', 'supply_magnet'];
+    const near = makeItem(1, { x: Game.player.x + 150, y: Game.player.y });
+    const far = makeItem(1, { x: Game.player.x + 160, y: Game.player.y });
+    const nearBefore = near.x;
+    const farBefore = far.x;
+
+    Game.updateItems(Game.fixedStepMs);
+
+    assert.ok(near.x < nearBefore);
+    assert.equal(far.x, farBefore);
+});
+
 test('supply pulse countdown advances by the fixed simulation step', () => {
     resetItems();
     Game.buildState.owned = ['supply_entry'];
@@ -202,7 +235,7 @@ test('supply pulse countdown advances by the fixed simulation step', () => {
     assert.ok(Math.abs(Game.buildState.timers.supplyPulse - (CONFIG.builds.supply.pulseMs - Game.fixedStepMs)) < 1e-9);
 });
 
-test('supply bonus is assigned only to the designated primary bullet and feeds final damage', () => {
+test('supply pulse assigns +1 damage once to every bullet in the shot', () => {
     resetItems();
     Game.buildState.owned = ['supply_entry'];
     Game.buildState.timers.supplyPulse = CONFIG.builds.supply.pulseMs;
@@ -212,9 +245,20 @@ test('supply bonus is assigned only to the designated primary bullet and feeds f
 
     const bullets = Game.objectPools.bullets.active;
     assert.equal(bullets.filter((bullet) => bullet.isPrimary).length, 1);
-    assert.equal(bullets.find((bullet) => bullet.isPrimary).buildDamageBonus, CONFIG.builds.supply.primaryDamageBonus);
-    assert.ok(bullets.filter((bullet) => !bullet.isPrimary).every((bullet) => bullet.buildDamageBonus === 0));
-    assert.equal(Game.getDirectShotDamage('enemy', bullets.find((bullet) => bullet.isPrimary)), 1.5);
+    assert.ok(bullets.every((bullet) => bullet.buildDamageBonus === CONFIG.builds.supply.damageBonus));
+    assert.ok(bullets.every((bullet) => Game.getDirectShotDamage('enemy', bullet) === 2));
+});
+
+test('a single bullet consumes the supply damage bonus at most once', () => {
+    resetItems();
+    Game.buildState.owned = ['supply_entry'];
+    Game.buildState.timers.supplyPulse = CONFIG.builds.supply.pulseMs;
+    Game.baseBulletCount = 1;
+    Game.spawnBullet();
+
+    const bullet = Game.objectPools.bullets.active[0];
+    assert.equal(Game.getDirectShotDamage('enemy', bullet), 2);
+    assert.equal(Game.getDirectShotDamage('enemy', bullet), 1);
 });
 
 test('item collection broadcasts exactly one event after applying and releasing the item', () => {
@@ -286,6 +330,6 @@ test('the primary supply damage bonus feeds a later bonus strike', () => {
         });
     }
 
-    assert.equal(directDamage, 1.5);
-    assert.equal(enemy.health, 97);
+    assert.equal(directDamage, 2);
+    assert.equal(enemy.health, 96);
 });

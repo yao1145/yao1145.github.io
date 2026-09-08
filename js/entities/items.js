@@ -1,8 +1,8 @@
 import { Game } from '../core/game.js';
 import { CONFIG } from '../core/config.js';
 
-Game.spawnItems = function() {
-    if (Math.random() < this.getItemSpawnRate()) {
+Game.spawnItems = function(rng = Math.random) {
+    if (rng() < this.getItemSpawnRate()) {
         const type = Math.floor(Math.random() * 3);
         let color, width, height, speed;
 

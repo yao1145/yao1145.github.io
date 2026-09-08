@@ -59,9 +59,9 @@ test('build catalog contains four stages for each route with exact tuning', () =
         rapid: { hits: 12, decayMs: 1500, activeMs: 3000, retainedHits: 4, basePierce: 1, widePierce: 2, killExtensionMs: 300, maxExtensionMs: 1500 },
         fortress: { chargeMs: 15000, regroupChargeMs: 12000, echoRadius: 70, echoDamage: 1, clearRadius: 70, clearCooldownMs: 10000 },
         desperate: { maxLifeRatio: 1 / 3, minimumMaxLives: 3, hits: 12, strikeMult: 2, executeMult: 3, executeHealthRatio: 0.3, clearRadius: 45, clearCooldownMs: 8000, killsForHeal: 8 },
-        chain: { seedRadius: 45, wideBonusRadius: 15, seedDamageMult: 0.5, bossDamageMult: 0.5, buildMaxDepth: 2, buildMaxExplosions: 12, shockKills: 3, shockRadius: 60, shockCooldownMs: 5000 },
+        chain: { seedRadius: 200, wideBonusRadius: 50, seedDamageMult: 0.5, bossDamageMult: 0.5, buildMaxDepth: 3, cardMaxDepth: 2, buildMaxExplosions: 12, shockKills: 3, shockRadius: 100, shockCooldownMs: 5000 },
         hunter: { hits: 10, resetMs: 1200, stableResetMs: 2000, strikeMult: 2, executeMult: 3, executeHealthRatio: 0.3, windowMs: 2000, windowMult: 2 },
-        supply: { pickups: 3, pulseMs: 4000, extendedPulseMs: 6000, durationCapMs: 8000, primaryDamageBonus: 0.5, magnetRadius: 70, magnetSpeed: 0.75, fullHealthHeartProgress: 2 },
+        supply: { pickups: 3, pulseMs: 4000, extendedPulseMs: 6000, durationCapMs: 8000, damageBonus: 1, pulseItemMult: 2, magnetRadius: 150, magnetSpeed: 0.75, fullHealthHeartProgress: 2 },
     });
 });
 

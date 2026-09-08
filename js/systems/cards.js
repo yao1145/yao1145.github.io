@@ -316,7 +316,10 @@ Game.roundCombatDamage = function(d) {
 // multiplier hooks.
 Game.getDirectShotDamage = function(targetType, bullet) {
     let d = this.getDamageFor(targetType);
-    if (bullet && bullet.buildDamageBonus) d += bullet.buildDamageBonus;
+    if (bullet && bullet.buildDamageBonus) {
+        d += bullet.buildDamageBonus;
+        bullet.buildDamageBonus = 0;
+    }
     return this.roundCombatDamage(d);
 };
 
@@ -360,7 +363,13 @@ Game.getEnemyShotRate = function() {
 };
 
 Game.getItemSpawnRate = function() {
-    return this.itemSpawnRate * (this.activeCard === 'supply' ? CONFIG.cards.supplyItemMult : 1);
+    let rate = this.itemSpawnRate * (this.activeCard === 'supply' ? CONFIG.cards.supplyItemMult : 1);
+    if (typeof this.hasBuild === 'function'
+        && this.hasBuild('supply_entry')
+        && (this.buildState?.timers?.supplyPulse || 0) > 0) {
+        rate *= CONFIG.builds.supply.pulseItemMult;
+    }
+    return rate;
 };
 
 Game.getBossShotDelay = function() {

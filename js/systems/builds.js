@@ -37,7 +37,7 @@ const ROUTES = [
         cards: ['chain'],
         builds: [
             ['chain_entry', 'entry', '爆破种子', '直接射击击杀普通敌人产生小型爆炸', []],
-            ['chain_wide', 'branch', '广域爆破', '合并后的爆炸半径增加15像素', ['chain_entry']],
+            ['chain_wide', 'branch', '广域爆破', '合并后的爆炸半径增加50像素', ['chain_entry']],
             ['chain_ignite', 'branch', '二次引燃', '允许爆炸击杀继续产生有限传播', ['chain_entry']],
             ['chain_capstone', 'capstone', '连锁震荡', '爆炸链达到击杀门槛时清除附近敌弹', ['chain_entry', ['chain_wide', 'chain_ignite']]],
         ],
@@ -565,7 +565,7 @@ Game.getSupplyPulseDuration = function() {
 
 Game.getSupplyPrimaryDamageBonus = function() {
     return this.hasBuild('supply_entry') && (this.buildState.timers.supplyPulse || 0) > 0
-        ? CONFIG.builds.supply.primaryDamageBonus
+        ? CONFIG.builds.supply.damageBonus
         : 0;
 };
 
@@ -661,11 +661,12 @@ Game.chainSeedFromKill = function(killEvent) {
 
 // Seeds and runs one kill-explosion chain. spec = { x, y, damage } where
 // damage is the direct hit that caused the kill (D for the seed's 0.5D).
-// Geometry limits: a merged (core) chain keeps the core card's 200px radius,
-// its unbounded propagation and its 80-blast safety cap; a seed-only chain is
-// capped at 12 blasts and propagates only with 二次引燃 (at most 2 extra
-// blast layers). Each entity is hit once per chain; the boss takes only the
-// seed part at half and never propagates; VFX failure never cancels damage.
+// Geometry uses a 200px core radius; the wide branch adds 50px. Both routes
+// use the same merged chain event. The core card propagates for
+// two layers; the seed route propagates for three with 二次引燃, and a merged
+// route takes the stricter two-layer limit. Seed-only chains are capped at 12
+// blasts. Each entity is hit once per chain; the boss takes only the seed part
+// at half and never propagates; VFX failure never cancels damage.
 Game.createDamageExplosion = function(spec) {
     const hasCore = this.activeCard === 'chain';
     const hasSeed = this.hasBuild('chain_entry');
@@ -673,13 +674,19 @@ Game.createDamageExplosion = function(spec) {
 
     const cfg = CONFIG.builds.chain;
     const state = this.buildState;
-    const seedRadius = cfg.seedRadius + (this.hasBuild('chain_wide') ? cfg.wideBonusRadius : 0);
-    const seedDamage = this.roundCombatDamage(cfg.seedDamageMult * (spec.damage || 0));
-    // Normal-enemy damage: the larger of the core blast and the seed's 0.5D.
-    const damage = hasCore && hasSeed
-        ? Math.max(CONFIG.cards.chainDamage, seedDamage)
-        : hasSeed ? seedDamage : CONFIG.cards.chainDamage;
-    const radius = hasCore ? CONFIG.cards.chainRadius : seedRadius;
+    const coreRadius = hasCore ? CONFIG.cards.chainRadius : 0;
+    const seedRadius = hasSeed ? cfg.seedRadius : 0;
+    const radius = Math.max(coreRadius, seedRadius)
+        + (this.hasBuild('chain_wide') ? cfg.wideBonusRadius : 0);
+    const seedDamage = hasSeed
+        ? this.roundCombatDamage(cfg.seedDamageMult * (spec.damage || 0))
+        : 0;
+    const coreDamage = hasCore
+        ? this.roundCombatDamage(CONFIG.cards.chainDamage * (spec.damage || 0))
+        : 0;
+    // Normal enemies receive the seed and card portions once each. With both
+    // effects active this is 0.5D + 0.5D = 1D, not two separate chains.
+    const damage = this.roundCombatDamage(seedDamage + coreDamage);
     // The boss only ever takes the seed part, at half (新增爆炸部分半伤).
     const bossDamage = hasSeed
         ? this.roundCombatDamage(seedDamage * cfg.bossDamageMult)
@@ -687,9 +694,15 @@ Game.createDamageExplosion = function(spec) {
     const seedOnly = !hasCore;
     const maxBlasts = seedOnly ? cfg.buildMaxExplosions : 80;
     const ignite = seedOnly && this.hasBuild('chain_ignite');
-    // A merged (core) chain keeps the card's unbounded cascade; a seed-only
-    // chain only cascades with 二次引燃, capped at 2 extra blast layers.
-    const propagate = hasCore || ignite;
+    // Propagation depth is the number of cascade layers after the initial blast.
+    const maxPropagationDepth = hasCore && hasSeed
+        ? Math.min(cfg.cardMaxDepth, cfg.buildMaxDepth)
+        : hasCore
+            ? cfg.cardMaxDepth
+            : ignite
+                ? cfg.buildMaxDepth
+                : 0;
+    const propagate = maxPropagationDepth > 0;
     const chainId = ++this.nextChainId;
 
     const queue = [{ x: spec.x, y: spec.y, depth: 0 }];
@@ -724,7 +737,7 @@ Game.createDamageExplosion = function(spec) {
                 chainKills++;
                 const metrics = getBuildMetrics(state);
                 metrics.chainKills = numericMetric(metrics, 'chainKills') + 1;
-                if (propagate && (hasCore || point.depth + 1 <= cfg.buildMaxDepth)) {
+                if (propagate && point.depth < maxPropagationDepth) {
                     queue.push({ x: killX, y: killY, depth: point.depth + 1 });
                 }
                 // 连锁震荡: the 3rd chain kill clears nearby enemy bullets —

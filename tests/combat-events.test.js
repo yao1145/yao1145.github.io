@@ -642,25 +642,25 @@ function seedGrid() {
     for (const enemy of Game.objectPools.enemies.active) Game.spatialGrid.insert(enemy, 'enemies');
 }
 
-test('chain seed: a direct kill blasts 0.5D inside 45px, widened to 60 by 广域爆破', () => {
+test('chain seed: a direct kill blasts 0.5D inside 200px, widened to 250 by 广域爆破', () => {
     resetCombat();
     Game.resetBuildState();
     applyBuild('chain_entry');
     const a = placeAt(0, 0, 0);
-    const b = placeAt(40, 0, 1);
-    const c = placeAt(80, 0, 1);
+    const b = placeAt(190, 0, 1);
+    const c = placeAt(210, 0, 1);
     seedGrid();
 
     assert.equal(Game.killEnemy(a, { source: 'direct', damage: 1 }), true);
     assert.equal(b.health, 0.5); // 0.5D with D = 1
-    assert.equal(c.health, 1);   // 65px away: outside the 45px seed
+    assert.equal(c.health, 1);   // outside the 200px seed
 
-    // 广域爆破 widens the seed to 45 + 15 = 60px.
+    // 广域爆破 widens the merged explosion to 200 + 50 = 250px.
     resetCombat();
     Game.resetBuildState();
     applyBuild('chain_entry', 'chain_wide');
     const a2 = placeAt(0, 0, 0);
-    const d = placeAt(55, 0, 1);
+    const d = placeAt(240, 0, 1);
     seedGrid();
     Game.killEnemy(a2, { source: 'direct', damage: 1 });
     assert.equal(d.health, 0.5);
@@ -680,11 +680,11 @@ test('chain: a target takes the blast only once per chain across blast points', 
     assert.equal(x.health, 1.0); // hit once (by A), never again by B's blast
 });
 
-test('chain: ignite propagates at most 2 layers from the seed', () => {
+test('chain: ignite propagates at most 3 layers from the seed', () => {
     resetCombat();
     Game.resetBuildState();
     applyBuild('chain_entry', 'chain_ignite');
-    // A 40px line: each 45px blast reaches exactly the next enemy.
+    // A 40px line: each 200px blast reaches exactly the next enemy.
     const a = placeAt(0, 0, 0);
     const b = placeAt(40, 0, 0.5);
     const c = placeAt(80, 0, 0.5);
@@ -693,10 +693,28 @@ test('chain: ignite propagates at most 2 layers from the seed', () => {
     seedGrid();
 
     Game.killEnemy(a, { source: 'direct', damage: 1 });
-    // B and C die to cascade blasts; D dies to C's blast but its own blast
-    // would be a third layer, so E survives untouched.
-    assert.equal(e.health, 1);
+    // B, C, and D each get a cascade blast; D's blast reaches E but does not
+    // create a fourth cascade blast.
+    assert.equal(e.health, 0.5);
     assert.equal(Game.score, 40); // A + B + C + D killed (10 each)
+});
+
+test('chain card limits propagation to 2 layers, including when merged with the seed', () => {
+    resetCombat();
+    Game.resetBuildState();
+    applyBuild('chain_entry', 'chain_ignite');
+    Game.activeCard = 'chain';
+    const a = placeAt(0, 0, 0);
+    placeAt(150, 0, 0.5);
+    placeAt(300, 0, 0.5);
+    placeAt(450, 0, 0.5);
+    const e = placeAt(600, 0, 1);
+    seedGrid();
+
+    Game.killEnemy(a, { source: 'direct', damage: 1 });
+
+    assert.equal(e.health, 1);
+    assert.equal(Game.score, 40);
 });
 
 test('chain: a seed-only chain is capped at 12 blasts even with a full kill cluster', () => {
@@ -715,7 +733,7 @@ test('chain: a seed-only chain is capped at 12 blasts even with a full kill clus
     assert.equal(Game.buildState.counters.chainBlasts, 12);
 });
 
-test('chain card + seed merge into one chain: 200px radius, larger damage, single chainId', () => {
+test('chain card + seed merge into one chain: 200px radius, additive damage, single chainId', () => {
     resetCombat();
     Game.resetBuildState();
     applyBuild('chain_entry');
@@ -725,15 +743,13 @@ test('chain card + seed merge into one chain: 200px radius, larger damage, singl
     Game.onEnemyKilled = (kill) => { killEvents.push(kill); realKillHook.call(Game, kill); };
 
     const a = placeAt(0, 0, 0);
-    const x = placeAt(100, 0, 5);  // inside 200px, outside the 45px seed
+    const x = placeAt(100, 0, 5);  // inside the merged 200px explosion
     const y = placeAt(30, 0, 0.5); // dies to the blast and cascades onward
-    const z = placeAt(90, 0, 3);   // inside y's cascade blast
     seedGrid();
 
     Game.killEnemy(a, { source: 'direct', damage: 4 });
-    // D = 4 -> seed 0.5D = 2; merged damage = max(core 0.5, seed 2).
-    assert.equal(x.health, 3);
-    assert.equal(z.health, 1);
+    // D = 4 -> seed 0.5D + card 0.5D = 4.
+    assert.equal(x.health, 1);
     const blasts = killEvents.filter((k) => k.source === 'explosion');
     assert.equal(blasts.length, 1);
     const chainIds = new Set(blasts.map((k) => k.chainId));
@@ -835,7 +851,7 @@ test('chain explosion uses quantized attribution and settles one enemy death onc
     }
 });
 
-test('chain capstone: the 3rd chain kill clears 60px of bullets once per chain with a global cooldown', () => {
+test('chain capstone: the 3rd chain kill clears 100px of bullets once per chain with a global cooldown', () => {
     resetCombat();
     Game.resetBuildState();
     applyBuild('chain_entry', 'chain_ignite', 'chain_capstone');
@@ -845,10 +861,10 @@ test('chain capstone: the 3rd chain kill clears 60px of bullets once per chain w
     placeAt(40, 0, 0.5);
     const c = placeAt(80, 0, 0.5);
     const d = placeAt(120, 0, 0.5);
-    // One bullet near C (spared: the shock fires at D), one near D (cleared),
+    // One bullet outside 100px from D (spared), one within 100px (cleared),
     // one far away (spared).
-    const nearC = makeEnemyBullet(59, 0);
-    const nearD = makeEnemyBullet(175, 0);
+    const nearC = makeEnemyBullet(10, 0);
+    const nearD = makeEnemyBullet(210, 0);
     const far = makeEnemyBullet(260, 0);
     seedGrid();
 
@@ -872,6 +888,17 @@ test('chain capstone: the 3rd chain kill clears 60px of bullets once per chain w
 
     Game.updateBuildEffects(5000);
     assert.equal(Game.buildState.timers.chainShockCooldown, 0);
+
+    // After the global cooldown expires, a later chain can trigger again.
+    const a3 = placeAt(600, 0, 0);
+    placeAt(750, 0, 0.5);
+    placeAt(900, 0, 0.5);
+    const d3 = placeAt(1050, 0, 0.5);
+    const nearD3 = makeEnemyBullet(1130, 0);
+    seedGrid();
+    Game.killEnemy(a3, { source: 'direct', damage: 1 });
+    assert.equal(Game.objectPools.enemyBullets.active.includes(nearD3), false);
+    assert.equal(Game.buildState.timers.chainShockCooldown, 5000);
 });
 
 // --- Task 8: fortress barrier + desperate counterattack --------------------
