@@ -1,11 +1,6 @@
 import { Game } from '../core/game.js';
 import { CONFIG } from '../core/config.js';
 
-const FOG_SPEED_MULT = 0.8;
-const FOG_LINE_RATIO = 0.35;
-const FOG_WARNING_BAND_PX = 40;
-const FOG_WARNING_DURATION_MS = 250;
-
 function initializeEnemyBullet(game, bullet, vx, vy) {
     bullet.vx = vx;
     bullet.vy = vy;
@@ -193,7 +188,7 @@ Game.applyFogBulletRules = function(bullet) {
     bullet.baseVx = baseVx;
     bullet.baseVy = baseVy;
     bullet.baseSpeed = baseSpeed;
-    bullet.speed = baseSpeed * FOG_SPEED_MULT;
+    bullet.speed = baseSpeed * CONFIG.cards.fogBulletSpeed;
     bullet.fogSpeedApplied = true;
 
     if (bullet.isTracking) {
@@ -204,19 +199,19 @@ Game.applyFogBulletRules = function(bullet) {
     const waveValue = bullet.isWave
         ? Math.sin(bullet.waveOffset || 0) * bullet.waveAmplitude
         : 0;
-    bullet.vx = (baseVx + waveValue) * FOG_SPEED_MULT;
-    bullet.vy = baseVy * FOG_SPEED_MULT;
+    bullet.vx = (baseVx + waveValue) * CONFIG.cards.fogBulletSpeed;
+    bullet.vy = baseVy * CONFIG.cards.fogBulletSpeed;
 };
 
 Game.updateFogWarningState = function(bullet, previousCenterY) {
     if (!bullet || this.activeCard !== 'fog' || bullet.fogWarningShown) return;
 
-    const fogLine = this.height * FOG_LINE_RATIO;
-    const warningStart = fogLine - FOG_WARNING_BAND_PX;
+    const fogLine = this.height * CONFIG.cards.fogLineRatio;
+    const warningStart = fogLine - CONFIG.cards.fogWarningBandPx;
     const currentCenterY = bulletCenterY(bullet);
     if (previousCenterY < warningStart && currentCenterY >= warningStart) {
         bullet.fogWarningShown = true;
-        bullet.fogWarningUntil = this.gameTime + FOG_WARNING_DURATION_MS;
+        bullet.fogWarningUntil = this.gameTime + CONFIG.cards.fogWarningDurationMs;
     }
 };
 
@@ -252,7 +247,7 @@ Game.updateEnemyBullets = function() {
         } else if (bullet.isWave) {
             bullet.waveOffset += bullet.waveFrequency;
             const waveValue = Math.sin(bullet.waveOffset) * bullet.waveAmplitude;
-            const speedMult = bullet.fogSpeedApplied ? FOG_SPEED_MULT : 1;
+            const speedMult = bullet.fogSpeedApplied ? CONFIG.cards.fogBulletSpeed : 1;
             bullet.vx = (bullet.baseVx + waveValue) * speedMult;
             bullet.vy = bullet.baseVy * speedMult;
             bullet.y += bullet.vy;

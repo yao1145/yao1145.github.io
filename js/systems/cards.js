@@ -393,13 +393,7 @@ Game.getEnemyShotRate = function() {
 };
 
 Game.getItemSpawnRate = function() {
-    let rate = this.itemSpawnRate * (this.activeCard === 'supply' ? CONFIG.cards.supplyItemMult : 1);
-    if (typeof this.hasBuild === 'function'
-        && this.hasBuild('supply_entry')
-        && (this.buildState?.timers?.supplyPulse || 0) > 0) {
-        rate *= CONFIG.builds.supply.pulseItemMult;
-    }
-    return rate;
+    return this.itemSpawnRate * (this.activeCard === 'supply' ? CONFIG.cards.supplyItemMult : 1);
 };
 
 Game.getBossShotDelay = function() {

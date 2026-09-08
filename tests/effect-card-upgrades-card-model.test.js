@@ -45,6 +45,26 @@ test('v2.1 core cards apply exact tradeoffs without changing unrelated damage or
     assert.equal(Game.getBossShotDelay(), 500);
 });
 
+test('supply build pulses never change the natural item spawn rate', () => {
+    resetCards();
+    const previousHasBuild = Game.hasBuild;
+    const previousBuildState = Game.buildState;
+    try {
+        Game.itemSpawnRate = 0.01;
+        Game.activeCard = 'supply';
+        Game.hasBuild = () => true;
+        Game.buildState = { timers: { supplyPulse: 4000 } };
+
+        assert.equal(Game.getItemSpawnRate(), Game.itemSpawnRate * CONFIG.cards.supplyItemMult);
+
+        Game.buildState.timers.supplyPulse = 0;
+        assert.equal(Game.getItemSpawnRate(), Game.itemSpawnRate * CONFIG.cards.supplyItemMult);
+    } finally {
+        Game.hasBuild = previousHasBuild;
+        Game.buildState = previousBuildState;
+    }
+});
+
 test('v2.1 card face text describes survival, peace, bloodlust, and fog', () => {
     resetCards();
 
