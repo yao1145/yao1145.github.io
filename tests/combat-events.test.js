@@ -859,6 +859,47 @@ test('fortress: no-damage time charges one barrier, regroup shortens it, and dam
     assert.equal(Game.buildState.timers.fortressBarrier, 0);
 });
 
+test('fortress: clear cooldown blocks a second clear and re-arms after fixed-step updates', () => {
+    resetCombat();
+    Game.resetBuildState();
+    applyBuild('fortress_entry', 'fortress_echo', 'fortress_capstone');
+
+    const updateMethods = [
+        'updatePlayer', 'updateBullets', 'updateEnemyBullets', 'updateEnemies',
+        'updateParticles', 'updateItems', 'updateCardEffects', 'spawnEnemies',
+        'enemiesShoot', 'spawnItems', 'updateGameState', 'checkCollisions',
+    ];
+    const originals = Object.fromEntries(updateMethods.map((name) => [name, Game[name]]));
+    for (const name of updateMethods) Game[name] = () => {};
+
+    try {
+        Game.buildState.locks.fortressBarrier = true;
+        Game.resolveEnemyBulletHit(makeEnemyBullet(10, 10));
+        assert.equal(Game.buildState.timers.fortressClearCooldown, 10000);
+
+        const blockedClear = makeEnemyBullet(10, 10);
+        Game.buildState.locks.fortressBarrier = true;
+        Game.resolveEnemyBulletHit(makeEnemyBullet(10, 10));
+        assert.equal(Game.objectPools.enemyBullets.active.includes(blockedClear), true);
+        assert.equal(Game.buildState.timers.fortressClearCooldown, 10000);
+
+        const originalCooldown = Game.buildState.timers.fortressClearCooldown;
+        const stepsBeforeExpiry = Math.ceil(originalCooldown / Game.fixedStepMs) - 1;
+        for (let i = 0; i < stepsBeforeExpiry; i++) Game.update(Game.fixedStepMs);
+        assert.ok(Game.buildState.timers.fortressClearCooldown > 0);
+        Game.update(Game.fixedStepMs);
+        assert.equal(Game.buildState.timers.fortressClearCooldown, 0);
+
+        const rearmedTarget = makeEnemyBullet(10, 10);
+        Game.buildState.locks.fortressBarrier = true;
+        Game.resolveEnemyBulletHit(makeEnemyBullet(10, 10));
+        assert.equal(Game.objectPools.enemyBullets.active.includes(rearmedTarget), false);
+        assert.equal(Game.buildState.timers.fortressClearCooldown, 10000);
+    } finally {
+        for (const name of updateMethods) Game[name] = originals[name];
+    }
+});
+
 test('desperate: glass never activates low-health progress', () => {
     resetCombat();
     Game.resetBuildState();
@@ -956,4 +997,30 @@ test('desperate: capstone restores one life once per boss cycle and does not ban
     }
     assert.equal(Game.lives, 1);
     assert.equal(Game.buildState.counters.desperateKills, 0);
+});
+
+test('desperate: switching to a no-heal card clears seven-kill progress before it can heal', () => {
+    resetCombat();
+    Game.resetBuildState();
+    applyBuild('desperate_entry', 'desperate_strike', 'desperate_capstone');
+    Game.activeCard = 'comeback';
+    Game.lives = 1;
+
+    for (let i = 0; i < 7; i++) {
+        const enemy = makeEnemy(1, 100 + i * 40, 0);
+        enemy.health = 0;
+        Game.killEnemy(enemy, { source: 'direct', damage: 1 });
+    }
+    assert.equal(Game.buildState.counters.desperateKills, 7);
+
+    Game.activeCard = 'blitz';
+    Game.updateBuildEffects(Game.fixedStepMs);
+    assert.equal(Game.buildState.counters.desperateKills, 0);
+
+    Game.activeCard = 'comeback';
+    const eighth = makeEnemy(1, 500, 0);
+    eighth.health = 0;
+    Game.killEnemy(eighth, { source: 'direct', damage: 1 });
+    assert.equal(Game.lives, 1);
+    assert.equal(Game.buildState.counters.desperateKills, 1);
 });

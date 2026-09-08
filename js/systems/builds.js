@@ -922,7 +922,7 @@ Game.updateBuildEffects = function(deltaTime) {
 
     if ((state.timers.fortressClearCooldown || 0) > 0) {
         state.timers.fortressClearCooldown -= deltaTime;
-        if (state.timers.fortressClearCooldown < 0) state.timers.fortressClearCooldown = 0;
+        if (state.timers.fortressClearCooldown <= 1e-6) state.timers.fortressClearCooldown = 0;
     }
 
     if (this.hasBuild('fortress_entry')) {
@@ -940,9 +940,14 @@ Game.updateBuildEffects = function(deltaTime) {
         state.locks.fortressBarrier = false;
     }
 
+    if (!this.hasBuild('desperate_entry')
+        || !this.isDesperateActive()
+        || !this.canHeal()
+        || state.locks.desperateCycleHeal) {
+        state.counters.desperateKills = 0;
+    }
     if (this.hasBuild('desperate_entry') && !this.isDesperateActive()) {
         state.counters.desperateHits = 0;
-        state.counters.desperateKills = 0;
     }
 };
 
