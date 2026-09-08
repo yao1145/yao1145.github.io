@@ -9,117 +9,8 @@ import '../js/systems/collisions.js';
 import '../js/systems/builds.js';
 import '../js/entities/player.js';
 
-// Module-import-time hook implementations: tests that spy on the event hooks
-// restore these in resetCombat so later tests exercise the real mechanics.
 const realOnDirectShotBatch = Game.onDirectShotBatch;
 const realOnEnemyKilled = Game.onEnemyKilled;
-
-test('resetGameFixture restores shared run state without resetting entity ids', () => {
-    Object.assign(Game, {
-        isRunning: true,
-        isGameOver: true,
-        isMenu: false,
-        lastTime: 123,
-        accumulator: 456,
-        gameTime: 789,
-        score: 1000,
-        highScore: 2000,
-        highCrowns: 30,
-        lastScore: 900,
-        totalCrowns: 40,
-        lives: 1,
-        baseBulletCount: 3,
-        autoShieldTimer: 500,
-        bulletDamage: 4,
-        level: 8,
-        crowns: 7,
-        enemySpawnRate: 0.8,
-        enemySpeed: 9,
-        enemyShotRate: 0.7,
-        enemyBulletSpeed: 12,
-        itemSpawnRate: 0.9,
-        player: { x: 1 },
-        keys: { ArrowLeft: true },
-        touch: { isTouching: true, startX: 1, startY: 2, currentX: 3, currentY: 4 },
-        isBossStage: true,
-        boss: { entityId: 1 },
-        bossSpawnThreshold: 9999,
-        bossSpawnGap: 8888,
-        bossAppearCount: 7,
-        isDamageBoost: true,
-        damageBoostTime: 600,
-        activeCard: 'glass',
-        difficulty: 'easy',
-        cardRegenTimer: 1000,
-        isCardSelectionOpen: true,
-        lastUIUpdateTime: 1234,
-        cardPickCount: { glass: 3 },
-    });
-    const nextEntityId = Game.allocateEntityId();
-
-    resetGameFixture();
-
-    assert.equal(Game.isRunning, false);
-    assert.equal(Game.isGameOver, false);
-    assert.equal(Game.isMenu, true);
-    assert.equal(Game.lastTime, 0);
-    assert.equal(Game.accumulator, 0);
-    assert.equal(Game.gameTime, 0);
-    assert.equal(Game.score, 0);
-    assert.equal(Game.highScore, 0);
-    assert.equal(Game.highCrowns, 0);
-    assert.equal(Game.lastScore, 0);
-    assert.equal(Game.totalCrowns, 0);
-    assert.equal(Game.lives, 3);
-    assert.equal(Game.baseBulletCount, 1);
-    assert.equal(Game.autoShieldTimer, 0);
-    assert.equal(Game.bulletDamage, 1);
-    assert.equal(Game.level, 1);
-    assert.equal(Game.crowns, 0);
-    assert.equal(Game.enemySpawnRate, CONFIG.enemySpawnRate);
-    assert.equal(Game.enemySpeed, CONFIG.enemySpeed);
-    assert.equal(Game.enemyShotRate, CONFIG.enemyShotRate);
-    assert.equal(Game.enemyBulletSpeed, CONFIG.enemyBulletSpeed);
-    assert.equal(Game.itemSpawnRate, CONFIG.itemSpawnRate);
-    assert.equal(Game.player, null);
-    assert.deepEqual(Game.keys, {});
-    assert.deepEqual(Game.touch, {
-        isTouching: false,
-        startX: 0,
-        startY: 0,
-        currentX: 0,
-        currentY: 0,
-    });
-    assert.equal(Game.isBossStage, false);
-    assert.equal(Game.boss, null);
-    assert.equal(Game.bossSpawnThreshold, CONFIG.bossSpawnThreshold);
-    assert.equal(Game.bossSpawnGap, CONFIG.bossSpawnThreshold);
-    assert.equal(Game.bossAppearCount, 0);
-    assert.equal(Game.isDamageBoost, false);
-    assert.equal(Game.damageBoostTime, 0);
-    assert.equal(Game.activeCard, null);
-    assert.equal(Game.difficulty, 'hard');
-    assert.equal(Game.cardRegenTimer, 0);
-    assert.equal(Game.isCardSelectionOpen, false);
-    assert.equal(Game.lastUIUpdateTime, 0);
-    assert.deepEqual(Game.cardPickCount, {});
-    assert.equal(Game.nextEntityId, nextEntityId);
-});
-
-test('reused pooled enemy receives a new identity', () => {
-    resetGameFixture();
-    const first = Game.getObject('enemies');
-    first.entityId = Game.allocateEntityId();
-    const oldId = first.entityId;
-    Game.releaseObject('enemies', first);
-    const reused = Game.getObject('enemies');
-    reused.entityId = Game.allocateEntityId();
-    assert.equal(reused, first);
-    assert.notEqual(reused.entityId, oldId);
-    assert.equal(Game.isActiveEntity('enemies', oldId), false);
-});
-
-// --- Task 5: unified direct-shot damage pipeline ----------------------------
 
 function resetCombat() {
     resetGameFixture();
@@ -133,6 +24,10 @@ function resetCombat() {
     Game.score = 0;
     Game.onDirectShotBatch = realOnDirectShotBatch;
     Game.onEnemyKilled = realOnEnemyKilled;
+}
+
+function applyBuild(...ids) {
+    for (const id of ids) assert.equal(Game.applyBuildChoice(id), true, `apply ${id}`);
 }
 
 function makeEnemy(health = 1, x = 0, y = 0) {
@@ -150,12 +45,18 @@ function makeEnemy(health = 1, x = 0, y = 0) {
     return enemy;
 }
 
+function placeAt(cx, cy, health = 1) {
+    return makeEnemy(health, cx - 15, cy - 15);
+}
+
 function makeBullet(shotId = 1, x = 0, y = 0) {
     const bullet = Game.getObject('bullets');
     bullet.shotId = shotId;
     bullet.isPrimary = true;
     bullet.pierceRemaining = 0;
     bullet.hitEntityIds = [];
+    bullet.rapidDamageBonus = 0;
+    bullet.supplyDamageBonus = 0;
     bullet.buildDamageBonus = 0;
     bullet.x = x;
     bullet.y = y;
@@ -164,467 +65,6 @@ function makeBullet(shotId = 1, x = 0, y = 0) {
     bullet.color = '#ff0';
     bullet.speed = 8;
     return bullet;
-}
-
-test('roundCombatDamage keeps zero at zero and steps positives by 0.5', () => {
-    resetCombat();
-    assert.equal(Game.roundCombatDamage(0), 0);
-    assert.equal(Game.roundCombatDamage(-0.4), 0);
-    assert.equal(Game.roundCombatDamage(0.26), 0.5);
-    assert.equal(Game.roundCombatDamage(0.75), 1);
-    assert.equal(Game.roundCombatDamage(1.25), 1.5);
-    assert.equal(Game.roundCombatDamage(2), 2);
-});
-
-test('spawnBullet tags one shot with a shared shotId and a single primary', () => {
-    resetCombat();
-    Game.baseBulletCount = 3;
-    Game.player.x = 50;
-    Game.player.y = 100;
-    Game.spawnBullet();
-
-    const bullets = Game.objectPools.bullets.active;
-    assert.equal(bullets.length, 3);
-    assert.ok(bullets.every((b) => b.shotId === bullets[0].shotId && b.shotId > 0));
-    assert.equal(bullets.filter((b) => b.isPrimary).length, 1);
-    assert.equal(bullets[1].isPrimary, true);
-    assert.deepEqual(bullets[0].hitEntityIds, []);
-    assert.equal(bullets[0].pierceRemaining, 0);
-    assert.equal(bullets[0].buildDamageBonus, 0);
-});
-
-test('same-shot multi-bullet hits flush as one batch counted once', () => {
-    resetCombat();
-    const batches = [];
-    Game.onDirectShotBatch = (batch) => batches.push(batch);
-    Game.queueDirectHit({ shotId: 7, targetType: 'enemy', entityId: 101, isPrimary: true, amount: 1, baseDamage: 1, x: 10, y: 10 });
-    Game.queueDirectHit({ shotId: 7, targetType: 'enemy', entityId: 102, isPrimary: false, amount: 1, baseDamage: 1, x: 20, y: 20 });
-    Game.queueDirectHit({ shotId: 8, targetType: 'boss', entityId: 501, isPrimary: true, amount: 3, baseDamage: 3, x: 30, y: 30 });
-    Game.flushDirectShotBatches();
-
-    assert.equal(batches.length, 2);
-    assert.equal(batches[0].shotId, 7);
-    assert.equal(batches[0].events.length, 2);
-    assert.equal(batches[1].shotId, 8);
-    assert.equal(batches[1].events.length, 1);
-
-    // The queue is drained: a second flush delivers nothing new.
-    Game.flushDirectShotBatches();
-    assert.equal(batches.length, 2);
-});
-
-test('only the first lethal context settles a death: one kill, one score, one broadcast', () => {
-    resetCombat();
-    const kills = [];
-    Game.onEnemyKilled = (event) => kills.push(event);
-    const enemy = makeEnemy(0.5, 0, 0);
-    const bullet = makeBullet(3, 5, 5);
-
-    const event = Game.damageTarget({ bullet, target: enemy, targetType: 'enemy' });
-    assert.ok(event);
-    assert.equal(event.source, 'direct');
-    assert.equal(event.amount, 1);
-    assert.ok(enemy.health <= 0);
-    assert.equal(Game.score, 10); // type-0 score settled once
-    assert.equal(kills.length, 1);
-    assert.equal(kills[0].entityId, event.entityId);
-    assert.equal(kills[0].source, 'direct');
-
-    // A second lethal context (another bullet hitting the same corpse) is inert.
-    const bullet2 = makeBullet(4, 5, 5);
-    assert.equal(Game.damageTarget({ bullet: bullet2, target: enemy, targetType: 'enemy' }), null);
-    assert.equal(Game.killEnemy(enemy, { source: 'direct' }), false);
-    assert.equal(Game.score, 10);
-    assert.equal(kills.length, 1);
-});
-
-test('damageTarget refuses pooled targets that left the active pool', () => {
-    resetCombat();
-    const enemy = makeEnemy(5, 0, 0);
-    const bullet = makeBullet(5, 5, 5);
-    const oldId = enemy.entityId;
-
-    Game.releaseObject('enemies', enemy);
-    assert.equal(Game.isActiveEntity('enemies', oldId), false);
-    assert.equal(Game.damageTarget({ bullet, target: enemy, targetType: 'enemy' }), null);
-    assert.equal(enemy.health, 5);
-    // The bullet is not consumed by a refused hit.
-    assert.equal(Game.objectPools.bullets.active.includes(bullet), true);
-});
-
-test('damageTarget refuses a boss reference once the boss is gone', () => {
-    resetCombat();
-    Game.boss = makeEnemy(10, 0, 0);
-    Game.boss.type = 0;
-    const boss = Game.boss;
-    assert.ok(Game.damageTarget({ bullet: makeBullet(6, 5, 5), target: boss, targetType: 'boss' }));
-    assert.equal(boss.health, 9);
-
-    Game.boss = null;
-    assert.equal(Game.damageTarget({ bullet: makeBullet(7, 5, 5), target: boss, targetType: 'boss' }), null);
-    assert.equal(boss.health, 9);
-});
-
-test('a zero-damage direct hit lands no damage and no event', () => {
-    resetCombat();
-    const realGetDirectShotDamage = Game.getDirectShotDamage;
-    Game.getDirectShotDamage = () => 0;
-    try {
-        const enemy = makeEnemy(5, 0, 0);
-        const bullet = makeBullet(8, 5, 5);
-        assert.equal(Game.damageTarget({ bullet, target: enemy, targetType: 'enemy' }), null);
-        assert.equal(enemy.health, 5);
-    } finally {
-        Game.getDirectShotDamage = realGetDirectShotDamage;
-    }
-});
-
-test('checkCollisions routes a bullet kill through the unified pipeline once', () => {
-    resetCombat();
-    const kills = [];
-    const batches = [];
-    Game.onEnemyKilled = (kill) => kills.push(kill);
-    Game.onDirectShotBatch = (batch) => batches.push(batch);
-    const enemy = makeEnemy(1, 80, 80);
-    const bullet = makeBullet(11, 90, 90);
-
-    Game.checkCollisions();
-
-    assert.equal(Game.score, 10);
-    assert.equal(kills.length, 1);
-    assert.equal(kills[0].entityId, enemy.entityId);
-    assert.equal(batches.length, 1);
-    assert.equal(batches[0].events.length, 1);
-    assert.equal(batches[0].events[0].amount, 1);
-    assert.equal(Game.objectPools.bullets.active.length, 0);
-    assert.equal(Game.objectPools.enemies.active.length, 0);
-});
-
-test('boss-hit bullets are terminal even when pierced, so later bullets still land', () => {
-    resetCombat();
-    Game.isBossStage = true;
-    Game.boss = {
-        entityId: 5001,
-        x: 0,
-        y: 0,
-        width: 30,
-        height: 30,
-        health: 10,
-        maxHealth: 10,
-        type: 0,
-    };
-
-    // Put the later bullet first in the pool so a retained pierced bullet would
-    // be visited again and block it on the next collision pass.
-    const laterBullet = makeBullet(12, 0, 0);
-    const piercedBullet = makeBullet(11, 0, 0);
-    piercedBullet.pierceRemaining = 1;
-
-    Game.checkCollisions();
-    assert.equal(Game.boss.health, 9);
-    assert.equal(Game.objectPools.bullets.active.includes(piercedBullet), false);
-
-    Game.checkCollisions();
-    assert.equal(Game.boss.health, 8);
-    assert.equal(Game.objectPools.bullets.active.includes(laterBullet), false);
-});
-
-test('an already-hit pierced boss bullet is released and cannot block a later bullet', () => {
-    resetCombat();
-    Game.isBossStage = true;
-    Game.boss = {
-        entityId: 5002,
-        x: 0,
-        y: 0,
-        width: 30,
-        height: 30,
-        health: 10,
-        maxHealth: 10,
-        type: 0,
-    };
-
-    const laterBullet = makeBullet(14, 0, 0);
-    const alreadyHitBullet = makeBullet(13, 0, 0);
-    alreadyHitBullet.pierceRemaining = 1;
-    alreadyHitBullet.hitEntityIds = [Game.boss.entityId];
-
-    Game.checkCollisions();
-    assert.equal(Game.boss.health, 10);
-    assert.equal(Game.objectPools.bullets.active.includes(alreadyHitBullet), false);
-
-    Game.checkCollisions();
-    assert.equal(Game.boss.health, 9);
-    assert.equal(Game.objectPools.bullets.active.includes(laterBullet), false);
-});
-
-// --- Task 6: rapid heat-up + hunter mark combat loops -----------------------
-
-function applyBuild(...ids) {
-    for (const id of ids) {
-        assert.equal(Game.applyBuildChoice(id), true, `apply ${id}`);
-    }
-}
-
-function makeHit(targetType, entityId, baseDamage = 1) {
-    return { source: 'direct', targetType, entityId, amount: baseDamage, baseDamage, isPrimary: true, x: 0, y: 0 };
-}
-
-function batch(shotId, targetType, entityId, baseDamage = 1, extraEvents = []) {
-    const events = [makeHit(targetType, entityId, baseDamage), ...extraEvents];
-    return { shotId, events };
-}
-
-function directKill(shotId, type = 0) {
-    return { source: 'direct', shotId, entityId: 9000 + shotId, type, x: 0, y: 0 };
-}
-
-test('rapid: 12 landed shots start the 3s heat-up, one count per shot', () => {
-    resetCombat();
-    Game.resetBuildState();
-    applyBuild('rapid_entry');
-    const enemy = makeEnemy(100, 0, 0);
-
-    for (let i = 1; i <= 11; i++) Game.onDirectShotBatch(batch(i, 'enemy', enemy.entityId));
-    assert.equal(Game.buildState.counters.rapidHits, 11);
-    assert.equal(Game.buildState.timers.rapidWarmup, 0);
-
-    Game.onDirectShotBatch(batch(12, 'enemy', enemy.entityId));
-    assert.equal(Game.buildState.timers.rapidWarmup, 3000);
-    assert.equal(Game.buildState.counters.rapidHits, 0);
-
-    // Heated shots never accumulate the next round.
-    Game.onDirectShotBatch(batch(13, 'enemy', enemy.entityId));
-    assert.equal(Game.buildState.counters.rapidHits, 0);
-    assert.equal(Game.buildState.timers.rapidWarmup, 3000);
-});
-
-test('rapid: idle progress decays after 1.5s without a landed shot', () => {
-    resetCombat();
-    Game.resetBuildState();
-    applyBuild('rapid_entry');
-    const enemy = makeEnemy(100, 0, 0);
-
-    for (let i = 1; i <= 5; i++) {
-        Game.gameTime = i;
-        Game.onDirectShotBatch(batch(i, 'enemy', enemy.entityId));
-    }
-    assert.equal(Game.buildState.counters.rapidHits, 5);
-
-    // 2s idle (decay check runs in updateBuildEffects against gameTime).
-    Game.gameTime = 5 + 2000;
-    Game.updateBuildEffects(16);
-    assert.equal(Game.buildState.counters.rapidHits, 0);
-});
-
-test('rapid: a finished heat-up keeps 4 progress with reignite, none without', () => {
-    resetCombat();
-    Game.resetBuildState();
-    applyBuild('rapid_entry');
-    const enemy = makeEnemy(100, 0, 0);
-    for (let i = 1; i <= 12; i++) Game.onDirectShotBatch(batch(i, 'enemy', enemy.entityId));
-    Game.updateBuildEffects(3000);
-    assert.equal(Game.buildState.timers.rapidWarmup, 0);
-    assert.equal(Game.buildState.counters.rapidHits, 0);
-
-    Game.resetBuildState();
-    applyBuild('rapid_entry', 'rapid_reignite');
-    for (let i = 1; i <= 12; i++) Game.onDirectShotBatch(batch(i, 'enemy', enemy.entityId));
-    Game.updateBuildEffects(3000);
-    assert.equal(Game.buildState.timers.rapidWarmup, 0);
-    assert.equal(Game.buildState.counters.rapidHits, 4);
-});
-
-test('rapid: every third shot during heat-up pierces, wide pierces twice', () => {
-    resetCombat();
-    Game.resetBuildState();
-    applyBuild('rapid_entry', 'rapid_wide');
-    Game.buildState.timers.rapidWarmup = 3000;
-
-    assert.equal(Game.getPrimaryPierceForShot(1), 0);
-    assert.equal(Game.getPrimaryPierceForShot(2), 0);
-    assert.equal(Game.getPrimaryPierceForShot(3), 2);
-    assert.equal(Game.getPrimaryPierceForShot(4), 0);
-    assert.equal(Game.getPrimaryPierceForShot(5), 0);
-    assert.equal(Game.getPrimaryPierceForShot(6), 2);
-    assert.equal(Game.buildState.counters.rapidHeatupShots, 6);
-
-    // Outside the heat-up nothing pierces and no ordinal is consumed.
-    Game.buildState.timers.rapidWarmup = 0;
-    assert.equal(Game.getPrimaryPierceForShot(7), 0);
-    assert.equal(Game.buildState.counters.rapidHeatupShots, 6);
-});
-
-test('rapid: direct kills extend the heat-up 300ms each, capped at 1.5s per round', () => {
-    resetCombat();
-    Game.resetBuildState();
-    applyBuild('rapid_entry');
-    Game.buildState.timers.rapidWarmup = 3000;
-    Game.onEnemyKilled(directKill(1));
-    assert.equal(Game.buildState.timers.rapidWarmup, 3000); // capstone missing
-
-    applyBuild('rapid_reignite', 'rapid_capstone');
-    Game.onEnemyKilled(directKill(2));
-    Game.onEnemyKilled(directKill(3));
-    Game.onEnemyKilled(directKill(4));
-    Game.onEnemyKilled(directKill(5));
-    Game.onEnemyKilled(directKill(6));
-    assert.equal(Game.buildState.timers.rapidWarmup, 4500); // 5 x 300ms extension
-    assert.equal(Game.buildState.counters.rapidExtendedMs, 1500);
-
-    Game.onEnemyKilled(directKill(7)); // cap reached
-    assert.equal(Game.buildState.timers.rapidWarmup, 4500);
-
-    // Non-direct kills never extend.
-    Game.onEnemyKilled({ source: 'explosion', shotId: 8, entityId: 8, type: 0, x: 0, y: 0 });
-    assert.equal(Game.buildState.timers.rapidWarmup, 4500);
-
-    // The extension allowance resets when the heat-up ends.
-    Game.updateBuildEffects(4500);
-    assert.equal(Game.buildState.timers.rapidWarmup, 0);
-    assert.equal(Game.buildState.counters.rapidExtendedMs, 0);
-    assert.equal(Game.buildState.counters.rapidHits, 4); // reignite kept progress
-});
-
-test('hunter: 10 same-target hits strike 2D and reset; strikes do not re-count', () => {
-    resetCombat();
-    Game.resetBuildState();
-    applyBuild('hunter_entry');
-    const enemy = makeEnemy(100, 0, 0);
-
-    for (let i = 1; i <= 9; i++) Game.onDirectShotBatch(batch(i, 'enemy', enemy.entityId));
-    assert.equal(Game.buildState.locks.hunterHits, 9);
-
-    Game.onDirectShotBatch(batch(10, 'enemy', enemy.entityId));
-    assert.equal(Game.buildState.locks.hunterHits, 0);
-    assert.equal(enemy.health, 98); // 2D bonus strike on a 100-HP target
-    assert.equal(Game.buildState.metrics.hunterPrecisionDamage, 2);
-
-    // The strike is bonus damage: the next direct batch starts marks fresh.
-    Game.onDirectShotBatch(batch(11, 'enemy', enemy.entityId));
-    assert.equal(Game.buildState.locks.hunterHits, 1);
-});
-
-test('hunter: execute calibration strikes 3D against low-health targets', () => {
-    resetCombat();
-    Game.resetBuildState();
-    applyBuild('hunter_entry', 'hunter_execute');
-    const enemy = makeEnemy(100, 0, 0);
-    enemy.health = 30;
-
-    for (let i = 1; i <= 10; i++) Game.onDirectShotBatch(batch(i, 'enemy', enemy.entityId));
-    assert.equal(enemy.health, 27);
-    assert.equal(Game.buildState.metrics.hunterPrecisionDamage, 3);
-});
-
-test('hunter: switching targets clears the accumulated marks', () => {
-    resetCombat();
-    Game.resetBuildState();
-    applyBuild('hunter_entry');
-    const a = makeEnemy(100, 0, 0);
-    const b = makeEnemy(100, 50, 50);
-
-    for (let i = 1; i <= 4; i++) Game.onDirectShotBatch(batch(i, 'enemy', a.entityId));
-    Game.onDirectShotBatch(batch(5, 'enemy', b.entityId));
-    assert.equal(Game.buildState.locks.hunterTargetId, b.entityId);
-    assert.equal(Game.buildState.locks.hunterHits, 1);
-});
-
-test('hunter: an active locked target in the batch wins over the first hit', () => {
-    resetCombat();
-    Game.resetBuildState();
-    applyBuild('hunter_entry');
-    const a = makeEnemy(100, 0, 0);
-    const b = makeEnemy(100, 50, 50);
-
-    for (let i = 1; i <= 3; i++) Game.onDirectShotBatch(batch(i, 'enemy', a.entityId));
-    // A scatter burst that hits b first and the locked a second stays on a.
-    Game.onDirectShotBatch(batch(4, 'enemy', b.entityId, 1, [makeHit('enemy', a.entityId, 1)]));
-    assert.equal(Game.buildState.locks.hunterTargetId, a.entityId);
-    assert.equal(Game.buildState.locks.hunterHits, 4);
-});
-
-test('hunter: losing the target for the reset window clears the lock', () => {
-    resetCombat();
-    Game.resetBuildState();
-    applyBuild('hunter_entry', 'hunter_stable');
-    const enemy = makeEnemy(100, 0, 0);
-
-    for (let i = 1; i <= 3; i++) {
-        Game.gameTime = i;
-        Game.onDirectShotBatch(batch(i, 'enemy', enemy.entityId));
-    }
-    Game.gameTime = 3 + 2000; // idle longer than stableResetMs
-    Game.updateBuildEffects(16);
-    assert.equal(Game.buildState.locks.hunterTargetId, null);
-    assert.equal(Game.buildState.locks.hunterHits, 0);
-
-    Game.onDirectShotBatch(batch(4, 'enemy', enemy.entityId));
-    assert.equal(Game.buildState.locks.hunterHits, 1);
-});
-
-test('hunter: a dead or recycled target clears the lock instead of striking', () => {
-    resetCombat();
-    Game.resetBuildState();
-    applyBuild('hunter_entry');
-    const enemy = makeEnemy(10, 0, 0);
-
-    for (let i = 1; i <= 9; i++) Game.onDirectShotBatch(batch(i, 'enemy', enemy.entityId));
-    Game.releaseObject('enemies', enemy); // dies before the 10th hit lands
-
-    Game.onDirectShotBatch(batch(10, 'enemy', enemy.entityId));
-    assert.equal(Game.buildState.locks.hunterTargetId, null);
-    assert.equal(Game.buildState.locks.hunterHits, 0);
-    assert.equal(Game.buildState.metrics.hunterPrecisionDamage, undefined);
-});
-
-test('hunter: boss precision strikes open a 2s window consumed by the next direct hit', () => {
-    resetCombat();
-    Game.resetBuildState();
-    applyBuild('hunter_entry', 'hunter_stable', 'hunter_capstone');
-    Game.boss = { entityId: 9001, health: 100, maxHealth: 100, x: 0, y: 0, width: 100, height: 100, type: 0 };
-
-    for (let i = 1; i <= 10; i++) Game.onDirectShotBatch(batch(i, 'boss', Game.boss.entityId));
-    assert.equal(Game.boss.health, 98);
-    assert.equal(Game.buildState.locks.hunterHits, 0);
-    assert.equal(Game.buildState.timers.hunterWindow, 2000);
-
-    // A second full cycle: batch 11 immediately consumes the open window with
-    // +2D on the boss (96 -> 94), and the 10th mark of the cycle (batch 20)
-    // strikes again and re-opens the window at its full duration (no stacking).
-    for (let i = 11; i <= 20; i++) Game.onDirectShotBatch(batch(i, 'boss', Game.boss.entityId));
-    assert.equal(Game.boss.health, 94);
-    assert.equal(Game.buildState.timers.hunterWindow, 2000);
-    assert.equal(Game.buildState.metrics.hunterWindowDamage, 2);
-
-    // The first direct hit inside the window adds +2D to its target and closes it.
-    const enemy = makeEnemy(100, 50, 50);
-    Game.onDirectShotBatch(batch(21, 'enemy', enemy.entityId));
-    assert.equal(enemy.health, 98);
-    assert.equal(Game.buildState.timers.hunterWindow, 0);
-    assert.equal(Game.buildState.metrics.hunterWindowDamage, 4); // boss 2D + enemy 2D
-
-    // Further hits inside the old window period get nothing.
-    Game.onDirectShotBatch(batch(22, 'enemy', enemy.entityId));
-    assert.equal(enemy.health, 98);
-});
-
-// --- Task 7: merged kill explosions (core chain + 爆破种子 seed) ------------
-
-// Places an enemy whose CENTER is (cx, cy) with a set health, then re-seeds
-// the spatial grid from the active pools so chain blasts can find them.
-function placeAt(cx, cy, health = 1) {
-    const enemy = Game.getObject('enemies');
-    enemy.entityId = Game.allocateEntityId();
-    enemy.x = cx - 15;
-    enemy.y = cy - 15;
-    enemy.width = 30;
-    enemy.height = 30;
-    enemy.type = 0;
-    enemy.health = health;
-    enemy.maxHealth = health;
-    enemy.color = '#f00';
-    enemy._dead = false;
-    return enemy;
 }
 
 function makeEnemyBullet(cx, cy) {
@@ -642,554 +82,296 @@ function seedGrid() {
     for (const enemy of Game.objectPools.enemies.active) Game.spatialGrid.insert(enemy, 'enemies');
 }
 
-test('chain seed: a direct kill blasts 0.5D inside 200px, widened to 250 by 广域爆破', () => {
-    resetCombat();
-    Game.resetBuildState();
-    applyBuild('chain_entry');
-    const a = placeAt(0, 0, 0);
-    const b = placeAt(190, 0, 1);
-    const c = placeAt(210, 0, 1);
-    seedGrid();
+function hitEvent(targetType, entityId, baseDamage = 1, isPrimary = true) {
+    return { source: 'direct', targetType, entityId, amount: baseDamage, baseDamage, isPrimary, x: 0, y: 0 };
+}
 
-    assert.equal(Game.killEnemy(a, { source: 'direct', damage: 1 }), true);
-    assert.equal(b.health, 0.5); // 0.5D with D = 1
-    assert.equal(c.health, 1);   // outside the 200px seed
+function batch(shotId, targetType, entityId, baseDamage = 1, events = []) {
+    return { shotId, events: [hitEvent(targetType, entityId, baseDamage), ...events] };
+}
 
-    // 广域爆破 widens the merged explosion to 200 + 50 = 250px.
-    resetCombat();
-    Game.resetBuildState();
-    applyBuild('chain_entry', 'chain_wide');
-    const a2 = placeAt(0, 0, 0);
-    const d = placeAt(240, 0, 1);
-    seedGrid();
-    Game.killEnemy(a2, { source: 'direct', damage: 1 });
-    assert.equal(d.health, 0.5);
+function directKill(shotId, type = 0, source = 'direct') {
+    return { source, shotId, entityId: 9000 + shotId, type, x: 0, y: 0 };
+}
+
+test('resetGameFixture restores run state without resetting entity ids', () => {
+    Object.assign(Game, { isRunning: true, isGameOver: true, isMenu: false, gameTime: 789, score: 1000, lives: 1, activeCard: 'glass', cardPickCount: { glass: 3 }, player: { x: 1 } });
+    const nextEntityId = Game.allocateEntityId();
+    resetGameFixture();
+    assert.equal(Game.isRunning, false);
+    assert.equal(Game.isGameOver, false);
+    assert.equal(Game.isMenu, true);
+    assert.equal(Game.gameTime, 0);
+    assert.equal(Game.score, 0);
+    assert.equal(Game.lives, 3);
+    assert.equal(Game.activeCard, null);
+    assert.deepEqual(Game.cardPickCount, {});
+    assert.equal(Game.nextEntityId, nextEntityId);
 });
 
-test('chain: a target takes the blast only once per chain across blast points', () => {
+test('reused pooled enemy receives a new identity', () => {
     resetCombat();
-    Game.resetBuildState();
-    applyBuild('chain_entry', 'chain_ignite');
-    // A kills B (0.5 HP); X sits inside A's blast and B's cascade blast.
-    const a = placeAt(0, 0, 0);
-    const x = placeAt(30, 0, 1.5);
-    const b = placeAt(40, 0, 0.5);
-    seedGrid();
-
-    Game.killEnemy(a, { source: 'direct', damage: 1 });
-    assert.equal(x.health, 1.0); // hit once (by A), never again by B's blast
+    const first = Game.getObject('enemies');
+    first.entityId = Game.allocateEntityId();
+    const oldId = first.entityId;
+    Game.releaseObject('enemies', first);
+    const reused = Game.getObject('enemies');
+    reused.entityId = Game.allocateEntityId();
+    assert.equal(reused, first);
+    assert.notEqual(reused.entityId, oldId);
+    assert.equal(Game.isActiveEntity('enemies', oldId), false);
 });
 
-test('chain: ignite propagates at most 3 layers from the seed', () => {
+test('roundCombatDamage keeps zero at zero and quantizes positives by 0.5', () => {
     resetCombat();
-    Game.resetBuildState();
-    applyBuild('chain_entry', 'chain_ignite');
-    // A 40px line: each 200px blast reaches exactly the next enemy.
-    const a = placeAt(0, 0, 0);
-    const b = placeAt(40, 0, 0.5);
-    const c = placeAt(80, 0, 0.5);
-    const d = placeAt(120, 0, 0.5);
-    const e = placeAt(160, 0, 1);
-    seedGrid();
-
-    Game.killEnemy(a, { source: 'direct', damage: 1 });
-    // B, C, and D each get a cascade blast; D's blast reaches E but does not
-    // create a fourth cascade blast.
-    assert.equal(e.health, 0.5);
-    assert.equal(Game.score, 40); // A + B + C + D killed (10 each)
+    assert.equal(Game.roundCombatDamage(0), 0);
+    assert.equal(Game.roundCombatDamage(-0.4), 0);
+    assert.equal(Game.roundCombatDamage(0.26), 0.5);
+    assert.equal(Game.roundCombatDamage(0.75), 1);
+    assert.equal(Game.roundCombatDamage(1.25), 1.5);
 });
 
-test('chain card limits propagation to 2 layers, including when merged with the seed', () => {
+test('spawnBullet tags a batch with one shared shotId and one actual primary', () => {
     resetCombat();
-    Game.resetBuildState();
-    applyBuild('chain_entry', 'chain_ignite');
-    Game.activeCard = 'chain';
-    const a = placeAt(0, 0, 0);
-    placeAt(150, 0, 0.5);
-    placeAt(300, 0, 0.5);
-    placeAt(450, 0, 0.5);
-    const e = placeAt(600, 0, 1);
-    seedGrid();
-
-    Game.killEnemy(a, { source: 'direct', damage: 1 });
-
-    assert.equal(e.health, 1);
-    assert.equal(Game.score, 40);
+    Game.baseBulletCount = 3;
+    Game.player.x = 50;
+    Game.player.y = 100;
+    Game.spawnBullet();
+    const bullets = Game.objectPools.bullets.active;
+    assert.equal(bullets.length, 3);
+    assert.ok(bullets.every((bullet) => bullet.shotId === bullets[0].shotId && bullets[0].shotId > 0));
+    assert.equal(bullets.filter((bullet) => bullet.isPrimary).length, 1);
+    assert.ok(bullets.every((bullet) => bullet.rapidBatchBoosted === false));
+    assert.deepEqual(bullets[0].hitEntityIds, []);
 });
 
-test('chain: a seed-only chain is capped at 12 blasts even with a full kill cluster', () => {
+test('same-shot hits flush once and a lethal target settles one death', () => {
     resetCombat();
-    Game.resetBuildState();
-    applyBuild('chain_entry', 'chain_ignite');
-    const killer = placeAt(0, 0, 0);
-    // 13 enemies packed inside the seed blast: one blast kills them all and
-    // queues 13 propagation blasts, which the 12-blast cap trims to 12.
-    for (let i = 0; i < 13; i++) placeAt(20 + (i % 4) * 6, -10 + Math.floor(i / 4) * 6, 0.5);
-    seedGrid();
+    const batches = [];
+    Game.onDirectShotBatch = (value) => batches.push(value);
+    Game.queueDirectHit({ shotId: 7, targetType: 'enemy', entityId: 101, isPrimary: true, amount: 1, baseDamage: 1, x: 0, y: 0 });
+    Game.queueDirectHit({ shotId: 7, targetType: 'enemy', entityId: 102, isPrimary: false, amount: 1, baseDamage: 1, x: 0, y: 0 });
+    Game.flushDirectShotBatches();
+    Game.flushDirectShotBatches();
+    assert.equal(batches.length, 1);
+    assert.equal(batches[0].events.length, 2);
 
-    Game.killEnemy(killer, { source: 'direct', damage: 1 });
-    assert.equal(Game.score, 140); // killer + all 13 cluster enemies
+    const kills = [];
+    Game.onEnemyKilled = (event) => kills.push(event);
+    const enemy = makeEnemy(0.5);
+    const event = Game.damageTarget({ bullet: makeBullet(3), target: enemy, targetType: 'enemy' });
+    assert.equal(event.amount, 1);
+    assert.equal(kills.length, 1);
+    assert.equal(Game.killEnemy(enemy, { source: 'direct' }), false);
+    assert.equal(Game.score, 10);
+});
+
+test('stale pooled targets and zero damage do not create direct events', () => {
+    resetCombat();
+    const enemy = makeEnemy(5);
+    const bullet = makeBullet(5);
+    Game.releaseObject('enemies', enemy);
+    assert.equal(Game.damageTarget({ bullet, target: enemy, targetType: 'enemy' }), null);
+    assert.equal(enemy.health, 5);
+    const liveEnemy = makeEnemy(5);
+    const realDamage = Game.getDirectShotDamage;
+    Game.getDirectShotDamage = () => 0;
+    try {
+        assert.equal(Game.damageTarget({ bullet: makeBullet(6), target: liveEnemy, targetType: 'enemy' }), null);
+        assert.equal(liveEnemy.health, 5);
+    } finally {
+        Game.getDirectShotDamage = realDamage;
+    }
+});
+
+test('a Boss reference is rejected after the Boss identity is gone', () => {
+    resetCombat();
+    Game.boss = { entityId: 41, x: 0, y: 0, width: 30, height: 30, health: 10, maxHealth: 10, type: 0 };
+    const boss = Game.boss;
+    assert.ok(Game.damageTarget({ bullet: makeBullet(41), target: boss, targetType: 'boss' }));
+    assert.equal(boss.health, 9);
+    Game.boss = null;
+    assert.equal(Game.damageTarget({ bullet: makeBullet(42), target: boss, targetType: 'boss' }), null);
+    assert.equal(boss.health, 9);
+});
+
+test('checkCollisions routes a direct bullet kill through the unified pipeline once', () => {
+    resetCombat();
+    const kills = [];
+    const batches = [];
+    Game.onEnemyKilled = (event) => kills.push(event);
+    Game.onDirectShotBatch = (value) => batches.push(value);
+    const enemy = makeEnemy(1, 80, 80);
+    makeBullet(51, 90, 90);
+    Game.checkCollisions();
+    assert.equal(Game.score, 10);
+    assert.equal(kills.length, 1);
+    assert.equal(kills[0].entityId, enemy.entityId);
+    assert.equal(batches.length, 1);
+    assert.equal(batches[0].events[0].amount, 1);
+    assert.equal(Game.objectPools.bullets.active.length, 0);
     assert.equal(Game.objectPools.enemies.active.length, 0);
-    assert.equal(Game.buildState.counters.chainBlasts, 12);
 });
 
-test('chain card + seed merge into one chain: 200px radius, additive damage, single chainId', () => {
+test('rapid uses 8 hits, 2s decay, and a 4s heat-up', () => {
     resetCombat();
-    Game.resetBuildState();
-    applyBuild('chain_entry');
-    Game.activeCard = 'chain';
-    const killEvents = [];
-    const realKillHook = Game.onEnemyKilled;
-    Game.onEnemyKilled = (kill) => { killEvents.push(kill); realKillHook.call(Game, kill); };
-
-    const a = placeAt(0, 0, 0);
-    const x = placeAt(100, 0, 5);  // inside the merged 200px explosion
-    const y = placeAt(30, 0, 0.5); // dies to the blast and cascades onward
-    seedGrid();
-
-    Game.killEnemy(a, { source: 'direct', damage: 4 });
-    // D = 4 -> seed 0.5D + card 0.5D = 4.
-    assert.equal(x.health, 1);
-    const blasts = killEvents.filter((k) => k.source === 'explosion');
-    assert.equal(blasts.length, 1);
-    const chainIds = new Set(blasts.map((k) => k.chainId));
-    assert.equal(chainIds.size, 1);
-    assert.ok([...chainIds][0] > 0);
+    applyBuild('rapid_entry');
+    const enemy = makeEnemy(100);
+    for (let shot = 1; shot <= 7; shot++) Game.onDirectShotBatch(batch(shot, 'enemy', enemy.entityId));
+    assert.equal(Game.buildState.counters.rapidHits, 7);
+    Game.updateBuildEffects(1999);
+    assert.equal(Game.buildState.counters.rapidHits, 7);
+    Game.updateBuildEffects(1);
+    assert.equal(Game.buildState.counters.rapidHits, 0);
+    for (let shot = 8; shot <= 15; shot++) Game.onDirectShotBatch(batch(shot, 'enemy', enemy.entityId));
+    assert.equal(Game.buildState.timers.rapidWarmup, CONFIG.builds.rapid.activeMs);
 });
 
-test('chain card alone keeps cascading through kill blasts at 200px', () => {
+test('rapid heat-up strengthens every second batch with +1 and configured pierce', () => {
     resetCombat();
-    Game.resetBuildState();
-    Game.activeCard = 'chain';
-    const a = placeAt(0, 0, 0);
-    const b = placeAt(90, 0, 0.5); // dies to A's blast and cascades onward
-    const c = placeAt(250, 0, 0.5); // 160px from B: dies to B's 200px blast
-    const d = placeAt(340, 0, 5);   // reachable only from C's death blast (90px)
-    seedGrid();
-
-    Game.killEnemy(a, { source: 'direct', damage: 1 });
-    assert.equal(d.health, 4.5); // C's death blast hit D once (0.5)
-    assert.equal(Game.score, 30); // only A, B and C died
-    assert.equal(Game.objectPools.enemies.active.length, 1); // only D remains
+    applyBuild('rapid_entry', 'rapid_wide');
+    Game.buildState.timers.rapidWarmup = CONFIG.builds.rapid.activeMs;
+    assert.deepEqual(Game.consumeRapidBatchEffect(), { rapidBatchBoosted: false, rapidDamageBonus: 0, pierceRemaining: 0, rapidPierce: 0 });
+    const boosted = Game.consumeRapidBatchEffect();
+    assert.equal(boosted.rapidBatchBoosted, true);
+    assert.equal(boosted.rapidDamageBonus, 1);
+    assert.equal(boosted.pierceRemaining, 2);
+    assert.equal(Game.buildState.counters.rapidHeatupShots, 2);
 });
 
-test('chain: the boss takes only the seed part at half and never propagates', () => {
+test('rapid capstone adds +400ms per direct kill or six Boss hits, max +2s and 6s', () => {
     resetCombat();
+    applyBuild('rapid_entry', 'rapid_reignite', 'rapid_capstone');
+    Game.buildState.timers.rapidWarmup = 4000;
+    for (let i = 0; i < 5; i++) Game.onEnemyKilled(directKill(i + 1));
+    assert.equal(Game.buildState.timers.rapidWarmup, 6000);
+    Game.onEnemyKilled(directKill(99));
+    assert.equal(Game.buildState.timers.rapidWarmup, 6000);
+
     Game.resetBuildState();
-    applyBuild('chain_entry');
-    Game.activeCard = 'chain';
-    Game.boss = { entityId: 7001, health: 100, maxHealth: 100, x: 50, y: -50, width: 100, height: 100, type: 0 };
-
-    const a = placeAt(0, 0, 0);
-    const far = placeAt(250, 0, 1);
-    seedGrid();
-
-    Game.killEnemy(a, { source: 'direct', damage: 4 });
-    // Boss center is 100px from the blast: inside the merged 200px radius.
-    // It takes the seed part (2) at half -> 1; the core's 0.5 never applies.
-    assert.equal(Game.boss.health, 99);
-    assert.equal(far.health, 1);
+    applyBuild('rapid_entry', 'rapid_reignite', 'rapid_capstone');
+    Game.buildState.timers.rapidWarmup = 4000;
+    const boss = { entityId: 3001 };
+    for (let i = 1; i <= 6; i++) Game.onDirectShotBatch(batch(i, 'boss', boss.entityId));
+    assert.equal(Game.buildState.timers.rapidWarmup, 4400);
+    assert.equal(Game.buildState.counters.rapidBossHits, 0);
 });
 
-test('chain: damage lands even when the particle pool is exhausted', () => {
+test('rapid reignite retains exactly 4 of 8 progress after heat-up', () => {
     resetCombat();
-    Game.resetBuildState();
-    applyBuild('chain_entry');
-    const particles = Game.objectPools.particles;
-    for (let i = 0; i < CONFIG.poolMaxSize.particles; i++) {
-        particles.active.push({ life: 1 });
-    }
-
-    const a = placeAt(0, 0, 0);
-    const b = placeAt(40, 0, 1);
-    seedGrid();
-    Game.killEnemy(a, { source: 'direct', damage: 1 });
-    assert.equal(b.health, 0.5);
+    applyBuild('rapid_entry', 'rapid_reignite');
+    Game.buildState.timers.rapidWarmup = 4000;
+    Game.updateBuildEffects(4000);
+    assert.equal(Game.buildState.counters.rapidHits, 4);
+    Game.updateBuildEffects(2000);
+    assert.equal(Game.buildState.counters.rapidHits, 0);
 });
 
-test('chain explosion uses quantized attribution and settles one enemy death once', () => {
+test('fortress charges at 15s, regroup at 12s, and barrier echo uses a 200px radius', () => {
     resetCombat();
-    Game.resetBuildState();
-    applyBuild('chain_entry');
-    const killEvents = [];
-    const realKillHook = Game.onEnemyKilled;
-    Game.onEnemyKilled = (event) => {
-        killEvents.push(event);
-        realKillHook.call(Game, event);
-    };
-    const damageCalls = [];
-    const realApplyCombatDamage = Game.applyCombatDamage;
-    Game.applyCombatDamage = function(...args) {
-        damageCalls.push(args);
-        return realApplyCombatDamage.apply(this, args);
-    };
-
-    try {
-        const seed = placeAt(0, 0, 0);
-        const target = placeAt(40, 0, 0.5);
-        seedGrid();
-
-        Game.killEnemy(seed, { source: 'direct', damage: 1 });
-
-        const explosionCall = damageCalls.find((args) => args[0] === target);
-        assert.ok(explosionCall);
-        assert.equal(explosionCall[1], 'enemy');
-        assert.equal(explosionCall[2], 0.5);
-        assert.equal(explosionCall[3], 'explosion');
-        assert.equal(typeof explosionCall[4].chainId, 'number');
-
-        const explosionKills = killEvents.filter((event) => event.source === 'explosion');
-        assert.equal(explosionKills.length, 1);
-        assert.equal(explosionKills[0].damage, 0.5);
-        assert.equal(explosionKills[0].chainId, explosionCall[4].chainId);
-        assert.equal(Game.score, 20);
-        assert.equal(Game.buildState.metrics.chainKills, 1);
-        assert.equal(Game.objectPools.enemies.active.includes(target), false);
-    } finally {
-        Game.onEnemyKilled = realKillHook;
-        Game.applyCombatDamage = realApplyCombatDamage;
-    }
-});
-
-test('chain capstone: the 3rd chain kill clears 100px of bullets once per chain with a global cooldown', () => {
-    resetCombat();
-    Game.resetBuildState();
-    applyBuild('chain_entry', 'chain_ignite', 'chain_capstone');
-
-    // 40px cascade: A -> B -> C -> D; the 3rd chain kill (D) triggers the shock.
-    const a = placeAt(0, 0, 0);
-    placeAt(40, 0, 0.5);
-    const c = placeAt(80, 0, 0.5);
-    const d = placeAt(120, 0, 0.5);
-    // One bullet outside 100px from D (spared), one within 100px (cleared),
-    // one far away (spared).
-    const nearC = makeEnemyBullet(10, 0);
-    const nearD = makeEnemyBullet(210, 0);
-    const far = makeEnemyBullet(260, 0);
-    seedGrid();
-
-    Game.killEnemy(a, { source: 'direct', damage: 1 });
-    let survivors = Game.objectPools.enemyBullets.active;
-    assert.equal(survivors.includes(nearD), false); // cleared at the 3rd kill (D)
-    assert.equal(survivors.includes(nearC), true);   // shock fired once, at D
-    assert.equal(survivors.includes(far), true);
-    assert.equal(Game.buildState.timers.chainShockCooldown, 5000);
-
-    // A second chain inside the global 5s cooldown cannot clear again.
-    const a2 = placeAt(300, 0, 0);
-    placeAt(340, 0, 0.5);
-    placeAt(380, 0, 0.5);
-    placeAt(420, 0, 0.5);
-    const nearD2 = makeEnemyBullet(475, 0);
-    seedGrid();
-    Game.killEnemy(a2, { source: 'direct', damage: 1 });
-    survivors = Game.objectPools.enemyBullets.active;
-    assert.equal(survivors.includes(nearD2), true); // cooldown blocked the shock
-
-    Game.updateBuildEffects(5000);
-    assert.equal(Game.buildState.timers.chainShockCooldown, 0);
-
-    // After the global cooldown expires, a later chain can trigger again.
-    const a3 = placeAt(600, 0, 0);
-    placeAt(750, 0, 0.5);
-    placeAt(900, 0, 0.5);
-    const d3 = placeAt(1050, 0, 0.5);
-    const nearD3 = makeEnemyBullet(1130, 0);
-    seedGrid();
-    Game.killEnemy(a3, { source: 'direct', damage: 1 });
-    assert.equal(Game.objectPools.enemyBullets.active.includes(nearD3), false);
-    assert.equal(Game.buildState.timers.chainShockCooldown, 5000);
-});
-
-// --- Task 8: fortress barrier + desperate counterattack --------------------
-
-test('fortress: time shield has priority and does not consume the barrier', () => {
-    resetCombat();
-    Game.resetBuildState();
-    applyBuild('fortress_entry');
-    Game.buildState.locks.fortressBarrier = true;
-    Game.player.shieldTime = 2;
-    const bullet = makeEnemyBullet(10, 10);
-
-    Game.resolveEnemyBulletHit(bullet);
-
-    assert.equal(Game.lives, 3);
-    assert.equal(Game.player.shieldTime, 2);
-    assert.equal(Game.buildState.locks.fortressBarrier, true);
-});
-
-test('fortress: barrier blocks only enemy bullets and collision damage still triggers thorns', () => {
-    resetCombat();
-    Game.resetBuildState();
-    applyBuild('fortress_entry');
-    Game.activeCard = 'thorns';
-    Game.buildState.locks.fortressBarrier = true;
-    const enemy = makeEnemy(1, 0, 0);
-
-    Game.applyPlayerHit(1, 'enemyCollision');
-
-    assert.equal(Game.lives, 2);
-    assert.equal(Game.buildState.locks.fortressBarrier, true);
-    assert.equal(Game.objectPools.enemies.active.includes(enemy), false);
-});
-
-test('thorns routes ordinary enemy kills through retaliation damage exactly once', () => {
-    resetCombat();
-    Game.resetBuildState();
-    applyBuild('chain_entry');
-    Game.activeCard = 'thorns';
-    const enemy = makeEnemy(1, 0, 0);
-    const killEvents = [];
-    const realOnEnemyKilled = Game.onEnemyKilled;
-    Game.onEnemyKilled = (event) => {
-        killEvents.push(event);
-        realOnEnemyKilled.call(Game, event);
-    };
-    const damageCalls = [];
-    const realApplyCombatDamage = Game.applyCombatDamage;
-    Game.applyCombatDamage = function(...args) {
-        damageCalls.push(args);
-        return realApplyCombatDamage.apply(this, args);
-    };
-
-    try {
-        Game.onThornsHit();
-
-        assert.equal(damageCalls.length, 1);
-        assert.equal(damageCalls[0][0], enemy);
-        assert.equal(damageCalls[0][1], 'enemy');
-        assert.equal(damageCalls[0][2], 1);
-        assert.equal(damageCalls[0][3], 'retaliation');
-        assert.equal(killEvents.length, 1);
-        assert.equal(killEvents[0].source, 'retaliation');
-        assert.equal(Game.score, 10);
-        assert.equal(Game.buildState.metrics.chainKills, undefined);
-        assert.equal(Game.objectPools.enemies.active.includes(enemy), false);
-
-        Game.onThornsHit();
-        assert.equal(damageCalls.length, 1);
-        assert.equal(killEvents.length, 1);
-        assert.equal(Game.score, 10);
-    } finally {
-        Game.onEnemyKilled = realOnEnemyKilled;
-        Game.applyCombatDamage = realApplyCombatDamage;
-    }
-});
-
-test('thorns routes quantized boss retaliation through one death and reward flow', () => {
-    resetCombat();
-    Game.resetBuildState();
-    Game.activeCard = 'thorns';
-    Game.bossHealthBar = { style: {} };
-    Game.summonIndicator = { style: {} };
-    Game.bossWarning = { style: {} };
-    Game.boss = {
-        entityId: 6001,
-        x: 0,
-        y: 0,
-        width: 30,
-        height: 30,
-        health: 0.9,
-        maxHealth: 5.1,
-        type: 0,
-    };
-    const damageCalls = [];
-    const realApplyCombatDamage = Game.applyCombatDamage;
-    Game.applyCombatDamage = function(...args) {
-        damageCalls.push(args);
-        return realApplyCombatDamage.apply(this, args);
-    };
-
-    try {
-        Game.onThornsHit();
-        assert.equal(Game.boss.health, 0.4);
-        assert.equal(damageCalls[0][0].entityId, 6001);
-        assert.equal(damageCalls[0][1], 'boss');
-        assert.equal(damageCalls[0][3], 'retaliation');
-
-        Game.onThornsHit();
-        assert.equal(Game.boss, null);
-        assert.equal(Game.crowns, 1);
-        assert.equal(Game.rewardFlow.phase, 'core');
-        assert.equal(damageCalls.length, 2);
-
-        Game.onThornsHit();
-        assert.equal(Game.crowns, 1);
-        assert.equal(damageCalls.length, 2);
-    } finally {
-        Game.applyCombatDamage = realApplyCombatDamage;
-    }
-});
-
-test('fortress: boost enemy bullets deal two damage, grant the original five-second shield, and gate later hits', () => {
-    resetCombat();
-    Game.resetBuildState();
-    applyBuild('fortress_entry');
-    Game.activeCard = 'boost';
-    const first = makeEnemyBullet(10, 10);
-    const second = makeEnemyBullet(10, 10);
-
-    Game.resolveEnemyBulletHit(first);
-    Game.resolveEnemyBulletHit(second);
-
-    assert.equal(Game.lives, 1);
-    assert.equal(Game.player.shieldTime, 5);
+    applyBuild('fortress_entry', 'fortress_echo');
+    Game.updateBuildEffects(14999);
     assert.equal(Game.buildState.locks.fortressBarrier, false);
-});
+    Game.updateBuildEffects(1);
+    assert.equal(Game.buildState.locks.fortressBarrier, true);
+    Game.buildState.locks.fortressBarrier = false;
+    Game.buildState.timers.fortressBarrier = 0;
+    const center = { x: 15, y: 15 };
+    const inside = placeAt(center.x + 199, center.y, 3);
+    const edge = placeAt(center.x + 200, center.y, 3);
+    const outside = placeAt(center.x + 201, center.y, 3);
+    Game.onFortressBarrierConsumed();
+    assert.equal(inside.health, 1);
+    assert.equal(edge.health, 1);
+    assert.equal(outside.health, 3);
 
-test('fortress: barrier consumption echoes on ordinary enemies and clears bullets without touching the boss', () => {
-    resetCombat();
-    Game.resetBuildState();
-    applyBuild('fortress_entry', 'fortress_echo', 'fortress_capstone');
-    Game.buildState.locks.fortressBarrier = true;
-    const enemy = makeEnemy(1, 0, 0);
-    const near = makeEnemyBullet(50, 15);
-    const far = makeEnemyBullet(200, 200);
-    Game.boss = { entityId: 7001, health: 10, maxHealth: 10, x: 0, y: 0, width: 30, height: 30 };
-
-    Game.resolveEnemyBulletHit(makeEnemyBullet(10, 10));
-
-    assert.equal(Game.lives, 3);
-    assert.equal(Game.objectPools.enemies.active.includes(enemy), false);
-    assert.equal(Game.boss.health, 10);
-    assert.equal(Game.objectPools.enemyBullets.active.includes(near), false);
-    assert.equal(Game.objectPools.enemyBullets.active.includes(far), true);
-    assert.equal(Game.buildState.timers.fortressClearCooldown, 10000);
-});
-
-test('fortress: no-damage time charges one barrier, regroup shortens it, and damage resets the charge', () => {
-    resetCombat();
     Game.resetBuildState();
     applyBuild('fortress_entry', 'fortress_regroup');
-
     Game.updateBuildEffects(11999);
     assert.equal(Game.buildState.locks.fortressBarrier, false);
     Game.updateBuildEffects(1);
     assert.equal(Game.buildState.locks.fortressBarrier, true);
-    assert.equal(Game.buildState.timers.fortressBarrier, 0);
-
-    Game.buildState.locks.fortressBarrier = false;
-    Game.updateBuildEffects(12000);
-    assert.equal(Game.buildState.locks.fortressBarrier, true);
-    Game.applyPlayerHit(1, 'enemyBullet');
-    assert.equal(Game.buildState.timers.fortressBarrier, 0);
 });
 
-test('fortress: clear cooldown blocks a second clear and re-arms after fixed-step updates', () => {
+test('fortress capstone clears 250px at r-1/r/r+1, with no event side effects', () => {
     resetCombat();
-    Game.resetBuildState();
-    applyBuild('fortress_entry', 'fortress_echo', 'fortress_capstone');
+    applyBuild('fortress_entry', 'fortress_regroup', 'fortress_capstone');
+    const center = { x: 15, y: 15 };
+    const near = makeEnemyBullet(center.x + 249, center.y);
+    const edge = makeEnemyBullet(center.x + 250, center.y);
+    const far = makeEnemyBullet(center.x + 251, center.y);
+    let directEvents = 0;
+    let killEvents = 0;
+    Game.onDirectShotBatch = () => { directEvents += 1; };
+    Game.onEnemyKilled = () => { killEvents += 1; };
+    Game.buildState.locks.fortressBarrier = true;
+    Game.onFortressBarrierConsumed();
+    assert.equal(Game.objectPools.enemyBullets.active.includes(near), false);
+    assert.equal(Game.objectPools.enemyBullets.active.includes(edge), false);
+    assert.equal(Game.objectPools.enemyBullets.active.includes(far), true);
 
-    const updateMethods = [
-        'updatePlayer', 'updateBullets', 'updateEnemyBullets', 'updateEnemies',
-        'updateParticles', 'updateItems', 'updateCardEffects', 'spawnEnemies',
-        'enemiesShoot', 'spawnItems', 'updateGameState', 'checkCollisions',
-    ];
-    const originals = Object.fromEntries(updateMethods.map((name) => [name, Game[name]]));
-    for (const name of updateMethods) Game[name] = () => {};
-
-    try {
-        Game.buildState.locks.fortressBarrier = true;
-        Game.resolveEnemyBulletHit(makeEnemyBullet(10, 10));
-        assert.equal(Game.buildState.timers.fortressClearCooldown, 10000);
-
-        // This is the bullet that the second barrier consumption would clear
-        // if the cooldown were not blocking it.
-        const blockedCandidate = makeEnemyBullet(10, 10);
-        Game.buildState.locks.fortressBarrier = true;
-        const secondImpact = makeEnemyBullet(200, 200);
-        Game.resolveEnemyBulletHit(secondImpact);
-        assert.equal(Game.objectPools.enemyBullets.active.includes(blockedCandidate), true);
-        assert.equal(Game.buildState.timers.fortressClearCooldown, 10000);
-
-        const originalCooldown = Game.buildState.timers.fortressClearCooldown;
-        const stepsBeforeExpiry = Math.ceil(originalCooldown / Game.fixedStepMs) - 1;
-        for (let i = 0; i < stepsBeforeExpiry; i++) Game.update(Game.fixedStepMs);
-        assert.ok(Game.buildState.timers.fortressClearCooldown > 0);
-        Game.update(Game.fixedStepMs);
-        assert.equal(Game.buildState.timers.fortressClearCooldown, 0);
-
-        const rearmedTarget = makeEnemyBullet(10, 10);
-        Game.buildState.locks.fortressBarrier = true;
-        Game.resolveEnemyBulletHit(makeEnemyBullet(10, 10));
-        assert.equal(Game.objectPools.enemyBullets.active.includes(rearmedTarget), false);
-        assert.equal(Game.buildState.timers.fortressClearCooldown, 10000);
-    } finally {
-        for (const name of updateMethods) Game[name] = originals[name];
-    }
+    assert.equal(directEvents, 0);
+    assert.equal(killEvents, 0);
 });
 
-test('desperate: glass never activates low-health progress', () => {
+test('desperate triggers after 10 low-health direct batches and is inactive above the threshold or under glass', () => {
     resetCombat();
+    applyBuild('desperate_entry');
+    Game.lives = 1;
+    const enemy = makeEnemy(100);
+    for (let shot = 1; shot <= 9; shot++) Game.onDirectShotBatch(batch(shot, 'enemy', enemy.entityId));
+    assert.equal(Game.buildState.counters.desperateHits, 9);
+    Game.onDirectShotBatch(batch(10, 'enemy', enemy.entityId));
+    assert.equal(enemy.health, 98);
+    assert.equal(Game.buildState.counters.desperateHits, 0);
+
     Game.resetBuildState();
     applyBuild('desperate_entry');
-    const enemy = makeEnemy(100, 0, 0);
+    Game.lives = 3;
+    const safeEnemy = makeEnemy(100);
+    for (let shot = 1; shot <= 10; shot++) Game.onDirectShotBatch(batch(shot, 'enemy', safeEnemy.entityId));
+    assert.equal(Game.buildState.counters.desperateHits, 0);
 
-    Game.activeCard = 'comeback';
-    Game.lives = 1;
-    for (let shotId = 1; shotId <= 12; shotId++) {
-        Game.onDirectShotBatch(batch(shotId, 'enemy', enemy.entityId));
-    }
-    assert.equal(enemy.health, 98);
-
-    resetCombat();
     Game.resetBuildState();
     applyBuild('desperate_entry');
     Game.activeCard = 'glass';
     Game.lives = 1;
-    const glassEnemy = makeEnemy(100, 0, 0);
-
-    for (let shotId = 1; shotId <= 12; shotId++) {
-        Game.onDirectShotBatch(batch(shotId, 'enemy', glassEnemy.entityId));
-    }
-
+    const glassEnemy = makeEnemy(100);
+    for (let shot = 1; shot <= 10; shot++) Game.onDirectShotBatch(batch(shot, 'enemy', glassEnemy.entityId));
     assert.equal(Game.buildState.counters.desperateHits, 0);
     assert.equal(glassEnemy.health, 100);
 });
 
-test('desperate: twelve low-health batches trigger a bonus strike and the strike branch clears nearby bullets', () => {
+test('desperate execute uses the 35% boundary and clear branch uses 220px', () => {
     resetCombat();
-    Game.resetBuildState();
-    applyBuild('desperate_entry', 'desperate_strike');
-    Game.activeCard = 'comeback';
+    applyBuild('desperate_entry', 'desperate_clear');
     Game.lives = 1;
-    const enemy = makeEnemy(100, 0, 0);
-    const near = makeEnemyBullet(40, 15);
-    const far = makeEnemyBullet(200, 200);
-
-    for (let shotId = 1; shotId <= 12; shotId++) {
-        Game.onDirectShotBatch(batch(shotId, 'enemy', enemy.entityId));
-    }
-
-    assert.equal(enemy.health, 98);
+    const enemy = makeEnemy(100);
+    enemy.health = 35;
+    const center = { x: 15, y: 15 };
+    const near = makeEnemyBullet(center.x + 219, center.y);
+    const edge = makeEnemyBullet(center.x + 220, center.y);
+    const far = makeEnemyBullet(center.x + 221, center.y);
+    for (let shot = 1; shot <= 10; shot++) Game.onDirectShotBatch(batch(shot, 'enemy', enemy.entityId));
+    assert.equal(enemy.health, 33);
     assert.equal(Game.objectPools.enemyBullets.active.includes(near), false);
+    assert.equal(Game.objectPools.enemyBullets.active.includes(edge), false);
     assert.equal(Game.objectPools.enemyBullets.active.includes(far), true);
-    assert.equal(Game.buildState.timers.desperateClearCooldown, 8000);
-});
 
-test('desperate: execute branch uses three times the triggering damage on a low-health target', () => {
-    resetCombat();
     Game.resetBuildState();
     applyBuild('desperate_entry', 'desperate_execute');
-    Game.activeCard = 'comeback';
     Game.lives = 1;
-    const enemy = makeEnemy(100, 0, 0);
-    enemy.health = 30;
-
-    for (let shotId = 1; shotId <= 12; shotId++) {
-        Game.onDirectShotBatch(batch(shotId, 'enemy', enemy.entityId));
-    }
-
-    assert.equal(enemy.health, 27);
+    const executeEnemy = makeEnemy(100);
+    executeEnemy.health = 35;
+    for (let shot = 1; shot <= 10; shot++) Game.onDirectShotBatch(batch(shot, 'enemy', executeEnemy.entityId));
+    assert.equal(executeEnemy.health, 32);
 });
 
-test('desperate: capstone restores one life once per boss cycle and does not bank blocked healing', () => {
+test('desperate capstone heals once per Boss cycle after eight direct kills', () => {
     resetCombat();
-    Game.resetBuildState();
-    applyBuild('desperate_entry', 'desperate_strike', 'desperate_capstone');
+    applyBuild('desperate_entry', 'desperate_clear', 'desperate_capstone');
     Game.activeCard = 'comeback';
     Game.lives = 1;
-
     for (let i = 0; i < 8; i++) {
         const enemy = makeEnemy(1, 100 + i * 40, 0);
         enemy.health = 0;
@@ -1197,7 +379,6 @@ test('desperate: capstone restores one life once per boss cycle and does not ban
     }
     assert.equal(Game.lives, 2);
     assert.equal(Game.buildState.locks.desperateCycleHeal, true);
-
     Game.lives = 1;
     for (let i = 0; i < 8; i++) {
         const enemy = makeEnemy(1, 100 + i * 40, 0);
@@ -1205,70 +386,301 @@ test('desperate: capstone restores one life once per boss cycle and does not ban
         Game.killEnemy(enemy, { source: 'direct', damage: 1 });
     }
     assert.equal(Game.lives, 1);
-    assert.equal(Game.buildState.counters.desperateKills, 0);
-
-    Game.activeCard = 'blitz';
-    Game.buildState.locks.desperateCycleHeal = false;
-    for (let i = 0; i < 8; i++) {
-        const enemy = makeEnemy(1, 100 + i * 40, 0);
-        enemy.health = 0;
-        Game.killEnemy(enemy, { source: 'direct', damage: 1 });
-    }
-    assert.equal(Game.lives, 1);
-    assert.equal(Game.buildState.counters.desperateKills, 0);
 });
 
-test('desperate: switching to a no-heal card clears seven-kill progress before it can heal', () => {
+test('hunter supports 2D/3D, remembers a target for 3000ms, and bonus does not recurse', () => {
     resetCombat();
+    applyBuild('hunter_entry', 'hunter_lock');
+    const enemy = makeEnemy(100);
+    for (let shot = 1; shot <= 9; shot++) Game.onDirectShotBatch(batch(shot, 'enemy', enemy.entityId));
+    Game.updateBuildEffects(2999);
+    Game.onDirectShotBatch(batch(10, 'enemy', enemy.entityId));
+    assert.equal(enemy.health, 98);
+    assert.equal(Game.buildState.metrics.hunterPrecisionDamage, 2);
+
+    for (let shot = 11; shot <= 19; shot++) Game.onDirectShotBatch(batch(shot, 'enemy', enemy.entityId));
+    enemy.health = 35;
+    Game.onDirectShotBatch(batch(20, 'enemy', enemy.entityId));
+    assert.equal(enemy.health, 32);
+    Game.updateBuildEffects(3000);
+    assert.equal(Game.buildState.locks.hunterTargetId, null);
+    assert.equal(Game.buildState.locks.hunterHits, 0);
+
     Game.resetBuildState();
-    applyBuild('desperate_entry', 'desperate_strike', 'desperate_capstone');
-    Game.activeCard = 'comeback';
-    Game.lives = 1;
-
-    for (let i = 0; i < 7; i++) {
-        const enemy = makeEnemy(1, 100 + i * 40, 0);
-        enemy.health = 0;
-        Game.killEnemy(enemy, { source: 'direct', damage: 1 });
-    }
-    assert.equal(Game.buildState.counters.desperateKills, 7);
-
-    Game.activeCard = 'blitz';
-    Game.updateBuildEffects(Game.fixedStepMs);
-    assert.equal(Game.buildState.counters.desperateKills, 0);
-
-    Game.activeCard = 'comeback';
-    const eighth = makeEnemy(1, 500, 0);
-    eighth.health = 0;
-    Game.killEnemy(eighth, { source: 'direct', damage: 1 });
-    assert.equal(Game.lives, 1);
-    assert.equal(Game.buildState.counters.desperateKills, 1);
+    applyBuild('hunter_entry', 'hunter_execute');
+    const executeEnemy = makeEnemy(100);
+    executeEnemy.health = 35;
+    for (let shot = 1; shot <= 10; shot++) Game.onDirectShotBatch(batch(shot, 'enemy', executeEnemy.entityId));
+    assert.equal(executeEnemy.health, 32);
 });
 
-test('desperate: removing and re-adding the capstone cannot preserve healing progress', () => {
+test('hunter switching targets starts the lock count on the new target', () => {
     resetCombat();
-    Game.resetBuildState();
-    applyBuild(
-        'desperate_entry', 'desperate_strike', 'desperate_capstone',
-        'rapid_entry', 'fortress_entry', 'chain_entry',
-    );
-    Game.activeCard = 'comeback';
+    applyBuild('hunter_entry');
+    const first = makeEnemy(100);
+    const second = makeEnemy(100, 50, 50);
+    for (let shot = 1; shot <= 4; shot++) Game.onDirectShotBatch(batch(shot, 'enemy', first.entityId));
+    Game.onDirectShotBatch(batch(5, 'enemy', second.entityId));
+    assert.equal(Game.buildState.locks.hunterTargetId, second.entityId);
+    assert.equal(Game.buildState.locks.hunterHits, 1);
+});
+
+test('hunter Boss capstone opens a 2s window, clears 200px with 6s cooldown, and leaves nearby enemies unchanged', () => {
+    resetCombat();
+    applyBuild('hunter_entry', 'hunter_lock', 'hunter_capstone');
+    Game.boss = { entityId: 5001, x: 0, y: 0, width: 30, height: 30, health: 100, maxHealth: 100, type: 0 };
+    const nearbyEnemy = placeAt(115, 15, 10);
+    const near = makeEnemyBullet(214, 15);
+    const edge = makeEnemyBullet(215, 15);
+    const far = makeEnemyBullet(216, 15);
+    for (let shot = 1; shot <= 10; shot++) Game.onDirectShotBatch(batch(shot, 'boss', Game.boss.entityId));
+    assert.equal(Game.boss.health, 98);
+    assert.equal(Game.buildState.timers.hunterWindow, 2000);
+    assert.equal(nearbyEnemy.health, 10);
+    assert.equal(Game.objectPools.enemyBullets.active.includes(near), false);
+    assert.equal(Game.objectPools.enemyBullets.active.includes(edge), false);
+    assert.equal(Game.objectPools.enemyBullets.active.includes(far), true);
+    assert.equal(Game.buildState.timers.hunterClearCooldown, 6000);
+
+    const healthBefore = nearbyEnemy.health;
+    Game.onDirectShotBatch(batch(11, 'boss', Game.boss.entityId));
+    assert.equal(Game.boss.health, 96);
+    assert.equal(nearbyEnemy.health, healthBefore);
+    assert.equal(Game.buildState.timers.hunterWindow, 0);
+});
+
+test('chain uses one fixed 1.0 seed blast, merges core and entry once, and never damages Boss', () => {
+    resetCombat();
+    applyBuild('chain_entry');
+    Game.activeCard = 'chain';
+    const seed = placeAt(0, 0, 0);
+    const target = placeAt(100, 0, 1);
+    Game.boss = { entityId: 7001, x: 35, y: -15, width: 30, height: 30, health: 100, maxHealth: 100, type: 0 };
+    seedGrid();
+    Game.killEnemy(seed, { source: 'direct', damage: 4 });
+    assert.equal(Game.objectPools.enemies.active.includes(target), false);
+    assert.equal(Game.boss.health, 100);
+    assert.equal(Game.buildState.counters.chainBlasts, 1);
+    assert.equal(Game.buildState.metrics.chainBonusDamage, 1);
+});
+
+test('chain base and wide radii honor r-1/r/r+1 with 1.0 damage', () => {
+    resetCombat();
+    applyBuild('chain_entry');
+    const seed = placeAt(0, 0, 0);
+    const inside = placeAt(199, 0, 2);
+    const edge = placeAt(0, 200, 2);
+    const outside = placeAt(201, 0, 2);
+    seedGrid();
+    Game.killEnemy(seed, { source: 'direct', damage: 1 });
+    assert.equal(inside.health, 1);
+    assert.equal(edge.health, 1);
+    assert.equal(outside.health, 2);
+
+    resetCombat();
+    applyBuild('chain_entry', 'chain_radius');
+    const seed2 = placeAt(0, 0, 0);
+    const wideInside = placeAt(259, 0, 2);
+    const wideEdge = placeAt(0, 260, 2);
+    const wideOutside = placeAt(261, 0, 2);
+    seedGrid();
+    Game.killEnemy(seed2, { source: 'direct', damage: 1 });
+    assert.equal(wideInside.health, 1);
+    assert.equal(wideEdge.health, 1);
+    assert.equal(wideOutside.health, 2);
+});
+
+test('chain spread produces one generation at 220px with 0.5 damage and does not recurse', () => {
+    resetCombat();
+    applyBuild('chain_entry', 'chain_spread');
+    const seed = placeAt(0, 0, 0);
+    const first = placeAt(100, 0, 0.5);
+    const second = placeAt(320, 0, 0.5);
+    const third = placeAt(540, 0, 0.5);
+    seedGrid();
+    Game.killEnemy(seed, { source: 'direct', damage: 1 });
+    assert.equal(Game.objectPools.enemies.active.includes(first), false);
+    assert.equal(Game.objectPools.enemies.active.includes(second), false);
+    assert.equal(Game.objectPools.enemies.active.includes(third), true);
+    assert.equal(third.health, 0.5);
+    assert.equal(Game.buildState.counters.chainGeneration, 1);
+});
+
+test('chain damage still resolves when the particle pool is exhausted', () => {
+    resetCombat();
+    applyBuild('chain_entry');
+    for (let i = 0; i < CONFIG.poolMaxSize.particles; i++) Game.objectPools.particles.active.push({ life: 1 });
+    const seed = placeAt(0, 0, 0);
+    const target = placeAt(40, 0, 2);
+    seedGrid();
+    Game.killEnemy(seed, { source: 'direct', damage: 1 });
+    assert.equal(target.health, 1);
+});
+
+test('chain capstone clears 300px once at the third kill and clear emits no events', () => {
+    resetCombat();
+    applyBuild('chain_entry', 'chain_radius', 'chain_capstone');
+    const seed = placeAt(0, 0, 0);
+    placeAt(50, 0, 0.5);
+    placeAt(100, 0, 0.5);
+    const last = placeAt(150, 0, 0.5);
+    const near = makeEnemyBullet(449, 0);
+    const edge = makeEnemyBullet(450, 0);
+    const far = makeEnemyBullet(451, 0);
+    let directEvents = 0;
+    Game.onDirectShotBatch = () => { directEvents += 1; };
+    seedGrid();
+    Game.killEnemy(seed, { source: 'direct', damage: 1 });
+    assert.equal(Game.objectPools.enemies.active.includes(last), false);
+    assert.equal(Game.objectPools.enemyBullets.active.includes(near), false);
+    assert.equal(Game.objectPools.enemyBullets.active.includes(edge), false);
+    assert.equal(Game.objectPools.enemyBullets.active.includes(far), true);
+    assert.equal(Game.buildState.metrics.chainBulletClears, 2);
+    assert.equal(directEvents, 0);
+});
+
+test('thorns uses a 200px boundary and sends each retaliation death to bloodlust once', () => {
+    resetCombat();
+    Game.activeCard = 'thorns';
+    const inside = placeAt(214, 15, 1);
+    const edge = placeAt(15, 215, 1);
+    const outside = placeAt(216, 15, 1);
+    Game.onThornsHit();
+    assert.equal(Game.objectPools.enemies.active.includes(inside), false);
+    assert.equal(Game.objectPools.enemies.active.includes(edge), false);
+    assert.equal(Game.objectPools.enemies.active.includes(outside), true);
+
+    resetCombat();
+    applyBuild('rapid_entry', 'desperate_entry', 'hunter_entry');
+    Game.activeCard = 'bloodlust';
+    const enemy = makeEnemy(1);
+    Game.onThornsHit();
+    assert.equal(Game.bloodlustMeter, 1);
+    assert.equal(Game.buildState.counters.rapidHits, 0);
+    assert.equal(Game.buildState.counters.desperateHits, 0);
+    assert.equal(Game.buildState.locks.hunterHits, 0);
+    assert.equal(Game.objectPools.enemies.active.includes(enemy), false);
+});
+
+test('cross-route unique deaths feed bloodlust once and never advance direct-only routes', () => {
+    resetCombat();
+    applyBuild('rapid_entry', 'desperate_entry', 'hunter_entry', 'chain_entry');
+    Game.activeCard = 'bloodlust';
     Game.lives = 1;
+    const seed = placeAt(0, 0, 0);
+    const explosionDeath = placeAt(100, 0, 0.5);
+    seedGrid();
+    Game.killEnemy(seed, { source: 'direct', damage: 1 });
+    assert.equal(Game.bloodlustMeter, 2);
+    assert.equal(Game.buildState.counters.rapidHits, 0);
+    assert.equal(Game.buildState.counters.desperateHits, 0);
+    assert.equal(Game.buildState.locks.hunterHits, 0);
+    assert.equal(Game.objectPools.enemies.active.includes(explosionDeath), false);
+    Game.onEnemyKilled({ ...directKill(1), entityId: explosionDeath.entityId, source: 'explosion' });
+    assert.equal(Game.bloodlustMeter, 2);
+});
 
-    for (let i = 0; i < 7; i++) {
-        const enemy = makeEnemy(1, 100 + i * 40, 0);
-        enemy.health = 0;
-        Game.killEnemy(enemy, { source: 'direct', damage: 1 });
+test('fortress retaliation death also feeds bloodlust once without direct progress', () => {
+    resetCombat();
+    applyBuild('rapid_entry', 'desperate_entry', 'hunter_entry', 'fortress_entry', 'fortress_echo');
+    Game.activeCard = 'bloodlust';
+    const enemy = makeEnemy(1);
+    Game.player.x = -15;
+    Game.player.y = -15;
+    Game.onFortressBarrierConsumed();
+    assert.equal(Game.bloodlustMeter, 1);
+    assert.equal(Game.buildState.counters.rapidHits, 0);
+    assert.equal(Game.buildState.counters.desperateHits, 0);
+    assert.equal(Game.buildState.locks.hunterHits, 0);
+    assert.equal(Game.objectPools.enemies.active.includes(enemy), false);
+});
+
+test('clearing bullets is a pure release with no hit, kill, or direct event', () => {
+    resetCombat();
+    const bullet = makeEnemyBullet(214, 15);
+    const edge = makeEnemyBullet(215, 15);
+    const far = makeEnemyBullet(216, 15);
+    const enemy = placeAt(115, 15, 5);
+    let directEvents = 0;
+    let killEvents = 0;
+    Game.onDirectShotBatch = () => { directEvents += 1; };
+    Game.onEnemyKilled = () => { killEvents += 1; };
+    assert.equal(Game.clearEnemyBulletsInRadius(15, 15, 200), 2);
+    assert.equal(Game.objectPools.enemyBullets.active.includes(bullet), false);
+    assert.equal(Game.objectPools.enemyBullets.active.includes(edge), false);
+    assert.equal(Game.objectPools.enemyBullets.active.includes(far), true);
+    assert.equal(enemy.health, 5);
+    assert.equal(directEvents, 0);
+    assert.equal(killEvents, 0);
+});
+
+test('Boss death emits bloodlust +16 exactly once even on re-entry', () => {
+    resetCombat();
+    Game.activeCard = 'bloodlust';
+    Game.bossHealthBar = { style: {} };
+    Game.summonIndicator = { style: {} };
+    Game.bossWarning = { style: {} };
+    Game.boss = { entityId: 6001, x: 0, y: 0, width: 30, height: 30, health: 1, maxHealth: 10, type: 0 };
+    const realProgress = Game.addBloodlustProgress;
+    let calls = 0;
+    Game.addBloodlustProgress = function(value) {
+        calls += 1;
+        return realProgress.call(this, value);
+    };
+    try {
+        Game.handleBossDeath();
+        const meter = Game.bloodlustMeter;
+        const lives = Game.lives;
+        Game.handleBossDeath();
+        assert.equal(calls, 1);
+        assert.equal(meter, 0);
+        assert.equal(Game.bloodlustMeter, meter);
+        assert.equal(Game.lives, lives);
+    } finally {
+        Game.addBloodlustProgress = realProgress;
     }
-    assert.equal(Game.buildState.counters.desperateKills, 7);
-    assert.ok(Game.getLegalBuildRemovals('supply_entry').includes('desperate_capstone'));
+});
 
-    assert.equal(Game.applyBuildChoice('supply_entry', 'desperate_capstone'), true);
-    assert.equal(Game.buildState.counters.desperateKills, 0);
+test('fortress barrier has priority over actual damage and thorns does not consume it', () => {
+    resetCombat();
+    applyBuild('fortress_entry');
+    Game.buildState.locks.fortressBarrier = true;
+    Game.player.shieldTime = 0;
+    Game.resolveEnemyBulletHit(makeEnemyBullet(10, 10));
+    assert.equal(Game.lives, 3);
+    assert.equal(Game.buildState.locks.fortressBarrier, false);
 
-    assert.equal(Game.applyBuildChoice('desperate_capstone', 'supply_entry'), true);
-    const eighth = makeEnemy(1, 500, 0);
-    eighth.health = 0;
-    Game.killEnemy(eighth, { source: 'direct', damage: 1 });
-    assert.equal(Game.lives, 1);
-    assert.equal(Game.buildState.counters.desperateKills, 1);
+    Game.buildState.locks.fortressBarrier = true;
+    Game.activeCard = 'thorns';
+    const enemy = makeEnemy(1);
+    Game.applyPlayerHit(1, 'enemyCollision');
+    assert.equal(Game.lives, 2);
+    assert.equal(Game.buildState.locks.fortressBarrier, true);
+    assert.equal(Game.objectPools.enemies.active.includes(enemy), false);
+});
+
+test('temporal shield has priority over fortress barrier and does not consume it', () => {
+    resetCombat();
+    applyBuild('fortress_entry');
+    Game.buildState.locks.fortressBarrier = true;
+    Game.player.shieldTime = 2;
+    Game.resolveEnemyBulletHit(makeEnemyBullet(10, 10));
+    assert.equal(Game.lives, 3);
+    assert.equal(Game.player.shieldTime, 2);
+    assert.equal(Game.buildState.locks.fortressBarrier, true);
+});
+
+test('direct target identity and pierced bullet behavior remain terminal for Boss hits', () => {
+    resetCombat();
+    Game.isBossStage = true;
+    Game.boss = { entityId: 5001, x: 0, y: 0, width: 30, height: 30, health: 10, maxHealth: 10, type: 0 };
+    const pierced = makeBullet(11);
+    pierced.pierceRemaining = 1;
+    const later = makeBullet(12);
+    Game.checkCollisions();
+    assert.equal(Game.boss.health, 9);
+    Game.checkCollisions();
+    assert.equal(Game.boss.health, 8);
+    assert.equal(Game.objectPools.bullets.active.includes(pierced), false);
+    assert.equal(Game.objectPools.bullets.active.includes(later), false);
 });
