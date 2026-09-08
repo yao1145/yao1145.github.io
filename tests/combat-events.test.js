@@ -1047,7 +1047,6 @@ test('desperate: removing and re-adding the capstone cannot preserve healing pro
     assert.ok(Game.getLegalBuildRemovals('supply_entry').includes('desperate_capstone'));
 
     assert.equal(Game.applyBuildChoice('supply_entry', 'desperate_capstone'), true);
-    Game.updateBuildEffects(Game.fixedStepMs);
     assert.equal(Game.buildState.counters.desperateKills, 0);
 
     assert.equal(Game.applyBuildChoice('desperate_capstone', 'supply_entry'), true);

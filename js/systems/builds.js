@@ -257,6 +257,7 @@ Game.getLegalBuildCandidates = function(rng = Math.random) {
 
 Game.applyBuildChoice = function(candidateId, replaceId) {
     const owned = getOwned();
+    const hadDesperateCapstone = owned.includes('desperate_capstone');
 
     if (owned.length >= CONFIG.builds.maxOwned) {
         if (!replaceId || !this.getLegalBuildRemovals(candidateId).includes(replaceId)) return false;
@@ -269,6 +270,9 @@ Game.applyBuildChoice = function(candidateId, replaceId) {
         this.buildState.owned = [...owned, candidateId];
     }
 
+    if (hadDesperateCapstone && !this.buildState.owned.includes('desperate_capstone')) {
+        this.buildState.counters.desperateKills = 0;
+    }
     this.buildState.rewardCount += 1;
     return true;
 };
