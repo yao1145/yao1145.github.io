@@ -73,6 +73,22 @@ test('natural item spawns carry the natural spawn source', () => {
     assert.equal(Game.objectPools.items.active[0].spawnSource, 'natural');
 });
 
+test('supply magnet also moves a non-natural collectible item', () => {
+    resetItems();
+    Game.buildState.owned = ['supply_entry', 'supply_magnet'];
+    const item = makeItem(1, {
+        x: Game.player.x + 50,
+        y: Game.player.y,
+        spawnSource: 'enemyDrop',
+    });
+    const beforeX = item.x;
+
+    Game.updateItems(Game.fixedStepMs);
+
+    assert.ok(item.x < beforeX);
+    assert.equal(Game.objectPools.items.active.includes(item), true);
+});
+
 test('a healing-disabled heart is consumed but adds no supply progress', () => {
     resetItems();
     Game.activeCard = 'blitz';
@@ -93,6 +109,16 @@ test('a full-health natural heart with the supply capstone adds two progress', (
     collectNatural(0);
 
     assert.equal(Game.buildState.counters.supplyPickups, 2);
+});
+
+test('a full-health natural heart without the supply capstone adds one progress', () => {
+    resetItems();
+    Game.lives = Game.getMaxLives();
+    Game.buildState.owned = ['supply_entry'];
+
+    collectNatural(0);
+
+    assert.equal(Game.buildState.counters.supplyPickups, 1);
 });
 
 test('non-natural items never contribute to the supply route', () => {
@@ -119,6 +145,19 @@ test('the third natural pickup starts a pulse and does not bank excess progress'
 
     assert.equal(Game.buildState.counters.supplyPickups, 0);
     assert.equal(Game.buildState.timers.supplyPulse, CONFIG.builds.supply.pulseMs);
+});
+
+test('a healing-disabled heart refreshes an active pulse without adding next-cycle progress', () => {
+    resetItems();
+    Game.activeCard = 'blitz';
+    Game.buildState.owned = ['supply_entry'];
+    Game.buildState.counters.supplyPickups = 2;
+    Game.buildState.timers.supplyPulse = 500;
+
+    collectNatural(0);
+
+    assert.equal(Game.buildState.timers.supplyPulse, CONFIG.builds.supply.pulseMs);
+    assert.equal(Game.buildState.counters.supplyPickups, 0);
 });
 
 test('extended and boost supply pulses refresh to their exact capped duration', () => {
@@ -153,6 +192,16 @@ test('supply magnet moves nearby items by one fixed step without collecting them
     assert.equal(Game.objectPools.enemyBullets.active.includes(enemyBullet), true);
 });
 
+test('supply pulse countdown advances by the fixed simulation step', () => {
+    resetItems();
+    Game.buildState.owned = ['supply_entry'];
+    Game.buildState.timers.supplyPulse = CONFIG.builds.supply.pulseMs;
+
+    Game.updateBuildEffects(Game.fixedStepMs);
+
+    assert.ok(Math.abs(Game.buildState.timers.supplyPulse - (CONFIG.builds.supply.pulseMs - Game.fixedStepMs)) < 1e-9);
+});
+
 test('supply bonus is assigned only to the designated primary bullet and feeds final damage', () => {
     resetItems();
     Game.buildState.owned = ['supply_entry'];
@@ -168,24 +217,75 @@ test('supply bonus is assigned only to the designated primary bullet and feeds f
     assert.equal(Game.getDirectShotDamage('enemy', bullets.find((bullet) => bullet.isPrimary)), 1.5);
 });
 
-test('item collection broadcasts exactly one event after applying the item effect', () => {
+test('item collection broadcasts exactly one event after applying and releasing the item', () => {
     resetItems();
     Game.buildState.owned = ['supply_entry'];
     const events = [];
     const original = Game.onItemCollected;
     Game.onItemCollected = (event) => {
-        events.push(event);
+        events.push({
+            event,
+            shieldTime: Game.player.shieldTime,
+            itemStillActive: Game.objectPools.items.active.includes(item),
+        });
         return original.call(Game, event);
     };
 
     const item = makeItem(2);
-    assert.equal(Game.collectItem(item), true);
+    try {
+        assert.equal(Game.collectItem(item), true);
 
-    assert.equal(events.length, 1);
-    assert.deepEqual(events[0], {
-        type: 2,
-        spawnSource: 'natural',
-        wasFull: false,
-        healingAllowed: true,
+        assert.equal(events.length, 1);
+        assert.deepEqual(events[0].event, {
+            type: 2,
+            spawnSource: 'natural',
+            wasFull: false,
+            healingAllowed: true,
+        });
+        assert.equal(events[0].shieldTime, 5);
+        assert.equal(events[0].itemStillActive, false);
+
+        assert.equal(Game.collectItem(item), false);
+        assert.equal(events.length, 1);
+    } finally {
+        Game.onItemCollected = original;
+    }
+});
+
+test('the primary supply damage bonus feeds a later bonus strike', () => {
+    resetItems();
+    Game.buildState.owned = ['supply_entry', 'hunter_entry'];
+    Game.buildState.timers.supplyPulse = CONFIG.builds.supply.pulseMs;
+    const enemy = Game.getObject('enemies');
+    Object.assign(enemy, {
+        entityId: Game.allocateEntityId(),
+        x: 0,
+        y: 0,
+        width: 30,
+        height: 30,
+        type: 0,
+        health: 100,
+        maxHealth: 100,
+        _dead: false,
     });
+    Game.baseBulletCount = 1;
+    Game.spawnBullet();
+    const primary = Game.objectPools.bullets.active[0];
+    const directDamage = Game.getDirectShotDamage('enemy', primary);
+
+    for (let shotId = 1; shotId <= CONFIG.builds.hunter.hits; shotId++) {
+        Game.onDirectShotBatch({
+            shotId,
+            events: [{
+                source: 'direct',
+                targetType: 'enemy',
+                entityId: enemy.entityId,
+                baseDamage: directDamage,
+                amount: directDamage,
+            }],
+        });
+    }
+
+    assert.equal(directDamage, 1.5);
+    assert.equal(enemy.health, 97);
 });

@@ -550,18 +550,18 @@ Game.onItemCollected = function(event) {
     if (!event || event.spawnSource !== 'natural') return;
 
     const cfg = CONFIG.builds.supply;
+    if ((this.buildState.timers.supplyPulse || 0) > 0) {
+        this.buildState.counters.supplyPickups = 0;
+        this.buildState.timers.supplyPulse = this.getSupplyPulseDuration();
+        return;
+    }
+
     let progress = 1;
     if (event.type === 0) {
         if (!event.healingAllowed) progress = 0;
         else if (event.wasFull && this.hasBuild('supply_capstone')) progress = cfg.fullHealthHeartProgress;
     }
     if (progress <= 0) return;
-
-    if ((this.buildState.timers.supplyPulse || 0) > 0) {
-        this.buildState.counters.supplyPickups = 0;
-        this.buildState.timers.supplyPulse = this.getSupplyPulseDuration();
-        return;
-    }
 
     const pickups = (this.buildState.counters.supplyPickups || 0) + progress;
     if (pickups < cfg.pickups) {

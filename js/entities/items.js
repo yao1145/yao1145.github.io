@@ -43,7 +43,7 @@ Game.updateItems = function(deltaTime) {
         const item = pool.active[i];
         item.y += item.speed;
 
-        if (this.hasBuild('supply_magnet') && item.spawnSource === 'natural') {
+        if (this.hasBuild('supply_magnet')) {
             const cfg = CONFIG.builds.supply;
             const playerCenterX = this.player.x + this.player.width / 2;
             const playerCenterY = this.player.y + this.player.height / 2;
