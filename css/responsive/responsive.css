@@ -35,10 +35,23 @@
     }
 
     .buildHud {
+        top: 198px;
+        right: 8px;
+        width: min(174px, calc(100vw - 16px));
+        max-width: calc(100vw - 16px);
+    }
+
+    .cardEffectHud {
         top: 132px;
         right: 8px;
         width: min(174px, calc(100vw - 16px));
         max-width: calc(100vw - 16px);
+    }
+
+    .cardEffectHudRow {
+        min-height: 26px;
+        padding: 5px 7px;
+        font-size: 10px;
     }
 
     .buildHudRow {
@@ -91,6 +104,13 @@
 
 @media (max-width: 360px) {
     .buildHud {
+        top: 190px;
+        right: 6px;
+        width: min(160px, calc(100vw - 12px));
+        max-width: calc(100vw - 12px);
+    }
+
+    .cardEffectHud {
         top: 128px;
         right: 6px;
         width: min(160px, calc(100vw - 12px));

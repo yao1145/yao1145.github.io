@@ -1,5 +1,13 @@
 import { CONFIG } from './config.js';
 
+function getDomElement(id) {
+    return typeof document === 'undefined' ? null : document.getElementById(id);
+}
+
+function setDomDisplay(element, display) {
+    if (element?.style) element.style.display = display;
+}
+
 export const Game = {
     canvas: null,
     ctx: null,
@@ -30,6 +38,8 @@ export const Game = {
     nextShotId: 0,
     // Explosion-chain identity (js/systems/builds.js): one id per kill cascade.
     nextChainId: 0,
+    // Presentation-only deadline; route/combat state must never depend on it.
+    visualHitStopUntil: 0,
     // Direct hits collected during one checkCollisions pass and delivered to
     // the build hooks by flushDirectShotBatches().
     directHitQueue: [],
@@ -90,6 +100,20 @@ export const Game = {
     lastUIUpdateTime: 0,
     uiUpdateInterval: CONFIG.uiUpdateInterval,
 
+    clearVisualState: function() {
+        this.visualHitStopUntil = 0;
+        for (const hud of [this.buildHud, this.cardEffectHud]) {
+            if (!hud) continue;
+            if (typeof hud.replaceChildren === 'function') hud.replaceChildren();
+            if ('hidden' in hud) hud.hidden = true;
+        }
+    },
+
+    resetCardEffectState: function() {
+        this.cardRegenTimer = 0;
+        this.bloodlustMeter = 0;
+    },
+
     init: function() {
         this.canvas = document.getElementById('gameCanvas');
         this.ctx = this.canvas.getContext('2d');
@@ -132,6 +156,7 @@ export const Game = {
     },
 
     resizeCanvas: function() {
+        this.clearVisualState();
         // Render at device resolution (capped at 2x for perf) while keeping the
         // game logic in CSS pixels: the backing store is scaled by dpr, the
         // context transform converts logical -> device coords, and the CSS size
@@ -216,6 +241,7 @@ export const Game = {
     startGame: function() {
         // Ready gate: no start until all badges are loaded (badgeLoad, maintained by badges.js).
         if (!this.badgeLoad || this.badgeLoad.status !== 'ready') return;
+        this.clearVisualState();
         this.resetBuildState();
         this.isRunning = true;
         this.isGameOver = false;
@@ -249,18 +275,18 @@ export const Game = {
         this.activeCard = null;
         if (typeof this.resetCardHistory === 'function') this.resetCardHistory();
         else this.cardHistory = [];
-        this.cardRegenTimer = 0;
+        this.resetCardEffectState();
         // Fresh run resets per-card pick counts.
         this.cardPickCount = {};
-        this.cardIndicator.style.display = 'none';
+        setDomDisplay(this.cardIndicator || getDomElement('cardIndicator'), 'none');
 
         // A new run starts outside the boss reward flow (only the opening core
         // card pick, which resumes on its own).
         this.rewardFlow = null;
         this.isBuildSelectionOpen = false;
         this.isRewardSummaryOpen = false;
-        if (this.buildPanel) this.buildPanel.style.display = 'none';
-        if (this.rewardSummaryPanel) this.rewardSummaryPanel.style.display = 'none';
+        setDomDisplay(this.buildPanel, 'none');
+        setDomDisplay(this.rewardSummaryPanel, 'none');
 
         this.player.x = this.width / 2 - 15;
         this.player.y = this.height - 100;
@@ -273,15 +299,15 @@ export const Game = {
         this.accumulator = 0;
         this.lastTime = performance.now();
 
-        this.bossHealthBar.style.display = 'none';
-        this.bossWarning.style.display = 'none';
-        this.summonIndicator.style.display = 'none';
-        this.shieldIndicator.style.display = 'none';
-        this.attackIndicator.style.display = 'none';
-        document.getElementById('hudStats').style.display = 'block';
+        setDomDisplay(this.bossHealthBar, 'none');
+        setDomDisplay(this.bossWarning, 'none');
+        setDomDisplay(this.summonIndicator, 'none');
+        setDomDisplay(this.shieldIndicator, 'none');
+        setDomDisplay(this.attackIndicator, 'none');
+        setDomDisplay(getDomElement('hudStats'), 'block');
 
-        document.getElementById('gameStartPanel').style.display = 'none';
-        document.getElementById('gameOverPanel').style.display = 'none';
+        setDomDisplay(getDomElement('gameStartPanel'), 'none');
+        setDomDisplay(getDomElement('gameOverPanel'), 'none');
 
         this.enableControlArea(true);
         this.updateUI();
@@ -296,14 +322,16 @@ export const Game = {
         this.isRunning = !this.isRunning;
 
         if (this.isRunning) {
-            document.getElementById('gameStartPanel').style.display = 'none';
+            setDomDisplay(getDomElement('gameStartPanel'), 'none');
             this.lastTime = performance.now();
             this.accumulator = 0;
             this.enableControlArea(true);
         } else {
-            document.getElementById('gameStartPanel').style.display = 'block';
-            document.querySelector('.uiTitle').textContent = '游戏暂停';
-            document.getElementById('startButton').textContent = '继续游戏';
+            setDomDisplay(getDomElement('gameStartPanel'), 'block');
+            const title = typeof document === 'undefined' ? null : document.querySelector('.uiTitle');
+            if (title) title.textContent = '游戏暂停';
+            const startButton = getDomElement('startButton');
+            if (startButton) startButton.textContent = '继续游戏';
             this.enableControlArea(false);
             const pauseDetailsHook = typeof this.updatePauseDetails === 'function'
                 ? this.updatePauseDetails
@@ -339,36 +367,46 @@ export const Game = {
     },
 
     updateUI: function(force = false) {
+        if (typeof document === 'undefined') return;
         const currentTime = performance.now();
         if (!force && currentTime - this.lastUIUpdateTime < this.uiUpdateInterval) {
             return;
         }
         this.lastUIUpdateTime = currentTime;
 
-        document.getElementById('score').textContent = this.score;
-        document.getElementById('lives').textContent = this.lives;
-        document.getElementById('level').textContent = this.level;
-        document.getElementById('crowns').textContent = this.crowns;
+        const score = getDomElement('score');
+        const lives = getDomElement('lives');
+        const level = getDomElement('level');
+        const crowns = getDomElement('crowns');
+        if (score) score.textContent = this.score;
+        if (lives) lives.textContent = this.lives;
+        if (level) level.textContent = this.level;
+        if (crowns) crowns.textContent = this.crowns;
         if (typeof this.updateBuildHUD === 'function') this.updateBuildHUD(force);
+        if (typeof this.updateCardEffectHUD === 'function') this.updateCardEffectHUD(force);
     },
 
     updateMainPanel: function() {
-        document.getElementById('lastScoreValue').textContent = this.lastScore;
-        document.getElementById('highScoreValue').textContent = this.highScore;
-        document.getElementById('totalCrownsValue').textContent = this.totalCrowns;
+        const lastScore = getDomElement('lastScoreValue');
+        const highScore = getDomElement('highScoreValue');
+        const totalCrowns = getDomElement('totalCrownsValue');
+        if (lastScore) lastScore.textContent = this.lastScore;
+        if (highScore) highScore.textContent = this.highScore;
+        if (totalCrowns) totalCrowns.textContent = this.totalCrowns;
     },
 
     gameOver: function() {
+        this.clearVisualState();
         if (typeof this.renderRunSummary === 'function') this.renderRunSummary();
         this.isCardSelectionOpen = false;
-        document.getElementById('cardPanel').style.display = 'none';
-        this.cardIndicator.style.display = 'none';
+        setDomDisplay(getDomElement('cardPanel'), 'none');
+        setDomDisplay(this.cardIndicator || getDomElement('cardIndicator'), 'none');
         // Abandon any in-flight boss reward flow.
         this.rewardFlow = null;
         this.isBuildSelectionOpen = false;
         this.isRewardSummaryOpen = false;
-        if (this.buildPanel) this.buildPanel.style.display = 'none';
-        if (this.rewardSummaryPanel) this.rewardSummaryPanel.style.display = 'none';
+        setDomDisplay(this.buildPanel, 'none');
+        setDomDisplay(this.rewardSummaryPanel, 'none');
         this.isRunning = false;
         this.isGameOver = true;
 
@@ -390,22 +428,26 @@ export const Game = {
 
         this.updateMainPanel();
 
-        document.getElementById('finalScore').textContent = this.score;
-        document.getElementById('finalCrowns').textContent = this.crowns;
-        document.getElementById('gameOverPanel').style.display = 'block';
+        const finalScore = getDomElement('finalScore');
+        const finalCrowns = getDomElement('finalCrowns');
+        if (finalScore) finalScore.textContent = this.score;
+        if (finalCrowns) finalCrowns.textContent = this.crowns;
+        setDomDisplay(getDomElement('gameOverPanel'), 'block');
         this.enableControlArea(false);
     },
 
     returnToMainMenu: function() {
+        this.clearVisualState();
+        this.resetCardEffectState();
         this.isRunning = false;
         this.isGameOver = false;
         this.isMenu = true;
 
-        document.getElementById('gameOverPanel').style.display = 'none';
-        document.getElementById('gameStartPanel').style.display = 'block';
-        document.getElementById('hudStats').style.display = 'none';
-        document.getElementById('cardPanel').style.display = 'none';
-        this.cardIndicator.style.display = 'none';
+        setDomDisplay(getDomElement('gameOverPanel'), 'none');
+        setDomDisplay(getDomElement('gameStartPanel'), 'block');
+        setDomDisplay(getDomElement('hudStats'), 'none');
+        setDomDisplay(getDomElement('cardPanel'), 'none');
+        setDomDisplay(this.cardIndicator || getDomElement('cardIndicator'), 'none');
         this.activeCard = null;
         this.runSummary = null;
         if (typeof this.resetCardHistory === 'function') this.resetCardHistory();
@@ -414,19 +456,21 @@ export const Game = {
         this.rewardFlow = null;
         this.isBuildSelectionOpen = false;
         this.isRewardSummaryOpen = false;
-        if (this.buildPanel) this.buildPanel.style.display = 'none';
-        if (this.rewardSummaryPanel) this.rewardSummaryPanel.style.display = 'none';
+        setDomDisplay(this.buildPanel, 'none');
+        setDomDisplay(this.rewardSummaryPanel, 'none');
 
         // Reset the start panel to its default idle look (in case it was in pause state).
-        document.querySelector('.uiTitle').textContent = 'PKUfighter';
-        document.getElementById('startButton').textContent = '开始游戏';
+        const title = typeof document === 'undefined' ? null : document.querySelector('.uiTitle');
+        if (title) title.textContent = 'PKUfighter';
+        const startButton = getDomElement('startButton');
+        if (startButton) startButton.textContent = '开始游戏';
 
         // Hide in-game HUD elements and clear leftover entities so the menu is clean.
-        this.bossHealthBar.style.display = 'none';
-        this.bossWarning.style.display = 'none';
-        this.summonIndicator.style.display = 'none';
-        this.shieldIndicator.style.display = 'none';
-        this.attackIndicator.style.display = 'none';
+        setDomDisplay(this.bossHealthBar, 'none');
+        setDomDisplay(this.bossWarning, 'none');
+        setDomDisplay(this.summonIndicator, 'none');
+        setDomDisplay(this.shieldIndicator, 'none');
+        setDomDisplay(this.attackIndicator, 'none');
         this.isBossStage = false;
         this.boss = null;
         this.clearAllPools();

@@ -33,6 +33,7 @@
             <div class="attackIndicator" id="attackIndicator">攻: 0.0</div>
             <div class="cardIndicator" id="cardIndicator" style="display:none"></div>
             <div class="summonIndicator" id="summonIndicator">召唤: 0s</div>
+            <div id="cardEffectHud" class="cardEffectHud" aria-live="polite" aria-label="核心卡效果进度" hidden></div>
             <div id="buildHud" class="buildHud" aria-live="polite" aria-label="本局强化进度" hidden></div>
 
             <div id="gameStartPanel" class="uiPanel">
@@ -77,67 +78,67 @@
                 <div class="cardGrid">
                     <button type="button" class="effectCard" data-card="passion">
                         <span class="cardName">激情岁月</span>
-                        <span class="cardDesc">敌我攻击速度翻倍</span>
+                        <span class="cardDesc">自身射速×2·敌人射速×2</span>
                         <span class="cardBadge">当前效果</span>
                     </button>
                     <button type="button" class="effectCard" data-card="survival">
                         <span class="cardName">生存之道</span>
-                        <span class="cardDesc">攻击力减半，每20秒自动获得1点生命</span>
+                        <span class="cardDesc">射速×0.75·每20s回1命·满血暂停</span>
                         <span class="cardBadge">当前效果</span>
                     </button>
                     <button type="button" class="effectCard" data-card="comeback">
                         <span class="cardName">绝地反击</span>
-                        <span class="cardDesc">生命为1或2时，攻击力与攻击速度翻倍</span>
+                        <span class="cardDesc">仅≤2命：伤害与射速×2</span>
                         <span class="cardBadge">当前效果</span>
                     </button>
                     <button type="button" class="effectCard" data-card="peace">
                         <span class="cardName">平安无事</span>
-                        <span class="cardDesc">无效果</span>
+                        <span class="cardDesc">敌人射速×0.65·自身射速×0.80</span>
                         <span class="cardBadge">当前效果</span>
                     </button>
                     <button type="button" class="effectCard" data-card="blitz">
                         <span class="cardName">电光石火</span>
-                        <span class="cardDesc">弹数+1，子弹速度提高50%；无法回复生命</span>
+                        <span class="cardDesc">每批+1发·弹速×1.5·禁止回血</span>
                         <span class="cardBadge">当前效果</span>
                     </button>
                     <button type="button" class="effectCard" data-card="bloodlust">
                         <span class="cardName">血之渴望</span>
-                        <span class="cardDesc">击杀敌机有概率回复1点生命；子弹伤害减半</span>
+                        <span class="cardDesc">8点回1命·Boss首次+16·射速×0.75</span>
                         <span class="cardBadge">当前效果</span>
                     </button>
                     <button type="button" class="effectCard" data-card="chain">
                         <span class="cardName">连环爆炸</span>
-                        <span class="cardDesc">击毁敌机触发范围爆炸；敌机生成率提升30%</span>
+                        <span class="cardDesc">击杀爆炸200px·敌生成×1.30</span>
                         <span class="cardBadge">当前效果</span>
                     </button>
                     <button type="button" class="effectCard" data-card="glass">
                         <span class="cardName">玻璃大炮</span>
-                        <span class="cardDesc">伤害翻倍，射速提升50%；生命上限锁定为1</span>
+                        <span class="cardDesc">伤害×2·射速×1.5·上限1·禁止回血</span>
                         <span class="cardBadge">当前效果</span>
                     </button>
                     <button type="button" class="effectCard" data-card="boss">
                         <span class="cardName">Boss猎手</span>
-                        <span class="cardDesc">对Boss伤害×3；对小兵伤害减半</span>
+                        <span class="cardDesc">Boss伤害×3·普通敌伤害×0.5</span>
                         <span class="cardBadge">当前效果</span>
                     </button>
                     <button type="button" class="effectCard" data-card="thorns">
                         <span class="cardName">荆棘护甲</span>
-                        <span class="cardDesc">受伤时击杀200px内敌机并令Boss掉血；敌弹速度翻倍</span>
+                        <span class="cardDesc">受伤反击200px·Boss掉10%·敌弹速×2</span>
                         <span class="cardBadge">当前效果</span>
                     </button>
                     <button type="button" class="effectCard" data-card="supply">
                         <span class="cardName">粮草先行</span>
-                        <span class="cardDesc">道具出现概率提高50%；敌机射速提高50%</span>
+                        <span class="cardDesc">道具率×1.5·敌人射速×1.5</span>
                         <span class="cardBadge">当前效果</span>
                     </button>
                     <button type="button" class="effectCard" data-card="fog">
                         <span class="cardName">战争迷雾</span>
-                        <span class="cardDesc">敌机与Boss藏于上半屏迷雾中难以看见；追踪弹失去目标变为直线</span>
+                        <span class="cardDesc">追踪失效·敌弹速度×0.80·上方视野受阻</span>
                         <span class="cardBadge">当前效果</span>
                     </button>
                     <button type="button" class="effectCard" data-card="boost">
                         <span class="cardName">增益加强</span>
-                        <span class="cardDesc">道具效果提升（红心+2命，攻/盾+5秒）；每发敌机子弹扣除2点生命</span>
+                        <span class="cardDesc">红心+2·攻/盾15/10s·敌弹伤2</span>
                         <span class="cardBadge">当前效果</span>
                     </button>
                 </div>
@@ -245,29 +246,29 @@
                         <p class="introP">开局先暂停并从合法核心卡池中选 1 张核心卡；每张卡本局最多选择 3 次，已耗尽的卡不再进入牌池。每轮最多展示 4 张合法候选；当前卡只要仍然合法就会保留在候选中，若牌池没有合法选项则可保底跳过。</p>
                         <p class="introP">保持当前核心卡免费，更换其他核心卡需扣 1 点生命；玻璃大炮进出均免费，但进入时生命会按上限收敛，离开不会返还失去的生命。选定核心卡后，Boss 奖励按「核心卡 → 本局强化 → 奖励摘要」推进；确认摘要后才恢复战斗。</p>
                         <ul class="introList">
-                            <li>激情岁月 —— 敌我攻速翻倍。</li>
-                            <li>生存之道 —— 伤害减半，每 20 秒 +1 生命。</li>
-                            <li>绝地反击 —— 生命 1~2 时，伤害与攻速翻倍。</li>
-                            <li>平安无事 —— 无效果。</li>
-                            <li>电光石火 —— 弹数 +1、弹速 +50%，无法回复生命。</li>
-                            <li>血之渴望 —— 击杀概率回复 1 生命，但伤害减半。</li>
-                            <li>连环爆炸 —— 击毁敌机引发大范围连锁爆炸，敌机生成 +30%。</li>
-                            <li>玻璃大炮 —— 伤害 ×2、射速 +50%，生命上限锁定为 1。</li>
-                            <li>Boss猎手 —— 对 Boss 伤害 ×3、对小兵 ×0.5。</li>
-                            <li>荆棘护甲 —— 受击反杀 200px 内敌机并削 Boss 血，敌弹速度 ×2。</li>
-                            <li>粮草先行 —— 道具出现更多；敌机射速 +50%。</li>
-                            <li>战争迷雾 —— 敌机与 Boss 藏于迷雾、追踪弹失效为直线。</li>
-                            <li>增益加强 —— 道具效果提升；每发敌弹扣 2 点生命。</li>
+                            <li>激情岁月 —— 自身射速 ×2，但普通敌人与 Boss 射速 ×2。</li>
+                            <li>生存之道 —— 射速 ×0.75；非满血且可治疗时每 20000ms 回 1 命，满血暂停。</li>
+                            <li>绝地反击 —— 仅当前生命 ≤2 时伤害与射速 ×2，安全血量下休眠。</li>
+                            <li>平安无事 —— 普通敌人与 Boss 射速 ×0.65，自身射速 ×0.80。</li>
+                            <li>电光石火 —— 每批 +1 发、子弹速度 ×1.5；禁止回血。</li>
+                            <li>血之渴望 —— 普通唯一击杀 +1 血槽，8 点回 1 命；Boss 首次死亡 +16，射速 ×0.75。</li>
+                            <li>连环爆炸 —— 普通唯一击杀产生 200px、1.0 伤害爆炸；敌人生成率 ×1.30，爆炸不伤 Boss。</li>
+                            <li>玻璃大炮 —— 伤害 ×2、射速 ×1.5；最大生命锁 1，禁止回血。</li>
+                            <li>Boss猎手 —— 对 Boss 伤害 ×3、普通敌人伤害 ×0.5；射速与敌人属性不变。</li>
+                            <li>荆棘护甲 —— 实际受伤时处置玩家 200px 内普通敌人，Boss 损失最大生命 10%；敌弹速度 ×2。</li>
+                            <li>粮草先行 —— 自然道具生成率 ×1.5；普通敌人与 Boss 射速 ×1.5。</li>
+                            <li>战争迷雾 —— 追踪弹失效、敌弹速度 ×0.80；顶部 35% 雾区与 40px 渐变遮挡视野。</li>
+                            <li>增益加强 —— 红心回复 2 命，伤害道具 15s、护盾道具 10s；敌弹每次扣 2 命。</li>
                         </ul>
                         <div class="introH">本局强化路线</div>
                         <p class="introP">强化只在本局内保留，换核心卡不会清除；新开局会重置，不写入永久记录。共有 6 条路线，每条都是「入门 → 二选一分支 → 进阶」三阶段。两条分支互斥，不能同时拥有：</p>
                         <ul class="introList">
-                            <li><b>疾速压制</b>：入门命中 12 次进入热机；分支为保留热机进度或热机期间提高主弹穿透；进阶让热机击杀延长持续时间。</li>
-                            <li><b>坚壁续航</b>：入门连续 15 秒未受实际伤害获得屏障；分支为缩短充能或屏障消耗时伤害近敌；进阶再清除附近敌弹并进入冷却。</li>
-                            <li><b>绝境反攻</b>：入门低生命时命中 12 次追加打击；分支为清除近身敌弹或对低血目标提高追加伤害；进阶在低血击杀累计后尝试回复生命。</li>
-                            <li><b>连锁清场</b>：入门直接击杀普通敌人产生爆炸种子；分支为扩大爆炸半径或允许有限传播；进阶连锁达到击杀门槛时清除附近敌弹。</li>
-                            <li><b>破甲猎王</b>：入门同一目标连续命中 10 次触发精准打击；分支为延长锁定或低血处决强化；进阶对 Boss 精准打击后开启短暂额外命中窗口。</li>
-                            <li><b>补给运营</b>：入门收取 3 个自然道具触发补给脉冲；分支为牵引可拾取道具或延长脉冲至 6 秒；进阶允许治疗且满生命时生命道具贡献额外进度。</li>
+                            <li><b>疾速压制</b>：8 个不同批次命中启动 4000ms 热机；每 2 批强化整批弹道，主弹额外 +1.0 并穿透 1 次，热机最长 6000ms。</li>
+                            <li><b>坚壁续航</b>：连续 15000ms 无伤获得屏障；分支缩短至 12000ms 或消耗时对 200px 内敌人造成 2.0 回响；进阶清除 250px 敌弹，冷却 10000ms。</li>
+                            <li><b>绝境反攻</b>：最大生命至少 3 且低血时，每 10 个不同批次命中追加 2D；分支清除目标中心 220px 敌弹或低血目标改为 3D；进阶低血直接击杀 8 次每 Boss 周期最多回 1 命。</li>
+                            <li><b>连锁清场</b>：直接击杀播种 200px、1.0 爆炸；分支扩大至 260px 或传播一代 220px、0.5；同链 3 杀后清除 300px 敌弹且每链一次。</li>
+                            <li><b>破甲猎王</b>：同一目标 10 个不同批次命中触发 2D 精准打击；分支记忆窗口 3000ms 或低血改 3D；Boss 触发后 2000ms 内追加 2D，并清除 200px 敌弹（冷却 6000ms）。</li>
+                            <li><b>补给运营</b>：收集 3 个自然道具开启 4000ms 脉冲；分支牵引 200px 或延长至 6000ms；进阶脉冲硬上限 8000ms（8秒），满血红心贡献 2 点进度。</li>
                         </ul>
                         <p class="introP">本局最多持有 6 项强化。满槽后只能从合法替换中选一项，替换必须保留已有前置与分支合法性；也可以跳过。本局强化 HUD 会在右上角显示最相关的两条路线及进度；普通暂停时，暂停面板会列出全部已获得强化。玻璃大炮将生命上限锁为 1，已获得的绝境反攻路线会进入休眠，暂停详情会提示这一点。</p>
                         <p class="introP">游戏结束摘要会记录本局核心卡轨迹、已持有强化与强化贡献：屏障阻挡次数、连锁击杀数、精准伤害和补给脉冲覆盖率等；这些是本局结算信息，不代表跨局永久强化。</p>

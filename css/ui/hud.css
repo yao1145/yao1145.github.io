@@ -52,12 +52,66 @@
     font-family: 'Courier New', monospace;
 }
 
+/* Card-effect meters sit above route progress so the two HUDs remain readable
+   during a boss warning. They are informational and never intercept controls. */
+.cardEffectHud {
+    position: absolute;
+    top: 136px;
+    right: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: min(190px, calc(100vw - 20px));
+    max-width: calc(100vw - 20px);
+    z-index: 15;
+    pointer-events: none;
+    font-family: 'Consolas', 'Courier New', monospace;
+}
+
+.cardEffectHud[hidden] {
+    display: none;
+}
+
+.cardEffectHudRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 26px;
+    padding: 5px 8px;
+    box-sizing: border-box;
+    background: rgba(24, 12, 24, 0.84);
+    border: 1px solid rgba(230, 57, 79, 0.55);
+    border-radius: 3px;
+    color: #ffd7dd;
+    font-size: 11px;
+    line-height: 1.2;
+}
+
+.cardEffectHudRow.isPaused {
+    border-color: rgba(168, 200, 216, 0.42);
+    color: rgba(168, 200, 216, 0.82);
+}
+
+.cardEffectHudLabel {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cardEffectHudTags {
+    flex: 0 0 auto;
+    color: #ffd166;
+    white-space: nowrap;
+}
+
 /* Build progress lives below the existing right-side indicators so it never
    obscures the left-side score/life/level block. It is informational only and
    must not intercept movement or pause controls. */
 .buildHud {
     position: absolute;
-    top: 136px;
+    top: 202px;
     right: 10px;
     display: flex;
     flex-direction: column;

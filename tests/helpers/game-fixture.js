@@ -4,6 +4,14 @@ import '../../js/core/pools.js';
 
 export function resetGameFixture() {
     Game.clearAllPools();
+    if (typeof Game.resetBuildState === 'function') Game.resetBuildState();
+    if (typeof Game.resetCardEffectState === 'function') Game.resetCardEffectState();
+    else {
+        Game.cardRegenTimer = 0;
+        Game.bloodlustMeter = 0;
+    }
+    if (typeof Game.clearVisualState === 'function') Game.clearVisualState();
+    else Game.visualHitStopUntil = 0;
     Game.isRunning = false;
     Game.isGameOver = false;
     Game.isMenu = true;
@@ -48,6 +56,9 @@ export function resetGameFixture() {
     Game.cardRegenTimer = 0;
     Game.isCardSelectionOpen = false;
     Game.cardSelectionModel = null;
+    Game.rewardFlow = null;
+    Game.isBuildSelectionOpen = false;
+    Game.isRewardSummaryOpen = false;
     Game.lastUIUpdateTime = 0;
     Game.directHitQueue = [];
     return Game;
