@@ -4,6 +4,8 @@ import { Game } from '../js/core/game.js';
 import { CONFIG } from '../js/core/config.js';
 import { resetGameFixture } from './helpers/game-fixture.js';
 import '../js/systems/cards.js';
+import '../js/systems/collisions.js';
+import '../js/systems/builds.js';
 
 function resetCards() {
     resetGameFixture();
@@ -399,4 +401,28 @@ test('survival and bloodlust effect state survives same-card selection but clear
     Game.onCoreCardChanged('bloodlust', 'glass');
     assert.equal(Game.cardRegenTimer, 0);
     assert.equal(Game.bloodlustMeter, 0);
+});
+
+test('boost enemy bullets use the real hit resolver, grant the five-second shield, and leave fortress barriers untouched', () => {
+    resetCards();
+    Game.player = { x: 0, y: 0, width: 30, height: 30, shieldTime: 0 };
+    Game.updateShieldUI = () => {};
+    Game.createExplosion = () => {};
+    Game.resetBuildState();
+    assert.equal(Game.applyBuildChoice('fortress_entry'), true);
+    Game.activeCard = 'boost';
+
+    const firstBullet = Game.getObject('enemyBullets');
+    Object.assign(firstBullet, { x: 0, y: 0, width: 6, height: 6 });
+    assert.equal(Game.resolveEnemyBulletHit(firstBullet), 'damage');
+    assert.equal(Game.lives, 1);
+    assert.equal(Game.player.shieldTime, 5);
+    assert.equal(Game.buildState.locks.fortressBarrier, false);
+
+    const secondBullet = Game.getObject('enemyBullets');
+    Object.assign(secondBullet, { x: 0, y: 0, width: 6, height: 6 });
+    assert.equal(Game.resolveEnemyBulletHit(secondBullet), 'shield');
+    assert.equal(Game.lives, 1);
+    assert.equal(Game.player.shieldTime, 5);
+    assert.equal(Game.buildState.locks.fortressBarrier, false);
 });
