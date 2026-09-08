@@ -76,6 +76,8 @@ export const Game = {
     damageBoostTime: 0,
     // Effect card (see js/systems/cards.js): null until picked.
     activeCard: null,
+    // Per-run card choices, retained for the end-of-run contribution summary.
+    cardHistory: [],
     // Difficulty preset ('hard' = authored tuning, 'easy' = relaxed, see CONFIG.difficulty).
     difficulty: 'hard',
     cardRegenTimer: 0,
@@ -245,6 +247,8 @@ export const Game = {
         this.isDamageBoost = false;
         this.damageBoostTime = 0;
         this.activeCard = null;
+        if (typeof this.resetCardHistory === 'function') this.resetCardHistory();
+        else this.cardHistory = [];
         this.cardRegenTimer = 0;
         // Fresh run resets per-card pick counts.
         this.cardPickCount = {};
@@ -301,6 +305,10 @@ export const Game = {
             document.querySelector('.uiTitle').textContent = '游戏暂停';
             document.getElementById('startButton').textContent = '继续游戏';
             this.enableControlArea(false);
+            const pauseDetailsHook = typeof this.updatePauseDetails === 'function'
+                ? this.updatePauseDetails
+                : this.updatePauseBuildDetails;
+            if (typeof pauseDetailsHook === 'function') pauseDetailsHook.call(this);
         }
     },
 
@@ -337,6 +345,7 @@ export const Game = {
         document.getElementById('lives').textContent = this.lives;
         document.getElementById('level').textContent = this.level;
         document.getElementById('crowns').textContent = this.crowns;
+        if (typeof this.updateBuildHUD === 'function') this.updateBuildHUD(force);
     },
 
     updateMainPanel: function() {
@@ -346,6 +355,7 @@ export const Game = {
     },
 
     gameOver: function() {
+        if (typeof this.renderRunSummary === 'function') this.renderRunSummary();
         this.isCardSelectionOpen = false;
         document.getElementById('cardPanel').style.display = 'none';
         this.cardIndicator.style.display = 'none';
@@ -393,6 +403,8 @@ export const Game = {
         document.getElementById('cardPanel').style.display = 'none';
         this.cardIndicator.style.display = 'none';
         this.activeCard = null;
+        if (typeof this.resetCardHistory === 'function') this.resetCardHistory();
+        else this.cardHistory = [];
         this.isCardSelectionOpen = false;
         this.rewardFlow = null;
         this.isBuildSelectionOpen = false;
@@ -413,6 +425,7 @@ export const Game = {
         this.isBossStage = false;
         this.boss = null;
         this.clearAllPools();
+        if (typeof this.resetBuildState === 'function') this.resetBuildState();
 
         this.updateMainPanel();
         this.enableControlArea(false);
