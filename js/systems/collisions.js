@@ -53,11 +53,10 @@ Game.checkCollisions = function() {
             const event = this.damageTarget({ bullet, target: this.boss, targetType: 'boss' });
             if (event) {
                 this.createExplosion(event.x, event.y, '#fff', 2);
-                // Boss hits are terminal even for piercing bullets. Piercing is
-                // for ordinary enemy chains only; a boss-hit shot must not stick
-                // around and re-enter the next collision pass.
-                this.releaseObject('bullets', bullet);
             }
+            // Boss overlaps are terminal even when damageTarget rejects a
+            // repeated identity hit; piercing is for ordinary enemies only.
+            this.releaseObject('bullets', bullet);
             break;
         }
 
@@ -397,7 +396,8 @@ Game.onThornsHit = function() {
     const radius = CONFIG.cards.thornsRadius;
     const r2 = radius * radius;
 
-    // Iterate a snapshot so killEnemy's releases can't mutate the array mid-loop.
+    // Iterate a snapshot so releases from applyCombatDamage can't mutate the
+    // array mid-loop.
     const enemies = this.objectPools.enemies.active.slice();
     for (const enemy of enemies) {
         if (!enemy || enemy._dead || enemy.health <= 0) continue;
@@ -407,10 +407,9 @@ Game.onThornsHit = function() {
         const dy = cy - playerCY;
         if (dx * dx + dy * dy > r2) continue;
 
-        // Thorns is an instant kill: zero the health, then route through
-        // killEnemy as a retaliation (it never counts as a direct-shot kill).
-        enemy.health = 0;
-        this.killEnemy(enemy, { source: 'retaliation' });
+        // Thorns is an instant kill: route the current health through the
+        // unified retaliation path (it never counts as a direct-shot kill).
+        this.applyCombatDamage(enemy, 'enemy', enemy.health, 'retaliation');
         // One shockwave per killed enemy (like the chain card).
         this.createShockwave(cx, cy);
     }

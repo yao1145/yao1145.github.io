@@ -329,6 +329,34 @@ test('boss-hit bullets are terminal even when pierced, so later bullets still la
     assert.equal(Game.objectPools.bullets.active.includes(laterBullet), false);
 });
 
+test('an already-hit pierced boss bullet is released and cannot block a later bullet', () => {
+    resetCombat();
+    Game.isBossStage = true;
+    Game.boss = {
+        entityId: 5002,
+        x: 0,
+        y: 0,
+        width: 30,
+        height: 30,
+        health: 10,
+        maxHealth: 10,
+        type: 0,
+    };
+
+    const laterBullet = makeBullet(14, 0, 0);
+    const alreadyHitBullet = makeBullet(13, 0, 0);
+    alreadyHitBullet.pierceRemaining = 1;
+    alreadyHitBullet.hitEntityIds = [Game.boss.entityId];
+
+    Game.checkCollisions();
+    assert.equal(Game.boss.health, 10);
+    assert.equal(Game.objectPools.bullets.active.includes(alreadyHitBullet), false);
+
+    Game.checkCollisions();
+    assert.equal(Game.boss.health, 9);
+    assert.equal(Game.objectPools.bullets.active.includes(laterBullet), false);
+});
+
 // --- Task 6: rapid heat-up + hunter mark combat loops -----------------------
 
 function applyBuild(...ids) {
@@ -876,6 +904,49 @@ test('fortress: barrier blocks only enemy bullets and collision damage still tri
     assert.equal(Game.lives, 2);
     assert.equal(Game.buildState.locks.fortressBarrier, true);
     assert.equal(Game.objectPools.enemies.active.includes(enemy), false);
+});
+
+test('thorns routes ordinary enemy kills through retaliation damage exactly once', () => {
+    resetCombat();
+    Game.resetBuildState();
+    applyBuild('chain_entry');
+    Game.activeCard = 'thorns';
+    const enemy = makeEnemy(1, 0, 0);
+    const killEvents = [];
+    const realOnEnemyKilled = Game.onEnemyKilled;
+    Game.onEnemyKilled = (event) => {
+        killEvents.push(event);
+        realOnEnemyKilled.call(Game, event);
+    };
+    const damageCalls = [];
+    const realApplyCombatDamage = Game.applyCombatDamage;
+    Game.applyCombatDamage = function(...args) {
+        damageCalls.push(args);
+        return realApplyCombatDamage.apply(this, args);
+    };
+
+    try {
+        Game.onThornsHit();
+
+        assert.equal(damageCalls.length, 1);
+        assert.equal(damageCalls[0][0], enemy);
+        assert.equal(damageCalls[0][1], 'enemy');
+        assert.equal(damageCalls[0][2], 1);
+        assert.equal(damageCalls[0][3], 'retaliation');
+        assert.equal(killEvents.length, 1);
+        assert.equal(killEvents[0].source, 'retaliation');
+        assert.equal(Game.score, 10);
+        assert.equal(Game.buildState.metrics.chainKills, undefined);
+        assert.equal(Game.objectPools.enemies.active.includes(enemy), false);
+
+        Game.onThornsHit();
+        assert.equal(damageCalls.length, 1);
+        assert.equal(killEvents.length, 1);
+        assert.equal(Game.score, 10);
+    } finally {
+        Game.onEnemyKilled = realOnEnemyKilled;
+        Game.applyCombatDamage = realApplyCombatDamage;
+    }
 });
 
 test('thorns routes quantized boss retaliation through one death and reward flow', () => {
