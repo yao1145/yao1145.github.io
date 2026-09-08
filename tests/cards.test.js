@@ -9,6 +9,11 @@ function resetCards() {
     resetGameFixture();
     Game.resetCardHistory();
     Game.player = { shotDelay: CONFIG.player.shotDelay };
+    Game.enemyShotRate = 0.2;
+    Game.enemySpawnRate = 0.02;
+    Game.enemyBulletSpeed = 4;
+    Game.itemSpawnRate = 0.01;
+    Game.boss = { shotDelay: 500 };
     Game.updateUI = () => {};
     Game.enableControlArea = () => {};
 }
@@ -215,4 +220,183 @@ test('completing a core selection applies one pick and keeps combat helpers comp
     assert.equal(Game.getMaxLives(), 1);
     assert.equal(Game.getBulletCount(), Game.baseBulletCount);
     assert.equal(Game.getPlayerShotDelay(), CONFIG.player.shotDelay / CONFIG.cards.glassShotSpeedMult);
+});
+
+test('passion, peace, and supply apply their exact player, enemy, and Boss firing rates', () => {
+    resetCards();
+
+    Game.activeCard = 'passion';
+    assert.equal(Game.getPlayerShotDelay(), 300 / CONFIG.cards.speedMult);
+    assert.equal(Game.getEnemyShotRate(), 0.2 * CONFIG.cards.speedMult);
+    assert.equal(Game.getBossShotDelay(), 500 / CONFIG.cards.speedMult);
+
+    Game.activeCard = 'peace';
+    assert.equal(Game.getPlayerShotDelay(), 300 / CONFIG.cards.peacePlayerRate);
+    assert.equal(Game.getEnemyShotRate(), 0.2 * CONFIG.cards.peaceEnemyRate);
+    assert.equal(Game.getBossShotDelay(), 500 / CONFIG.cards.peaceEnemyRate);
+
+    Game.activeCard = 'supply';
+    assert.equal(Game.getPlayerShotDelay(), 300);
+    assert.equal(Game.getEnemyShotRate(), 0.2 * CONFIG.cards.supplyEnemyShotMult);
+    assert.equal(Game.getBossShotDelay(), 500 / CONFIG.cards.supplyEnemyShotMult);
+    assert.equal(Game.getItemSpawnRate(), 0.01 * CONFIG.cards.supplyItemMult);
+});
+
+test('survival and bloodlust preserve base bullet damage while slowing player fire', () => {
+    resetCards();
+    Game.bulletDamage = 4;
+
+    Game.activeCard = 'survival';
+    assert.equal(Game.getBulletDamage(), 4);
+    assert.equal(Game.getPlayerShotDelay(), 300 / CONFIG.cards.survivalPlayerRate);
+
+    Game.activeCard = 'bloodlust';
+    assert.equal(Game.getBulletDamage(), 4);
+    assert.equal(Game.getPlayerShotDelay(), 300 / CONFIG.cards.bloodlustPlayerRate);
+});
+
+test('comeback doubles damage and firing rate at two lives but sleeps at three', () => {
+    resetCards();
+    Game.activeCard = 'comeback';
+    Game.bulletDamage = 4;
+
+    Game.lives = 2;
+    assert.equal(Game.getBulletDamage(), 4 * CONFIG.cards.comebackMult);
+    assert.equal(Game.getPlayerShotDelay(), 300 / CONFIG.cards.comebackMult);
+
+    Game.lives = 3;
+    assert.equal(Game.getBulletDamage(), 4);
+    assert.equal(Game.getPlayerShotDelay(), 300);
+});
+
+test('blitz, glass, boss, and thorns expose their positive effect and explicit constraint', () => {
+    resetCards();
+    Game.baseBulletCount = 2;
+    Game.bulletDamage = 4;
+    Game.enemyBulletSpeed = 4;
+    Game.activeCard = 'blitz';
+    assert.equal(Game.getBulletCount(), 2 + CONFIG.cards.bulletCountBonus);
+    assert.equal(Game.getBulletSpeedMult(), CONFIG.cards.bulletSpeedMult);
+    assert.equal(Game.canHeal(), false);
+
+    Game.activeCard = 'glass';
+    assert.equal(Game.getBulletDamage(), 4 * CONFIG.cards.glassDamageMult);
+    assert.equal(Game.getPlayerShotDelay(), 300 / CONFIG.cards.glassShotSpeedMult);
+    assert.equal(Game.getMaxLives(), 1);
+    assert.equal(Game.canHeal(), false);
+
+    Game.activeCard = 'boss';
+    assert.equal(Game.getDamageFor('boss'), 4 * CONFIG.cards.bossDamageMult);
+    assert.equal(Game.getDamageFor('enemy'), 4 * CONFIG.cards.mobDamageMult);
+
+    Game.activeCard = 'thorns';
+    assert.equal(Game.getEnemyBulletSpeed(), 4 * CONFIG.cards.thornsBulletSpeedMult);
+    assert.equal(CONFIG.cards.thornsRadius, 200);
+    assert.equal(CONFIG.cards.thornsBossFrac, 0.1);
+});
+
+test('chain, fog, and boost retain their scoped tradeoffs and configured benefits', () => {
+    resetCards();
+    Game.activeCard = 'chain';
+    assert.equal(Game.getEnemySpawnRate(), 0.02 * CONFIG.cards.chainSpawnMult);
+
+    Game.activeCard = 'fog';
+    assert.equal(Game.getPlayerShotDelay(), 300);
+    assert.equal(Game.getEnemyShotRate(), 0.2);
+    assert.equal(CONFIG.cards.fogBulletSpeed, 0.8);
+    assert.equal(CONFIG.cards.fogLineRatio, 0.35);
+    assert.equal(CONFIG.cards.fogFadePx, 40);
+
+    Game.activeCard = 'boost';
+    assert.equal(CONFIG.cards.boostHeartHeal, 2);
+    assert.equal(CONFIG.cards.boostDamageTime, 15);
+    assert.equal(CONFIG.cards.boostShieldTime, 10);
+    assert.equal(CONFIG.cards.boostHitLoss, 2);
+});
+
+test('survival heals at 19999/20000/20001ms, freezes at full health, and resumes after damage', () => {
+    resetCards();
+    Game.activeCard = 'survival';
+    Game.lives = 3;
+
+    Game.updateCardEffects(19999);
+    assert.equal(Game.lives, 3);
+    assert.equal(Game.cardRegenTimer, 19999);
+
+    Game.updateCardEffects(1);
+    assert.equal(Game.lives, 4);
+    assert.equal(Game.cardRegenTimer, 0);
+
+    Game.updateCardEffects(20001);
+    assert.equal(Game.lives, 5);
+    assert.equal(Game.cardRegenTimer, 0);
+
+    Game.cardRegenTimer = 1234;
+    Game.lives = Game.getMaxLives();
+    Game.updateCardEffects(5000);
+    assert.equal(Game.lives, Game.getMaxLives());
+    assert.equal(Game.cardRegenTimer, 1234);
+
+    Game.lives -= 1;
+    Game.updateCardEffects(1);
+    assert.equal(Game.cardRegenTimer, 1235);
+});
+
+test('bloodlust exchanges at 7/8/16 points, preserves remainders, and retries failed exchanges', () => {
+    resetCards();
+    Game.activeCard = 'bloodlust';
+    Game.lives = 3;
+
+    assert.deepEqual(Game.addBloodlustProgress(7), { gained: 0, meter: 7 });
+    assert.deepEqual(Game.addBloodlustProgress(1), { gained: 1, meter: 0 });
+    assert.equal(Game.lives, 4);
+
+    Game.bloodlustMeter = 3;
+    assert.deepEqual(Game.addBloodlustProgress(16), { gained: 2, meter: 3 });
+    assert.equal(Game.lives, 6);
+
+    Game.lives = 3;
+    Game.bloodlustMeter = 7;
+    const originalCanHeal = Game.canHeal;
+    Game.canHeal = () => false;
+    try {
+        assert.deepEqual(Game.addBloodlustProgress(1), { gained: 0, meter: 8 });
+    } finally {
+        Game.canHeal = originalCanHeal;
+    }
+    assert.deepEqual(Game.addBloodlustProgress(1), { gained: 1, meter: 1 });
+
+    Game.lives = Game.getMaxLives();
+    Game.bloodlustMeter = 7;
+    assert.deepEqual(Game.addBloodlustProgress(1), { gained: 0, meter: 8 });
+
+    Game.lives -= 1;
+    assert.deepEqual(Game.addBloodlustProgress(1), { gained: 1, meter: 1 });
+    assert.equal(Game.lives, Game.getMaxLives());
+});
+
+test('survival and bloodlust effect state survives same-card selection but clears when leaving', () => {
+    resetCards();
+    Game.activeCard = 'survival';
+    Game.cardRegenTimer = 7400;
+    Game.bloodlustMeter = 6;
+
+    Game.onCoreCardChanged('survival', 'survival');
+    assert.equal(Game.cardRegenTimer, 7400);
+    assert.equal(Game.bloodlustMeter, 6);
+
+    Game.onCoreCardChanged('survival', 'peace');
+    assert.equal(Game.cardRegenTimer, 0);
+    assert.equal(Game.bloodlustMeter, 0);
+
+    Game.activeCard = 'bloodlust';
+    Game.cardRegenTimer = 1200;
+    Game.bloodlustMeter = 7;
+    Game.onCoreCardChanged('bloodlust', 'bloodlust');
+    assert.equal(Game.cardRegenTimer, 1200);
+    assert.equal(Game.bloodlustMeter, 7);
+
+    Game.onCoreCardChanged('bloodlust', 'glass');
+    assert.equal(Game.cardRegenTimer, 0);
+    assert.equal(Game.bloodlustMeter, 0);
 });
