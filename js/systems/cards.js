@@ -24,19 +24,43 @@ Game.CARDS = {
 // compact. Only used to label the pickable faces.
 Game.CARD_DESCS = {
     passion: '敌我攻速翻倍',
-    survival: '伤减半·20s回1命',
+    survival: '射速×0.75·每20s回1命·满血暂停',
     comeback: '低生命时攻速伤害×2',
-    peace: '无效果',
+    peace: '敌人射速×0.65·自身射速×0.80',
     blitz: '多发提速·禁回命',
-    bloodlust: '击杀回命·伤害减半',
+    bloodlust: '8点回1命·Boss首次+16·射速×0.75',
     chain: '击毁即连锁爆炸',
     glass: '伤害×2·生命上限1',
     boss: 'Boss伤×3·小兵减半',
     thorns: '受击反杀·敌弹翻倍',
     supply: '道具更多·敌射+50%',
-    fog: '迷雾掩护·追踪失准',
+    fog: '追踪失效·敌弹速度×0.80·上方视野受阻',
     boost: '道具强化·敌弹伤2',
 };
+
+function survivalRate() {
+    return CONFIG.cards.survivalPlayerRate;
+}
+
+function peacePlayerRate() {
+    return CONFIG.cards.peacePlayerRate;
+}
+
+function peaceEnemyRate() {
+    return CONFIG.cards.peaceEnemyRate;
+}
+
+function bloodlustRate() {
+    return CONFIG.cards.bloodlustPlayerRate;
+}
+
+function bloodlustKillsPerLife() {
+    return CONFIG.cards.bloodlustKillsPerLife;
+}
+
+function survivalHealInterval() {
+    return CONFIG.cards.survivalHealMs;
+}
 
 // Per-run core-card choices for the end-of-run summary. This is intentionally
 // kept in memory only; the persistent score/crown records are unrelated.
@@ -272,9 +296,13 @@ Game.completeCoreCardSelection = function(cardId) {
     const preview = this.getCardSwitchPreview(cardId);
     if (!preview.legal) return false;
 
+    const previousCard = this.activeCard;
     this.recordCardHistory(cardId, this.cardSelectionRewardIndex ?? 0);
     this.lives = preview.livesAfter;
     this.activeCard = cardId;
+    if (previousCard !== cardId && typeof this.onCoreCardChanged === 'function') {
+        this.onCoreCardChanged(previousCard, cardId);
+    }
     this.cardPickCount = this.cardPickCount || {};
     this.cardPickCount[cardId] = (this.cardPickCount[cardId] || 0) + 1;
 
@@ -326,12 +354,10 @@ Game.getDirectShotDamage = function(targetType, bullet) {
 // Bullet damage (no per-target split; see getDamageFor), rounded to 0.5.
 Game.getBulletDamage = function() {
     let d = this.bulletDamage;
-    if (this.activeCard === 'survival') d *= CONFIG.cards.damageMult;
     if (this.activeCard === 'comeback' && this.lives >= 1 && this.lives <= CONFIG.cards.comebackMaxLives) {
         d *= CONFIG.cards.comebackMult;
     }
     if (this.activeCard === 'glass') d *= CONFIG.cards.glassDamageMult;
-    if (this.activeCard === 'bloodlust') d *= CONFIG.cards.bloodlustDamageMult;
     return this.roundBulletDamage(d);
 };
 
@@ -347,6 +373,9 @@ Game.getDamageFor = function(target) {
 Game.getPlayerShotDelay = function() {
     let delay = this.player.shotDelay;
     if (this.activeCard === 'passion') delay /= CONFIG.cards.speedMult;
+    if (this.activeCard === 'survival') delay /= survivalRate();
+    if (this.activeCard === 'bloodlust') delay /= bloodlustRate();
+    if (this.activeCard === 'peace') delay /= peacePlayerRate();
     if (this.activeCard === 'comeback' && this.lives >= 1 && this.lives <= CONFIG.cards.comebackMaxLives) {
         delay /= CONFIG.cards.comebackMult;
     }
@@ -357,6 +386,7 @@ Game.getPlayerShotDelay = function() {
 Game.getEnemyShotRate = function() {
     let rate = this.enemyShotRate;
     if (this.activeCard === 'passion') rate *= CONFIG.cards.speedMult;
+    if (this.activeCard === 'peace') rate *= peaceEnemyRate();
     if (this.activeCard === 'supply') rate *= CONFIG.cards.supplyEnemyShotMult;
     if (this.difficulty === 'easy') rate *= CONFIG.difficulty.easy.enemyFireRateMult;
     return rate;
@@ -373,7 +403,11 @@ Game.getItemSpawnRate = function() {
 };
 
 Game.getBossShotDelay = function() {
-    const delay = this.boss.shotDelay / (this.activeCard === 'passion' ? CONFIG.cards.speedMult : 1);
+    let rate = 1;
+    if (this.activeCard === 'passion') rate = CONFIG.cards.speedMult;
+    if (this.activeCard === 'peace') rate = peaceEnemyRate();
+    if (this.activeCard === 'supply') rate = CONFIG.cards.supplyEnemyShotMult;
+    const delay = this.boss.shotDelay / rate;
     return this.difficulty === 'easy' ? delay * CONFIG.difficulty.easy.bossShotDelayMult : delay;
 };
 
@@ -402,7 +436,10 @@ Game.getEnemySpeedMult = function() {
 };
 
 Game.getLifeStealChance = function() {
-    return this.activeCard === 'bloodlust' ? CONFIG.cards.lifeStealEnemy : 0;
+    // Bloodlust is now driven by unique kill events and addBloodlustProgress;
+    // retain this legacy accessor as a disabled compatibility seam until the
+    // combat event migration removes its callers.
+    return 0;
 };
 
 Game.canHeal = function() {
@@ -414,18 +451,81 @@ Game.getMaxLives = function() {
 };
 
 Game.applyLifeGain = function(n) {
-    this.lives = Math.min(this.lives + n, this.getMaxLives());
-    if (typeof this.updateUI === 'function') this.updateUI(true);
+    const amount = Math.max(0, Number(n) || 0);
+    const before = this.lives;
+    this.lives = Math.min(this.lives + amount, this.getMaxLives());
+    const gained = this.lives - before;
+    if (gained > 0 && typeof this.updateUI === 'function') this.updateUI(true);
+    return gained;
 };
 
 Game.updateCardEffects = function(deltaTime) {
     if (this.activeCard !== 'survival') return;
+    if (deltaTime <= 0 || !this.canHeal() || this.lives >= this.getMaxLives()) return;
 
     this.cardRegenTimer += deltaTime;
-    if (this.cardRegenTimer >= CONFIG.cards.regenIntervalMs) {
-        this.cardRegenTimer -= CONFIG.cards.regenIntervalMs;
-        this.applyLifeGain(1);
+    if (this.cardRegenTimer >= survivalHealInterval()) {
+        if (this.applyLifeGain(1) > 0) this.cardRegenTimer = 0;
     }
+};
+
+Game.resetCardEffectState = function() {
+    this.cardRegenTimer = 0;
+    this.bloodlustMeter = 0;
+};
+
+Game.onCoreCardChanged = function(previous, next) {
+    if (previous === next) return;
+    this.resetCardEffectState();
+};
+
+Game.addBloodlustProgress = function(amount) {
+    const meter = Number.isFinite(this.bloodlustMeter) ? this.bloodlustMeter : 0;
+    if (this.activeCard !== 'bloodlust' || amount <= 0) {
+        this.bloodlustMeter = meter;
+        return { gained: 0, meter };
+    }
+
+    this.bloodlustMeter = meter + amount;
+    const threshold = bloodlustKillsPerLife();
+    let gained = 0;
+    while (this.bloodlustMeter >= threshold) {
+        if (!this.canHeal()) break;
+        const lifeGain = this.applyLifeGain(1);
+        if (lifeGain <= 0) break;
+        this.bloodlustMeter -= threshold;
+        gained += lifeGain;
+    }
+    return { gained, meter: this.bloodlustMeter };
+};
+
+Game.getCardEffectHudState = function() {
+    if (this.activeCard === 'survival') {
+        const intervalMs = survivalHealInterval();
+        const timerMs = Math.max(0, this.cardRegenTimer || 0);
+        const fullHealth = this.lives >= this.getMaxLives();
+        const paused = fullHealth || !this.canHeal();
+        return {
+            cardId: 'survival',
+            label: paused
+                ? (fullHealth ? '满血暂停' : '禁疗暂停')
+                : `回血 ${(Math.max(0, intervalMs - timerMs) / 1000).toFixed(1)}s`,
+            paused,
+            timerMs,
+            intervalMs,
+        };
+    }
+    if (this.activeCard === 'bloodlust') {
+        const threshold = bloodlustKillsPerLife();
+        const meter = Number.isFinite(this.bloodlustMeter) ? this.bloodlustMeter : 0;
+        return {
+            cardId: 'bloodlust',
+            label: `血槽 ${meter}/${threshold}`,
+            meter,
+            threshold,
+        };
+    }
+    return null;
 };
 
 Game.updateCardHighlight = function() {
