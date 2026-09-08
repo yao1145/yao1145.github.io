@@ -38,6 +38,28 @@ Game.CARD_DESCS = {
     boost: '道具强化·敌弹伤2',
 };
 
+// Per-run core-card choices for the end-of-run summary. This is intentionally
+// kept in memory only; the persistent score/crown records are unrelated.
+Game.cardHistory = Game.cardHistory || [];
+
+Game.resetCardHistory = function() {
+    this.cardHistory = [];
+};
+
+Game.recordCardHistory = function(cardId, rewardIndex) {
+    if (cardId == null || !this.CARDS[cardId]) return false;
+
+    if (!Array.isArray(this.cardHistory)) this.cardHistory = [];
+    const record = {
+        rewardIndex,
+        cardId,
+        name: this.CARDS[cardId].name,
+        kept: cardId === this.activeCard,
+    };
+    this.cardHistory.push(record);
+    return record;
+};
+
 function shuffle(values, rng) {
     const result = [...values];
     for (let i = result.length - 1; i > 0; i -= 1) {
@@ -176,6 +198,13 @@ Game.setupCards = function() {
 Game.openCardSelection = function(firstPick = false) {
     if (this.isGameOver) return;
 
+    if (firstPick) this.resetCardHistory();
+    this.cardSelectionRewardIndex = firstPick
+        ? 0
+        : (Number.isInteger(this.rewardFlow?.rewardIndex)
+            ? this.rewardFlow.rewardIndex
+            : this.buildState?.cycle || 0);
+
     this.isRunning = false;
     this.accumulator = 0;
     this.lastTime = performance.now();
@@ -243,6 +272,7 @@ Game.completeCoreCardSelection = function(cardId) {
     const preview = this.getCardSwitchPreview(cardId);
     if (!preview.legal) return false;
 
+    this.recordCardHistory(cardId, this.cardSelectionRewardIndex ?? 0);
     this.lives = preview.livesAfter;
     this.activeCard = cardId;
     this.cardPickCount = this.cardPickCount || {};

@@ -7,6 +7,7 @@ import '../js/systems/cards.js';
 
 function resetCards() {
     resetGameFixture();
+    Game.resetCardHistory();
     Game.player = { shotDelay: CONFIG.player.shotDelay };
     Game.updateUI = () => {};
     Game.enableControlArea = () => {};
@@ -20,6 +21,54 @@ test('core card pool contains exactly the thirteen selectable cards', () => {
         'passion', 'survival', 'comeback', 'peace', 'blitz', 'bloodlust', 'chain',
         'glass', 'boss', 'thorns', 'supply', 'fog', 'boost',
     ]);
+});
+
+test('recordCardHistory stores the card name and whether the active card was kept', () => {
+    resetCards();
+    Game.activeCard = 'peace';
+
+    Game.recordCardHistory('peace', 2);
+    Game.recordCardHistory('glass', 3);
+
+    assert.deepEqual(Game.cardHistory, [
+        { rewardIndex: 2, cardId: 'peace', name: '平安无事', kept: true },
+        { rewardIndex: 3, cardId: 'glass', name: '玻璃大炮', kept: false },
+    ]);
+});
+
+test('opening selection resets card history and records the first real choice at reward zero', () => {
+    resetCards();
+    Game.cardHistory.push({ rewardIndex: 99, cardId: 'peace', name: '平安无事', kept: true });
+    Game.buildState = { cycle: 8 };
+
+    Game.openCardSelection(true);
+    Game.cardSelectionModel = { options: ['peace'] };
+
+    assert.equal(Game.completeCoreCardSelection('peace'), true);
+    assert.deepEqual(Game.cardHistory, [
+        { rewardIndex: 0, cardId: 'peace', name: '平安无事', kept: false },
+    ]);
+});
+
+test('later real selections use the current reward cycle and skips add no history', () => {
+    resetCards();
+    Game.activeCard = 'peace';
+    Game.buildState = { cycle: 2 };
+    Game.openCardSelection(false);
+    Game.cardSelectionModel = { options: ['peace'] };
+
+    assert.equal(Game.completeCoreCardSelection('peace'), true);
+    assert.deepEqual(Game.cardHistory, [
+        { rewardIndex: 2, cardId: 'peace', name: '平安无事', kept: true },
+    ]);
+
+    Game.openCardSelection(false);
+    Game.cardSelectionModel = { options: [], canSkip: true };
+    assert.equal(Game.skipCardSelection(), true);
+    assert.deepEqual(Game.cardHistory, [
+        { rewardIndex: 2, cardId: 'peace', name: '平安无事', kept: true },
+    ]);
+    assert.equal(Game.completeCoreCardSelection(null), false);
 });
 
 test('switch preview rejects a one-life ordinary switch without killing the player', () => {
