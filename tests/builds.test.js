@@ -429,6 +429,61 @@ test('renderRunSummary updates #runSummaryBody when a DOM target exists', () => 
     }
 });
 
+test('game-over summary survives gameOver and clears when returning to the menu', () => {
+    resetGameFixture();
+    resetBuilds();
+    Game.runSummary = null;
+
+    const previousDocument = globalThis.document;
+    const previousLocalStorage = globalThis.localStorage;
+    const previousHooks = {
+        cardIndicator: Game.cardIndicator,
+        bossHealthBar: Game.bossHealthBar,
+        bossWarning: Game.bossWarning,
+        summonIndicator: Game.summonIndicator,
+        shieldIndicator: Game.shieldIndicator,
+        attackIndicator: Game.attackIndicator,
+        updateMainPanel: Game.updateMainPanel,
+        enableControlArea: Game.enableControlArea,
+        clearAllPools: Game.clearAllPools,
+    };
+    const createElement = () => ({ style: {}, textContent: '' });
+
+    globalThis.document = {
+        getElementById: () => createElement(),
+        querySelector: () => createElement(),
+    };
+    globalThis.localStorage = {
+        getItem: () => null,
+        setItem: () => {},
+    };
+    Game.cardIndicator = createElement();
+    Game.bossHealthBar = createElement();
+    Game.bossWarning = createElement();
+    Game.summonIndicator = createElement();
+    Game.shieldIndicator = createElement();
+    Game.attackIndicator = createElement();
+    Game.updateMainPanel = () => {};
+    Game.enableControlArea = () => {};
+    Game.clearAllPools = () => {};
+
+    try {
+        Game.cardHistory = [{ rewardIndex: 0, cardId: 'peace', name: '平安无事', kept: true }];
+        Game.buildState.owned = ['fortress_entry'];
+        Game.gameOver();
+
+        assert.ok(Game.runSummary);
+        assert.deepEqual(Game.runSummary.cardHistory, Game.cardHistory);
+
+        Game.returnToMainMenu();
+        assert.equal(Game.runSummary, null);
+    } finally {
+        globalThis.document = previousDocument;
+        globalThis.localStorage = previousLocalStorage;
+        Object.assign(Game, previousHooks);
+    }
+});
+
 // --- Two-stage boss reward flow (core card -> build -> summary) ---
 
 test('reward flow advances core -> build -> summary and only the summary resumes', () => {

@@ -403,6 +403,7 @@ export const Game = {
         document.getElementById('cardPanel').style.display = 'none';
         this.cardIndicator.style.display = 'none';
         this.activeCard = null;
+        this.runSummary = null;
         if (typeof this.resetCardHistory === 'function') this.resetCardHistory();
         else this.cardHistory = [];
         this.isCardSelectionOpen = false;
