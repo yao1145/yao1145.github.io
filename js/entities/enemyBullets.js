@@ -1,6 +1,27 @@
 import { Game } from '../core/game.js';
 import { CONFIG } from '../core/config.js';
 
+const FOG_SPEED_MULT = 0.8;
+const FOG_LINE_RATIO = 0.35;
+const FOG_WARNING_BAND_PX = 40;
+const FOG_WARNING_DURATION_MS = 250;
+
+function initializeEnemyBullet(game, bullet, vx, vy) {
+    bullet.vx = vx;
+    bullet.vy = vy;
+    bullet.baseVx = vx;
+    bullet.baseVy = vy;
+    bullet.baseSpeed = Math.hypot(vx, vy);
+    bullet.fogSpeedApplied = false;
+    bullet.fogWarningShown = false;
+    bullet.fogWarningUntil = 0;
+    game.applyFogBulletRules(bullet);
+}
+
+function bulletCenterY(bullet) {
+    return bullet.y + (bullet.height || 0) / 2;
+}
+
 // Scale a pattern's bullet count with its bullet speed so the gap between
 // adjacent bullets stays roughly constant when the level raises enemyBulletSpeed.
 // Anchored so the level-1 speed (patternSpacingRef) reproduces the authored
@@ -25,7 +46,7 @@ Game.spawnTrackingBullet = function(enemy) {
     const distance = Math.sqrt(dx*dx + dy*dy);
 
     if (distance > 0) {
-        const speed = this.getEnemyBulletSpeed() * 0.8;
+        const speed = this.getEnemyBulletSpeed();
         const vx = (dx / distance) * speed;
         const vy = (dy / distance) * speed;
 
@@ -37,16 +58,10 @@ Game.spawnTrackingBullet = function(enemy) {
             bullet.height = 6;
             bullet.speed = speed;
             bullet.color = '#ff0';
-            if (this.activeCard === 'fog') {
-                bullet.isStraight = true;
-                bullet.vx = 0;
-                bullet.vy = bullet.speed;
-            } else {
-                bullet.vx = vx;
-                bullet.vy = vy;
-                bullet.isTracking = true;
-                bullet.trackingPower = 0.05;
-            }
+            bullet.isTracking = true;
+            bullet.isStraight = false;
+            bullet.trackingPower = 0.05;
+            initializeEnemyBullet(this, bullet, vx, vy);
         }
 
         if (this.boss) {
@@ -75,6 +90,7 @@ Game.spawnRingBullet = function(enemy, count = 8, speedMulti = 0.7) {
         bullet.vy = vy;
         bullet.color = '#0af';
         bullet.isRing = true;
+        initializeEnemyBullet(this, bullet, vx, vy);
     }
 };
 
@@ -105,6 +121,7 @@ Game.spawnWaveBullet = function(enemy, offset = 0) {
         bullet.waveOffset = offset + i * 0.5;
         bullet.color = '#f0f';
         bullet.isWave = true;
+        initializeEnemyBullet(this, bullet, vx, vy);
     }
 };
 
@@ -132,6 +149,7 @@ Game.spawnScatterBullet = function(enemy) {
         bullet.vy = vy;
         bullet.color = '#f90';
         bullet.isScatter = true;
+        initializeEnemyBullet(this, bullet, vx, vy);
     }
 };
 
@@ -155,6 +173,50 @@ Game.spawnExplosionBullet = function(x, y, count = 16) {
         bullet.vy = vy;
         bullet.color = '#f00';
         bullet.isExplosion = true;
+        initializeEnemyBullet(this, bullet, vx, vy);
+    }
+};
+
+Game.applyFogBulletRules = function(bullet) {
+    if (!bullet || this.activeCard !== 'fog' || bullet.fogSpeedApplied) return;
+
+    const currentVx = Number.isFinite(bullet.vx) ? bullet.vx : 0;
+    const currentVy = Number.isFinite(bullet.vy)
+        ? bullet.vy
+        : (Number.isFinite(bullet.speed) ? bullet.speed : this.getEnemyBulletSpeed());
+    const baseVx = Number.isFinite(bullet.baseVx) ? bullet.baseVx : currentVx;
+    const baseVy = Number.isFinite(bullet.baseVy) ? bullet.baseVy : currentVy;
+    const baseSpeed = Number.isFinite(bullet.baseSpeed)
+        ? bullet.baseSpeed
+        : (Math.hypot(baseVx, baseVy) || (Number.isFinite(bullet.speed) ? bullet.speed : this.getEnemyBulletSpeed()));
+
+    bullet.baseVx = baseVx;
+    bullet.baseVy = baseVy;
+    bullet.baseSpeed = baseSpeed;
+    bullet.speed = baseSpeed * FOG_SPEED_MULT;
+    bullet.fogSpeedApplied = true;
+
+    if (bullet.isTracking) {
+        bullet.isTracking = false;
+        bullet.isStraight = true;
+    }
+
+    const waveValue = bullet.isWave
+        ? Math.sin(bullet.waveOffset || 0) * bullet.waveAmplitude
+        : 0;
+    bullet.vx = (baseVx + waveValue) * FOG_SPEED_MULT;
+    bullet.vy = baseVy * FOG_SPEED_MULT;
+};
+
+Game.updateFogWarningState = function(bullet, previousCenterY) {
+    if (!bullet || this.activeCard !== 'fog' || bullet.fogWarningShown) return;
+
+    const fogLine = this.height * FOG_LINE_RATIO;
+    const warningStart = fogLine - FOG_WARNING_BAND_PX;
+    const currentCenterY = bulletCenterY(bullet);
+    if (previousCenterY < warningStart && currentCenterY >= warningStart) {
+        bullet.fogWarningShown = true;
+        bullet.fogWarningUntil = this.gameTime + FOG_WARNING_DURATION_MS;
     }
 };
 
@@ -162,27 +224,23 @@ Game.updateEnemyBullets = function() {
     const pool = this.objectPools.enemyBullets;
     for (let i = pool.active.length - 1; i >= 0; i--) {
         const bullet = pool.active[i];
+        const previousCenterY = bulletCenterY(bullet);
+
+        this.applyFogBulletRules(bullet);
 
         if (bullet.isTracking) {
-            if (this.activeCard === 'fog') {
-                bullet.isTracking = false;
-                bullet.isStraight = true;
-                bullet.vx = 0;
-                bullet.vy = bullet.speed;
-            } else {
-                const dx = this.player.x + this.player.width/2 - bullet.x;
-                const dy = this.player.y + this.player.height/2 - bullet.y;
-                const distance = Math.sqrt(dx*dx + dy*dy);
+            const dx = this.player.x + this.player.width/2 - bullet.x;
+            const dy = this.player.y + this.player.height/2 - bullet.y;
+            const distance = Math.sqrt(dx*dx + dy*dy);
 
-                if (distance > 0) {
-                    bullet.vx += (dx / distance) * bullet.trackingPower;
-                    bullet.vy += (dy / distance) * bullet.trackingPower;
+            if (distance > 0) {
+                bullet.vx += (dx / distance) * bullet.trackingPower;
+                bullet.vy += (dy / distance) * bullet.trackingPower;
 
-                    const currentSpeed = Math.sqrt(bullet.vx*bullet.vx + bullet.vy*bullet.vy);
-                    if (currentSpeed > 0) {
-                        bullet.vx = (bullet.vx / currentSpeed) * bullet.speed;
-                        bullet.vy = (bullet.vy / currentSpeed) * bullet.speed;
-                    }
+                const currentSpeed = Math.sqrt(bullet.vx*bullet.vx + bullet.vy*bullet.vy);
+                if (currentSpeed > 0) {
+                    bullet.vx = (bullet.vx / currentSpeed) * bullet.speed;
+                    bullet.vy = (bullet.vy / currentSpeed) * bullet.speed;
                 }
             }
 
@@ -194,14 +252,19 @@ Game.updateEnemyBullets = function() {
         } else if (bullet.isWave) {
             bullet.waveOffset += bullet.waveFrequency;
             const waveValue = Math.sin(bullet.waveOffset) * bullet.waveAmplitude;
-            bullet.vx = bullet.baseVx + waveValue;
+            const speedMult = bullet.fogSpeedApplied ? FOG_SPEED_MULT : 1;
+            bullet.vx = (bullet.baseVx + waveValue) * speedMult;
+            bullet.vy = bullet.baseVy * speedMult;
             bullet.y += bullet.vy;
             bullet.x += bullet.vx;
         } else if (bullet.isIceBeam) {
             bullet.y += bullet.speed;
         } else {
-            bullet.y += this.getEnemyBulletSpeed();
+            bullet.x += bullet.vx || 0;
+            bullet.y += bullet.vy || this.getEnemyBulletSpeed();
         }
+
+        this.updateFogWarningState(bullet, previousCenterY);
 
         if (bullet.y > this.height || bullet.y < -20 ||
             bullet.x > this.width + 20 || bullet.x < -20) {
@@ -219,7 +282,7 @@ Game.spawnEnemyBullet = function(enemy) {
         bullet.height = 12;
         bullet.speed = this.getEnemyBulletSpeed();
         bullet.color = '#f0f';
-        bullet.vx = 0;
-        bullet.vy = this.getEnemyBulletSpeed();
+        bullet.isStraight = true;
+        initializeEnemyBullet(this, bullet, 0, bullet.speed);
     }
 };
