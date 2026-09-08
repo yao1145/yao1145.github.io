@@ -6,10 +6,10 @@ const ROUTES = [
         line: 'rapid',
         cards: ['passion', 'blitz'],
         builds: [
-            ['rapid_entry', 'entry', '热机运转', '直接射击命中累计12次后进入热机', []],
-            ['rapid_reignite', 'branch', '快速复燃', '热机结束后保留4点进度', ['rapid_entry']],
-            ['rapid_wide', 'branch', '横向压制', '热机期间指定主弹额外穿透提升至2次', ['rapid_entry']],
-            ['rapid_capstone', 'capstone', '持续火力', '热机期间击杀可延长热机时间', ['rapid_entry', ['rapid_reignite', 'rapid_wide']]],
+            ['rapid_entry', 'entry', '热机运转', '8个不同命中启动4秒热机', []],
+            ['rapid_reignite', 'branch', '快速复燃', '热机结束保留4/8命中进度', ['rapid_entry']],
+            ['rapid_wide', 'branch', '横向压制', '强化主弹穿透提升至2次', ['rapid_entry']],
+            ['rapid_capstone', 'capstone', '持续火力', '热机内击杀与Boss命中延长，最长6秒', ['rapid_entry', ['rapid_reignite', 'rapid_wide']]],
         ],
     },
     {
@@ -18,28 +18,28 @@ const ROUTES = [
         builds: [
             ['fortress_entry', 'entry', '稳态屏障', '连续15秒未受实际伤害获得屏障', []],
             ['fortress_regroup', 'branch', '快速重整', '获得屏障所需的无伤时间缩短至12秒', ['fortress_entry']],
-            ['fortress_echo', 'branch', '防御回响', '屏障消耗时伤害附近普通敌人', ['fortress_entry']],
-            ['fortress_capstone', 'capstone', '安全窗口', '屏障消耗时清除附近敌弹并进入冷却', ['fortress_entry', ['fortress_regroup', 'fortress_echo']]],
+            ['fortress_echo', 'branch', '防御回响', '屏障消耗时对200px内普通敌人造成2.0回响', ['fortress_entry']],
+            ['fortress_capstone', 'capstone', '安全窗口', '屏障消耗时清除250px内敌弹，冷却10秒', ['fortress_entry', ['fortress_regroup', 'fortress_echo']]],
         ],
     },
     {
         line: 'desperate',
         cards: ['comeback', 'bloodlust'],
         builds: [
-            ['desperate_entry', 'entry', '背水蓄势', '低血时直接命中累计12次追加打击', []],
-            ['desperate_strike', 'branch', '破围一击', '追加打击同时清除近身敌弹', ['desperate_entry']],
-            ['desperate_execute', 'branch', '绝境追击', '追加打击可对低血目标造成更高伤害', ['desperate_entry']],
-            ['desperate_capstone', 'capstone', '最后储备', '低血击杀敌人累计后尝试回复生命', ['desperate_entry', ['desperate_strike', 'desperate_execute']]],
+            ['desperate_entry', 'entry', '背水蓄势', '低血时直接命中累计10次追加2D打击', []],
+            ['desperate_clear', 'branch', '破围一击', '追加打击清除目标中心220px内敌弹', ['desperate_entry']],
+            ['desperate_execute', 'branch', '绝境追击', '低血目标追加打击由2D提升至3D', ['desperate_entry']],
+            ['desperate_capstone', 'capstone', '最后储备', '低血直接击杀累计8次尝试回复1命，每Boss周期1次', ['desperate_entry', ['desperate_clear', 'desperate_execute']]],
         ],
     },
     {
         line: 'chain',
         cards: ['chain'],
         builds: [
-            ['chain_entry', 'entry', '爆破种子', '直接射击击杀普通敌人产生小型爆炸', []],
-            ['chain_wide', 'branch', '广域爆破', '合并后的爆炸半径增加50像素', ['chain_entry']],
-            ['chain_ignite', 'branch', '二次引燃', '允许爆炸击杀继续产生有限传播', ['chain_entry']],
-            ['chain_capstone', 'capstone', '连锁震荡', '爆炸链达到击杀门槛时清除附近敌弹', ['chain_entry', ['chain_wide', 'chain_ignite']]],
+            ['chain_entry', 'entry', '爆破种子', '直接击杀普通敌人产生200px、1.0爆炸', []],
+            ['chain_radius', 'branch', '广域爆破', '首代爆炸半径提升至260px', ['chain_entry']],
+            ['chain_spread', 'branch', '二次引燃', '首代击杀产生一代220px、0.5传播爆炸', ['chain_entry']],
+            ['chain_capstone', 'capstone', '连锁震荡', '同链3次击杀后清除末击杀点300px内敌弹', ['chain_entry', ['chain_radius', 'chain_spread']]],
         ],
     },
     {
@@ -47,19 +47,19 @@ const ROUTES = [
         cards: ['glass', 'boss'],
         builds: [
             ['hunter_entry', 'entry', '弱点标记', '同一目标连续命中10次后追加精准打击', []],
-            ['hunter_stable', 'branch', '稳定锁定', '标记失去命中后的清空时间延长', ['hunter_entry']],
+            ['hunter_lock', 'branch', '稳定锁定', '锁定记忆窗口延长至3000ms', ['hunter_entry']],
             ['hunter_execute', 'branch', '处决校准', '目标低血时精准打击造成更高伤害', ['hunter_entry']],
-            ['hunter_capstone', 'capstone', '猎王窗口', '对Boss精准打击后开启短暂额外命中窗口', ['hunter_entry', ['hunter_stable', 'hunter_execute']]],
+            ['hunter_capstone', 'capstone', '猎王窗口', 'Boss精准打击后2秒追加2D并清除目标200px敌弹', ['hunter_entry', ['hunter_lock', 'hunter_execute']]],
         ],
     },
     {
         line: 'supply',
         cards: ['supply', 'boost'],
         builds: [
-            ['supply_entry', 'entry', '物资回路', '收取自然道具累计3个后获得补给脉冲', []],
-            ['supply_magnet', 'branch', '远程牵引', '近距离且允许拾取的道具缓慢靠近玩家', ['supply_entry']],
-            ['supply_extended', 'branch', '延时供给', '补给脉冲持续时间延长至6秒', ['supply_entry']],
-            ['supply_capstone', 'capstone', '余量转化', '允许治疗且满生命时生命道具贡献额外物资进度', ['supply_entry', ['supply_magnet', 'supply_extended']]],
+            ['supply_entry', 'entry', '物资回路', '自然道具累计3个开启4秒脉冲', []],
+            ['supply_magnet', 'branch', '远程牵引', '玩家中心200px内自然道具持续牵引', ['supply_entry']],
+            ['supply_duration', 'branch', '延时供给', '补给脉冲持续时间延长至6秒', ['supply_entry']],
+            ['supply_capstone', 'capstone', '余量转化', '满血红心贡献2点进度，脉冲上限8秒', ['supply_entry', ['supply_magnet', 'supply_duration']]],
         ],
     },
 ];
@@ -89,7 +89,7 @@ const associatedLines = {
     boss: ['hunter'],
     supply: ['supply'],
     boost: ['supply'],
-    fog: [],
+    fog: ['fortress'],
 };
 
 function getOwned() {
@@ -154,9 +154,22 @@ Game.resetBuildState = function() {
             desperateClearCooldown: 0,
             chainShockCooldown: 0,
             hunterWindow: 0,
+            hunterClearCooldown: 0,
             supplyPulse: 0,
         },
-        counters: {},
+        counters: {
+            rapidHits: 0,
+            rapidLastHit: 0,
+            rapidHeatupShots: 0,
+            rapidBossHits: 0,
+            rapidExtendedMs: 0,
+            desperateHits: 0,
+            desperateKills: 0,
+            chainBlasts: 0,
+            chainGeneration: 0,
+            hunterLastHit: 0,
+            supplyPickups: 0,
+        },
         locks: {
             fortressBarrier: false,
             hunterTargetId: null,
