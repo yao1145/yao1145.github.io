@@ -1,6 +1,24 @@
 import { Game } from '../core/game.js';
 import { CONFIG } from '../core/config.js';
 
+function entityCenter(entity) {
+    return {
+        x: Number(entity?.x) + Number(entity?.width || 0) / 2,
+        y: Number(entity?.y) + Number(entity?.height || 0) / 2,
+    };
+}
+
+function numericBonus(value) {
+    const number = Number(value);
+    return Number.isFinite(number) && number > 0 ? number : 0;
+}
+
+function ensureHitEntityIds(bullet) {
+    if (!bullet) return [];
+    if (!Array.isArray(bullet.hitEntityIds)) bullet.hitEntityIds = [];
+    return bullet.hitEntityIds;
+}
+
 Game.updateParticles = function() {
     const pool = this.objectPools.particles;
     for (let i = pool.active.length - 1; i >= 0; i--) {
@@ -147,6 +165,54 @@ Game.isColliding = function(obj1, obj2) {
            obj1.y + obj1.height > obj2.y;
 };
 
+// The direct-shot damage contract lives here with the collision fact source.
+// cards.js still owns getDamageFor(), but this method is the only place where
+// one-shot rapid/supply contributions are combined and consumed.  A legacy
+// buildDamageBonus is accepted only for already-spawned v2 bullets; newly
+// spawned bullets use the explicit v2.1 fields below.
+function calculateDirectShotDamage(game, targetType, bullet) {
+    const baseDamage = game.getDamageFor(targetType);
+    const rapidBonusDamage = numericBonus(bullet?.rapidDamageBonus);
+    const supplyBonusDamage = numericBonus(bullet?.supplyDamageBonus)
+        || numericBonus(bullet?.buildDamageBonus);
+
+    if (bullet) {
+        bullet.rapidDamageBonus = 0;
+        bullet.supplyDamageBonus = 0;
+        // Do not let a pooled legacy field leak into a later target either.
+        bullet.buildDamageBonus = 0;
+    }
+
+    return game.roundCombatDamage(baseDamage + rapidBonusDamage + supplyBonusDamage);
+}
+
+Game.getDirectShotDamage = function(targetType, bullet) {
+    return calculateDirectShotDamage(this, targetType, bullet);
+};
+Game.getDirectShotDamage.v21 = true;
+
+function updateDirectDamageMetrics(game, event) {
+    if (!game.buildState) return;
+    const metrics = game.buildState.metrics || (game.buildState.metrics = {});
+    const add = (key, value) => {
+        metrics[key] = (Number(metrics[key]) || 0) + value;
+    };
+
+    // These are successful direct-hit contributions only.  Recording them
+    // after applyCombatDamage prevents rejected/repeated collisions from
+    // inflating the end-of-run attribution.
+    add('directDamage', event.amount);
+    add('rapidBonusDamage', event.rapidBonusDamage);
+    add('supplyBonusDamage', event.supplyBonusDamage);
+    // Keep the end-of-run names used by the v2 settlement model alongside
+    // the event-shaped names above; both represent the same successful hit.
+    add('rapidPrimaryBonusDamage', event.rapidBonusDamage);
+    add('supplyPrimaryBonusDamage', event.supplyBonusDamage);
+    if (event.rapidPierceHit) {
+        add('rapidPierceHits', 1);
+    }
+}
+
 // Shared combat-damage application for every non-direct source too (bonus
 // strikes, retaliation, explosions): identity-validates the target, applies
 // the quantized amount, and settles a first-lethal death exactly once.
@@ -191,21 +257,57 @@ Game.damageTarget = function({ bullet, target, targetType }) {
     if (!target || target._dead || target.health <= 0) return null;
     if (targetType === 'enemy' && !this.isActiveEntity('enemies', target.entityId)) return null;
     if (targetType === 'boss' && (!this.boss || this.boss.entityId !== target.entityId)) return null;
-    if (bullet && bullet.hitEntityIds && bullet.hitEntityIds.includes(target.entityId)) return null;
+    const hitEntityIds = ensureHitEntityIds(bullet);
+    if (hitEntityIds.includes(target.entityId)) return null;
 
-    const damage = this.getDirectShotDamage(targetType, bullet);
+    // Capture the one-shot fields before getDirectShotDamage consumes them.
+    // A rapid primary is the only bullet eligible for a rapid pierce metric;
+    // rapidBatchBoosted is deliberately insufficient because it marks every
+    // bullet in the batch for presentation only.
+    const rapidBonusDamage = numericBonus(bullet?.rapidDamageBonus);
+    const supplyBonusDamage = numericBonus(bullet?.supplyDamageBonus)
+        || numericBonus(bullet?.buildDamageBonus);
+    const rapidPrimary = Boolean(bullet && bullet.isPrimary && (
+        rapidBonusDamage > 0
+        || bullet._rapidPrimary === true
+        || (bullet.rapidBatchBoosted && Number(bullet.pierceRemaining) > 0)
+    ));
+    const rapidPierceHit = rapidPrimary && hitEntityIds.length > 0;
+
+    let damage;
+    if (this.getDirectShotDamage?.v21) {
+        damage = this.getDirectShotDamage(targetType, bullet);
+    } else {
+        // main.js evaluates cards.js after this side-effect module.  Until a
+        // later module layer replaces that legacy helper, bridge the explicit
+        // fields through its old buildDamageBonus input, then consume the new
+        // fields ourselves.  This keeps browser startup and isolated tests on
+        // the same single-quantization contract without touching cards.js.
+        const legacyBonus = numericBonus(bullet?.buildDamageBonus);
+        if (bullet && (rapidBonusDamage > 0 || supplyBonusDamage > 0)) {
+            bullet.buildDamageBonus = legacyBonus + rapidBonusDamage + supplyBonusDamage;
+        }
+        damage = this.getDirectShotDamage(targetType, bullet);
+        if (bullet) {
+            bullet.rapidDamageBonus = 0;
+            bullet.supplyDamageBonus = 0;
+            bullet.buildDamageBonus = 0;
+        }
+    }
     if (damage <= 0) return null;
 
     // A pierce charge survives this hit and lets the bullet fly on to one more
     // target; the primary hit itself does not consume the charge.
     const canPierce = Boolean(bullet && bullet.pierceRemaining > 0);
-    if (bullet) {
-        bullet.hitEntityIds.push(target.entityId);
-        if (canPierce) bullet.pierceRemaining -= 1;
-    }
 
     const dealt = this.applyCombatDamage(target, targetType, damage, 'direct', { shotId: bullet && bullet.shotId });
     if (!dealt) return null;
+
+    if (bullet) {
+        hitEntityIds.push(target.entityId);
+        if (rapidPrimary) bullet._rapidPrimary = true;
+        if (canPierce) bullet.pierceRemaining -= 1;
+    }
 
     const event = {
         source: 'direct',
@@ -221,7 +323,11 @@ Game.damageTarget = function({ bullet, target, targetType }) {
         y: target.y + target.height / 2,
         pierced: canPierce,
         killed: target.health <= 0,
+        rapidBonusDamage,
+        supplyBonusDamage,
+        rapidPierceHit,
     };
+    updateDirectDamageMetrics(this, event);
     this.queueDirectHit(event);
     return event;
 };
@@ -375,9 +481,11 @@ Game.killEnemy = function(enemy, context = {}) {
     }
     this.score += score;
 
-    // Bloodlust: chance to regain 1 life per enemy kill (boss chance in handleBossDeath).
-    if (this.activeCard === 'bloodlust' && this.canHeal() && Math.random() < this.getLifeStealChance()) {
-        this.applyLifeGain(1);
+    // Bloodlust consumes the unique death fact.  The _dead latch above is
+    // intentional: recursive chain/retaliation calls can never count this
+    // entity a second time, and failed exchanges remain in the card meter.
+    if (this.activeCard === 'bloodlust' && typeof this.addBloodlustProgress === 'function') {
+        this.addBloodlustProgress(1);
     }
 
     this.createExplosion(killEvent.x, killEvent.y, killColor, 4);
@@ -428,14 +536,15 @@ Game.handleBossDeath = function() {
     if (!this.boss) return;
     this.boss = null;
 
+    // Nulling the Boss identity first makes this reward and bloodlust update
+    // a unique death fact even if another collision re-enters this method.
+    if (this.activeCard === 'bloodlust' && typeof this.addBloodlustProgress === 'function') {
+        this.addBloodlustProgress(CONFIG.cards.bloodlustBossProgress);
+    }
+
     this.crowns++;
     // Boss reward: +3 lives (capped by maxLives, which glass locks to 1).
     this.applyLifeGain(3);
-
-    // Bloodlust: chance of +1 extra life from a boss kill (blocked by blitz/glass).
-    if (this.activeCard === 'bloodlust' && Math.random() < CONFIG.cards.lifeStealBoss && this.canHeal()) {
-        this.applyLifeGain(1);
-    }
 
     this.isBossStage = false;
     this.bossHealthBar.style.display = 'none';
@@ -463,12 +572,25 @@ Game.handleBossDeath = function() {
 Game.clearEnemyBulletsInRadius = function(x, y, radius) {
     const r2 = radius * radius;
     const pool = this.objectPools.enemyBullets;
+    let cleared = 0;
     for (let i = pool.active.length - 1; i >= 0; i--) {
         const bullet = pool.active[i];
-        const dx = bullet.x + bullet.width / 2 - x;
-        const dy = bullet.y + bullet.height / 2 - y;
+        // Mechanic bullets can opt out; ordinary pooled enemy bullets remain
+        // clearable.  Releasing is deliberately the only side effect: no hit,
+        // kill, drop, route or bloodlust event is emitted by a clear.
+        if (!bullet
+            || bullet.canBeCleared === false
+            || bullet.clearable === false
+            || bullet.isClearable === false
+            || bullet.isUnclearable === true
+            || bullet.isMechanic === true) continue;
+        const center = entityCenter(bullet);
+        const dx = center.x - x;
+        const dy = center.y - y;
         if (dx * dx + dy * dy <= r2) {
             this.releaseObject('enemyBullets', bullet);
+            cleared++;
         }
     }
+    return cleared;
 };
