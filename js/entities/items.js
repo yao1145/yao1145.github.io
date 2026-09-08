@@ -33,6 +33,8 @@ Game.spawnItems = function(rng = Math.random) {
             item.type = type;
             item.spin = Math.random() * Math.PI * 2;
             item.spawnSource = 'natural';
+            item.attractionActive = false;
+            item.collectedByMagnet = false;
         }
     }
 };
@@ -42,6 +44,7 @@ Game.updateItems = function(deltaTime) {
     for (let i = pool.active.length - 1; i >= 0; i--) {
         const item = pool.active[i];
         item.y += item.speed;
+        item.attractionActive = false;
 
         if (this.hasBuild('supply_magnet')) {
             const cfg = CONFIG.builds.supply;
@@ -57,6 +60,13 @@ Game.updateItems = function(deltaTime) {
                 const step = Math.min(cfg.magnetSpeed, distance);
                 item.x += dx / distance * step;
                 item.y += dy / distance * step;
+                // Attraction remains continuous; collection still happens in
+                // the normal collision pass.  Only a natural item that was
+                // actually moved is attributed to the magnet pickup metric.
+                if (step > 0) {
+                    item.attractionActive = true;
+                    if (item.spawnSource === 'natural') item.collectedByMagnet = true;
+                }
             }
         }
 
@@ -98,6 +108,7 @@ Game.collectItem = function(item) {
         spawnSource: item.spawnSource,
         wasFull,
         healingAllowed,
+        collectedByMagnet: item.spawnSource === 'natural' && item.collectedByMagnet === true,
     };
     this.releaseObject('items', item);
     this.onItemCollected(event);
