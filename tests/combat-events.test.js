@@ -351,24 +351,56 @@ test('rapid uses 8 hits, 2s decay, and a 4s heat-up', () => {
     const enemy = makeEnemy(100);
     for (let shot = 1; shot <= 7; shot++) Game.onDirectShotBatch(batch(shot, 'enemy', enemy.entityId));
     assert.equal(Game.buildState.counters.rapidHits, 7);
-    Game.updateBuildEffects(1999);
-    assert.equal(Game.buildState.counters.rapidHits, 7);
-    Game.updateBuildEffects(1);
-    assert.equal(Game.buildState.counters.rapidHits, 0);
-    for (let shot = 8; shot <= 15; shot++) Game.onDirectShotBatch(batch(shot, 'enemy', enemy.entityId));
-    assert.equal(Game.buildState.timers.rapidWarmup, CONFIG.builds.rapid.activeMs);
+    for (const [elapsed, expected] of [[1999, 7], [2000, 0], [2001, 0]]) {
+        resetCombat();
+        applyBuild('rapid_entry');
+        const elapsedEnemy = makeEnemy(100);
+        for (let shot = 1; shot <= 7; shot++) Game.onDirectShotBatch(batch(shot, 'enemy', elapsedEnemy.entityId));
+        Game.updateBuildEffects(elapsed);
+        assert.equal(Game.buildState.counters.rapidHits, expected, `2s decay at ${elapsed}ms`);
+    }
+
+    for (const [elapsed, expected] of [[3999, 1], [4000, 0], [4001, 0]]) {
+        resetCombat();
+        applyBuild('rapid_entry');
+        const activationEnemy = makeEnemy(100);
+        for (let shot = 1; shot <= 8; shot++) Game.onDirectShotBatch(batch(shot, 'enemy', activationEnemy.entityId));
+        Game.updateBuildEffects(elapsed);
+        assert.equal(Game.buildState.timers.rapidWarmup, expected, `4s activation at ${elapsed}ms`);
+    }
 });
 
 test('rapid heat-up strengthens every second batch with +1 and configured pierce', () => {
     resetCombat();
     applyBuild('rapid_entry', 'rapid_wide');
     Game.buildState.timers.rapidWarmup = CONFIG.builds.rapid.activeMs;
-    assert.deepEqual(Game.consumeRapidBatchEffect(), { rapidBatchBoosted: false, rapidDamageBonus: 0, pierceRemaining: 0, rapidPierce: 0 });
-    const boosted = Game.consumeRapidBatchEffect();
-    assert.equal(boosted.rapidBatchBoosted, true);
-    assert.equal(boosted.rapidDamageBonus, 1);
-    assert.equal(boosted.pierceRemaining, 2);
-    assert.equal(Game.buildState.counters.rapidHeatupShots, 2);
+    const effects = Array.from({ length: 6 }, () => Game.consumeRapidBatchEffect());
+    assert.deepEqual(effects.map((effect) => effect.rapidBatchBoosted), [false, true, false, true, false, true]);
+    assert.deepEqual(effects.filter((effect) => effect.rapidBatchBoosted).map((effect) => [effect.rapidDamageBonus, effect.pierceRemaining]), [[1, 2], [1, 2], [1, 2]]);
+    assert.equal(Game.buildState.counters.rapidHeatupShots, 6);
+
+    resetCombat();
+    applyBuild('rapid_entry');
+    Game.baseBulletCount = 3;
+    Game.buildState.timers.rapidWarmup = CONFIG.builds.rapid.activeMs;
+    Game.spawnBullet();
+    const bullets = Game.objectPools.bullets.active;
+    assert.equal(bullets.length, 3);
+    assert.ok(bullets.every((bullet) => bullet.rapidBatchBoosted === false));
+    const primary = bullets.find((bullet) => bullet.isPrimary);
+    const secondary = bullets.find((bullet) => !bullet.isPrimary);
+    assert.equal(primary.rapidDamageBonus, 0, 'first batch is not boosted');
+    assert.equal(secondary.rapidDamageBonus, 0);
+    assert.equal(Game.getDirectShotDamage('enemy', secondary), 1, 'visual batch flag does not add secondary damage');
+
+    Game.spawnBullet();
+    const boostedBullets = Game.objectPools.bullets.active.slice(3);
+    const boostedPrimary = boostedBullets.find((bullet) => bullet.isPrimary);
+    const boostedSecondary = boostedBullets.find((bullet) => !bullet.isPrimary);
+    assert.ok(boostedBullets.every((bullet) => bullet.rapidBatchBoosted === true));
+    assert.equal(boostedPrimary.rapidDamageBonus, 1);
+    assert.equal(boostedSecondary.rapidDamageBonus, 0);
+    assert.equal(Game.getDirectShotDamage('enemy', boostedSecondary), 1, 'visual batch flag never changes secondary damage');
 });
 
 test('rapid capstone adds +400ms per direct kill or six Boss hits, max +2s and 6s', () => {
@@ -379,6 +411,14 @@ test('rapid capstone adds +400ms per direct kill or six Boss hits, max +2s and 6
     assert.equal(Game.buildState.timers.rapidWarmup, 6000);
     Game.onEnemyKilled(directKill(99));
     assert.equal(Game.buildState.timers.rapidWarmup, 6000);
+
+    for (const [elapsed, expected] of [[5999, 1], [6000, 0], [6001, 0]]) {
+        resetCombat();
+        applyBuild('rapid_entry', 'rapid_reignite', 'rapid_capstone');
+        Game.buildState.timers.rapidWarmup = CONFIG.builds.rapid.maxActiveMs;
+        Game.updateBuildEffects(elapsed);
+        assert.equal(Game.buildState.timers.rapidWarmup, expected, `6s cap at ${elapsed}ms`);
+    }
 
     Game.resetBuildState();
     applyBuild('rapid_entry', 'rapid_reignite', 'rapid_capstone');
@@ -400,12 +440,15 @@ test('rapid reignite retains exactly 4 of 8 progress after heat-up', () => {
 });
 
 test('fortress charges at 15s, regroup at 12s, and barrier echo uses a 200px radius', () => {
+    for (const [elapsed, expected] of [[14999, false], [15000, true], [15001, true]]) {
+        resetCombat();
+        applyBuild('fortress_entry', 'fortress_echo');
+        Game.updateBuildEffects(elapsed);
+        assert.equal(Game.buildState.locks.fortressBarrier, expected, `15s charge at ${elapsed}ms`);
+    }
+
     resetCombat();
     applyBuild('fortress_entry', 'fortress_echo');
-    Game.updateBuildEffects(14999);
-    assert.equal(Game.buildState.locks.fortressBarrier, false);
-    Game.updateBuildEffects(1);
-    assert.equal(Game.buildState.locks.fortressBarrier, true);
     Game.buildState.locks.fortressBarrier = false;
     Game.buildState.timers.fortressBarrier = 0;
     const center = { x: 15, y: 15 };
@@ -416,13 +459,16 @@ test('fortress charges at 15s, regroup at 12s, and barrier echo uses a 200px rad
     assert.equal(inside.health, 1);
     assert.equal(edge.health, 1);
     assert.equal(outside.health, 3);
+    Game.boss = { entityId: 8001, x: 0, y: 0, width: 30, height: 30, health: 10, maxHealth: 10, type: 0 };
+    Game.onFortressBarrierConsumed();
+    assert.equal(Game.boss.health, 10, 'fortress echo never damages Boss');
 
-    Game.resetBuildState();
-    applyBuild('fortress_entry', 'fortress_regroup');
-    Game.updateBuildEffects(11999);
-    assert.equal(Game.buildState.locks.fortressBarrier, false);
-    Game.updateBuildEffects(1);
-    assert.equal(Game.buildState.locks.fortressBarrier, true);
+    for (const [elapsed, expected] of [[11999, false], [12000, true], [12001, true]]) {
+        resetCombat();
+        applyBuild('fortress_entry', 'fortress_regroup');
+        Game.updateBuildEffects(elapsed);
+        assert.equal(Game.buildState.locks.fortressBarrier, expected, `12s regroup at ${elapsed}ms`);
+    }
 });
 
 test('fortress capstone clears 250px at r-1/r/r+1, with no event side effects', () => {
@@ -444,6 +490,21 @@ test('fortress capstone clears 250px at r-1/r/r+1, with no event side effects', 
 
     assert.equal(directEvents, 0);
     assert.equal(killEvents, 0);
+});
+
+test('fortress clear cooldown expires exactly at 10s while echo remains available', () => {
+    for (const [elapsed, expectedCooldown] of [[9999, 1], [10000, 0], [10001, 0]]) {
+        resetCombat();
+        applyBuild('fortress_entry', 'fortress_echo', 'fortress_capstone');
+        Game.buildState.locks.fortressBarrier = true;
+        Game.onFortressBarrierConsumed();
+        assert.equal(Game.buildState.timers.fortressClearCooldown, CONFIG.builds.fortress.clearCooldownMs);
+        Game.updateBuildEffects(elapsed);
+        assert.equal(Game.buildState.timers.fortressClearCooldown, expectedCooldown, `10s clear cooldown at ${elapsed}ms`);
+        Game.buildState.locks.fortressBarrier = true;
+        Game.onFortressBarrierConsumed();
+        assert.equal(Game.buildState.timers.fortressClearCooldown, expectedCooldown ? 1 : CONFIG.builds.fortress.clearCooldownMs);
+    }
 });
 
 test('desperate triggers after 10 low-health direct batches and is inactive above the threshold or under glass', () => {
@@ -633,6 +694,36 @@ test('hunter Boss capstone opens a 2s window, clears 200px with 6s cooldown, and
     assert.equal(Game.buildState.timers.hunterWindow, 0);
 });
 
+test('hunter memory, Boss window, and clear cooldown use exact -1/0/+1ms boundaries', () => {
+    for (const [elapsed, expectedLocked] of [[2999, true], [3000, false], [3001, false]]) {
+        resetCombat();
+        applyBuild('hunter_entry', 'hunter_lock');
+        const enemy = makeEnemy(100);
+        Game.onDirectShotBatch(batch(1, 'enemy', enemy.entityId));
+        Game.updateBuildEffects(elapsed);
+        assert.equal(Game.buildState.locks.hunterTargetId === enemy.entityId, expectedLocked, `3s memory at ${elapsed}ms`);
+    }
+
+    for (const [elapsed, expectedWindow] of [[1999, 1], [2000, 0], [2001, 0]]) {
+        resetCombat();
+        applyBuild('hunter_entry', 'hunter_lock', 'hunter_capstone');
+        Game.boss = { entityId: 8100, x: 0, y: 0, width: 30, height: 30, health: 100, maxHealth: 100, type: 0 };
+        for (let shot = 1; shot <= 10; shot++) Game.onDirectShotBatch(batch(shot, 'boss', Game.boss.entityId));
+        Game.updateBuildEffects(elapsed);
+        assert.equal(Game.buildState.timers.hunterWindow, expectedWindow, `2s Boss window at ${elapsed}ms`);
+    }
+
+    for (const [elapsed, expectedCooldown] of [[5999, 1], [6000, 0], [6001, 0]]) {
+        resetCombat();
+        applyBuild('hunter_entry', 'hunter_lock', 'hunter_capstone');
+        const enemy = makeEnemy(100);
+        for (let shot = 1; shot <= 10; shot++) Game.onDirectShotBatch(batch(shot, 'enemy', enemy.entityId));
+        assert.equal(Game.buildState.timers.hunterClearCooldown, CONFIG.builds.hunter.clearCooldownMs);
+        Game.updateBuildEffects(elapsed);
+        assert.equal(Game.buildState.timers.hunterClearCooldown, expectedCooldown, `6s clear cooldown at ${elapsed}ms`);
+    }
+});
+
 test('chain uses one fixed 1.0 seed blast, merges core and entry once, and never damages Boss', () => {
     resetCombat();
     applyBuild('chain_entry');
@@ -705,19 +796,20 @@ test('overlapping chain explosions settle one target death, score, bloodlust, an
 });
 
 test('chain spread produces one generation at 220px with 0.5 damage and does not recurse', () => {
-    resetCombat();
-    applyBuild('chain_entry', 'chain_spread');
-    const seed = placeAt(0, 0, 0);
-    const first = placeAt(100, 0, 0.5);
-    const second = placeAt(320, 0, 0.5);
-    const third = placeAt(540, 0, 0.5);
-    seedGrid();
-    Game.killEnemy(seed, { source: 'direct', damage: 1 });
-    assert.equal(Game.objectPools.enemies.active.includes(first), false);
-    assert.equal(Game.objectPools.enemies.active.includes(second), false);
-    assert.equal(Game.objectPools.enemies.active.includes(third), true);
-    assert.equal(third.health, 0.5);
-    assert.equal(Game.buildState.counters.chainGeneration, 1);
+    for (const distance of [219, 220, 221]) {
+        resetCombat();
+        applyBuild('chain_entry', 'chain_spread');
+        const seed = placeAt(0, 0, 0);
+        const first = placeAt(100, 0, 0.5);
+        const second = placeAt(100 + distance, 0, 0.5);
+        const third = placeAt(100 + distance * 2, 0, 0.5);
+        seedGrid();
+        Game.killEnemy(seed, { source: 'direct', damage: 1 });
+        assert.equal(Game.objectPools.enemies.active.includes(first), false);
+        assert.equal(Game.objectPools.enemies.active.includes(second), distance === 221, `220px spread at ${distance}px`);
+        assert.equal(Game.objectPools.enemies.active.includes(third), true);
+        assert.equal(Game.buildState.counters.chainGeneration, 1);
+    }
 });
 
 test('chain damage still resolves when the particle pool is exhausted', () => {

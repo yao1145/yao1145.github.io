@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 
 import { Game } from '../js/core/game.js';
 import { CONFIG } from '../js/core/config.js';
@@ -111,15 +112,75 @@ test('fog is 35 percent plus 40px fade, with warnings as boundary highlights onl
     assert.deepEqual(gradient.slice(1), [0, 0, 0, 600 * CONFIG.cards.fogLineRatio + CONFIG.cards.fogFadePx]);
     assert.ok(ctx.calls.some((call) => call[0] === 'fillRect' && call[4] === CONFIG.cards.fogLineRatio * 600 + CONFIG.cards.fogFadePx));
 
-    Game.gameTime = 1000;
-    Game.objectPools.enemyBullets.active = [
-        { x: 120, y: 220, width: 6, height: 6, fogWarningShown: true, fogWarningUntil: 1100 },
-        { x: 260, y: 220, width: 6, height: 6, fogWarningShown: true, fogWarningUntil: 999 },
+    for (const [elapsed, expectedHighlights] of [[249, 1], [250, 0], [251, 0]]) {
+        Game.gameTime = 1000 + elapsed;
+        Game.objectPools.enemyBullets.active = [
+            { x: 120, y: 220, width: 6, height: 6, fogWarningShown: true, fogWarningUntil: 1250 },
+        ];
+        ctx.calls.length = 0;
+        Game.drawFogWarningHighlights();
+        assert.equal(ctx.calls.filter((call) => call[0] === 'arc').length, expectedHighlights, `250ms fog highlight expiry at ${elapsed}ms`);
+        assert.equal(ctx.calls.some((call) => call[0] === 'lineTo'), false);
+    }
+});
+
+test('render keeps world below fog and player/critical warnings above it, with DOM HUD above canvas', () => {
+    const events = [];
+    Game.ctx = makeContext();
+    Game.width = 800;
+    Game.height = 600;
+    Game.isMenu = false;
+    Game.isGameOver = false;
+    Game.activeCard = 'fog';
+    Game.player = { x: 20, y: 20, width: 20, height: 20, shieldTime: 0 };
+    Game.boss = { entityId: 9100, x: 300, y: 30, width: 40, height: 40, color: '#f00' };
+    Game.objectPools.bullets.active = [{}];
+    Game.objectPools.enemyBullets.active = [{}];
+    Game.objectPools.enemies.active = [{ entityId: 9101, x: 100, y: 100, width: 30, height: 30, health: 1, maxHealth: 1 }];
+    Game.objectPools.items.active = [{}];
+    Game.objectPools.particles.active = [];
+    const methods = [
+        ['drawStarfield', 'world:starfield'],
+        ['drawBulletSprite', 'world:player-bullet'],
+        ['drawEnemyBulletSprite', 'world:enemy-bullet'],
+        ['drawEnemySprite', 'world:enemy'],
+        ['drawItemSprite', 'world:item'],
+        ['drawBoss', 'world:boss'],
+        ['drawFogBand', 'fog'],
+        ['drawPlayerShieldAndBarrier', 'player:barrier'],
+        ['drawPlayerSprite', 'player:sprite'],
+        ['drawFogWarningHighlights', 'critical:fog-warning'],
+        ['drawVisualFeedbackEvents', 'critical:feedback'],
+        ['drawHunterMark', 'critical:hunter-mark'],
     ];
-    ctx.calls.length = 0;
-    Game.drawFogWarningHighlights();
-    assert.equal(ctx.calls.filter((call) => call[0] === 'arc').length, 1);
-    assert.equal(ctx.calls.some((call) => call[0] === 'lineTo'), false);
+    const originals = new Map();
+    for (const [method, label] of methods) {
+        originals.set(method, Game[method]);
+        Game[method] = () => events.push(label);
+    }
+    try {
+        Game.render();
+    } finally {
+        for (const [method, original] of originals) Game[method] = original;
+    }
+
+    const indexOf = (label) => events.indexOf(label);
+    assert.ok(indexOf('world:boss') < indexOf('fog'));
+    assert.ok(indexOf('fog') < indexOf('player:barrier'));
+    assert.ok(indexOf('player:sprite') < indexOf('critical:fog-warning'));
+    assert.ok(indexOf('critical:fog-warning') < indexOf('critical:feedback'));
+    assert.ok(indexOf('critical:feedback') < indexOf('critical:hunter-mark'));
+    assert.ok(events.filter((label) => label === 'critical:hunter-mark').length >= 2, 'enemy and Boss critical markers remain above fog');
+
+    const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+    const hudCss = readFileSync(new URL('../css/ui/hud.css', import.meta.url), 'utf8');
+    const bossCss = readFileSync(new URL('../css/ui/boss.css', import.meta.url), 'utf8');
+    const layoutCss = readFileSync(new URL('../css/ui/layout.css', import.meta.url), 'utf8');
+    assert.ok(html.indexOf('<canvas id="gameCanvas">') < html.indexOf('<div id="uiOverlay">'));
+    assert.match(layoutCss, /#uiOverlay\s*\{[\s\S]*?z-index:\s*20/);
+    assert.match(hudCss, /\.cardEffectHud\s*\{[\s\S]*?z-index:\s*15/);
+    assert.match(hudCss, /\.buildHud\s*\{[\s\S]*?z-index:\s*15/);
+    assert.match(bossCss, /\.bossWarning\s*\{[\s\S]*?z-index:\s*20/);
 });
 
 test('effect feedback uses the v2.1 radii and non-color shapes', () => {
@@ -188,17 +249,33 @@ test('visual hit-stop preserves the previous canvas and clears on lifecycle boun
     Game.drawEnemySprite = () => {};
     Game.drawItemSprite = () => {};
     Game.drawBoss = () => {};
+    Game.drawMenuEmblem = () => {};
     Game.drawHunterMark = () => {};
     Game.objectPools.enemies.active = [];
     Game.objectPools.bullets.active = [];
     Game.objectPools.enemyBullets.active = [];
     Game.objectPools.items.active = [];
     Game.objectPools.particles.active = [];
-    Game.requestVisualHitStop(150);
-    const before = ctx.calls.length;
-    Game.render();
-    assert.equal(ctx.calls.length, before);
-    Game.clearVisualHitStop();
-    Game.render();
-    assert.ok(ctx.calls.some((call) => call[0] === 'fillRect'));
+    const previousPerformance = globalThis.performance;
+    let logicalNow = 1000;
+    try {
+        globalThis.performance = { now: () => logicalNow };
+        Game.requestVisualHitStop(150);
+        assert.equal(Game.isVisualHitStopped(1149), true);
+        assert.equal(Game.isVisualHitStopped(1150), false);
+        assert.equal(Game.isVisualHitStopped(1151), false);
+        const before = ctx.calls.length;
+        Game.render();
+        assert.equal(ctx.calls.length, before);
+        Game.clearVisualHitStop();
+        Game.render();
+        assert.ok(ctx.calls.some((call) => call[0] === 'fillRect'));
+        logicalNow = 2000;
+        Game.requestVisualHitStop(150);
+        Game.isMenu = true;
+        Game.render();
+        assert.equal(Game.visualHitStopUntil, 0);
+    } finally {
+        globalThis.performance = previousPerformance;
+    }
 });
