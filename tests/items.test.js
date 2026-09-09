@@ -143,6 +143,69 @@ test('non-natural items never contribute to the supply route', () => {
     assert.equal(Game.buildState.counters.supplyPickups || 0, 0);
 });
 
+test('script and debug item sources never contribute to the supply route', () => {
+    for (const spawnSource of ['script', 'debug']) {
+        resetItems();
+        Game.buildState.owned = ['supply_entry'];
+
+        collectNatural(1, { spawnSource });
+
+        assert.equal(Game.buildState.counters.supplyPickups || 0, 0, spawnSource);
+        assert.equal(Game.buildState.metrics.supplyNaturalPickups || 0, 0, spawnSource);
+    }
+});
+
+test('boost heart pickup grants two lives once and respects the max-life cap', () => {
+    resetItems();
+    Game.activeCard = 'boost';
+
+    Game.lives = 1;
+    collectNatural(0);
+    assert.equal(Game.lives, 3);
+
+    Game.lives = Game.getMaxLives() - 1;
+    collectNatural(0);
+    assert.equal(Game.lives, Game.getMaxLives());
+});
+
+test('boost damage and shield items expire at their exact logical boundaries', () => {
+    const cases = [
+        { type: 1, durationMs: CONFIG.cards.boostDamageTime * 1000, field: 'damage' },
+        { type: 2, durationMs: CONFIG.cards.boostShieldTime * 1000, field: 'shield' },
+    ];
+
+    for (const { type, durationMs, field } of cases) {
+        for (const offset of [-1, 0, 1]) {
+            resetItems();
+            Game.activeCard = 'boost';
+            collectNatural(type);
+
+            Game.updatePlayer(durationMs + offset);
+
+            if (field === 'damage') {
+                assert.ok(Math.abs(Game.damageBoostTime - Math.max(0, -offset / 1000)) < 1e-9);
+                assert.equal(Game.isDamageBoost, offset <= 0);
+                assert.equal(Game.bulletDamage, offset <= 0 ? 2 : 1);
+            } else {
+                assert.ok(Math.abs(Game.player.shieldTime - Math.max(0, -offset / 1000)) < 1e-9);
+            }
+        }
+    }
+});
+
+test('boost heart handling advances supply exactly once without duplicating its effect', () => {
+    resetItems();
+    Game.activeCard = 'boost';
+    Game.buildState.owned = ['supply_entry'];
+    Game.lives = 1;
+
+    collectNatural(0);
+
+    assert.equal(Game.lives, 3);
+    assert.equal(Game.buildState.counters.supplyPickups, 1);
+    assert.equal(Game.buildState.metrics.supplyNaturalPickups, 1);
+});
+
 test('the third natural pickup starts a pulse and the next pickup starts a new cycle', () => {
     resetItems();
     Game.buildState.owned = ['supply_entry'];
@@ -189,6 +252,41 @@ test('supply duration branch lasts 6s and the capstone hard-caps a pulse at 8s',
 
     Game.updateBuildEffects(CONFIG.builds.supply.maxPulseMs + 1);
     assert.equal(Game.buildState.timers.supplyPulse, 0);
+});
+
+test('supply pulse base, duration, and hard-cap timings cover -1/0/+1ms logically', () => {
+    const cases = [
+        { owned: ['supply_entry'], durationMs: CONFIG.builds.supply.pulseMs },
+        { owned: ['supply_entry', 'supply_duration'], durationMs: CONFIG.builds.supply.longPulseMs },
+        { owned: ['supply_entry', 'supply_duration', 'supply_capstone'], durationMs: CONFIG.builds.supply.maxPulseMs },
+    ];
+
+    for (const { owned, durationMs } of cases) {
+        for (const offset of [-1, 0, 1]) {
+            resetItems();
+            Game.buildState.owned = owned;
+            Game.buildState.timers.supplyPulse = durationMs;
+
+            Game.updateBuildEffects(durationMs + offset);
+
+            assert.equal(Game.buildState.timers.supplyPulse, Math.max(0, -offset), `${durationMs}ms pulse at ${offset}ms`);
+        }
+    }
+
+    for (const current of [CONFIG.builds.supply.pulseMs - 1, CONFIG.builds.supply.pulseMs, CONFIG.builds.supply.pulseMs + 1]) {
+        resetItems();
+        Game.buildState.owned = ['supply_entry', 'supply_capstone'];
+        Game.buildState.counters.supplyPickups = CONFIG.builds.supply.pickups - 1;
+        Game.buildState.timers.supplyPulse = current;
+
+        Game.onItemCollected({ type: 1, spawnSource: 'natural', wasFull: false, healingAllowed: true });
+
+        assert.equal(
+            Game.buildState.timers.supplyPulse,
+            Math.min(CONFIG.builds.supply.maxPulseMs, current + CONFIG.builds.supply.pulseMs),
+            `8s cap refresh at ${current}ms`,
+        );
+    }
 });
 
 test('supply magnet moves nearby items by one fixed step without collecting them', () => {
