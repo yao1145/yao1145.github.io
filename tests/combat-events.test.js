@@ -547,6 +547,8 @@ test('desperate execute uses the 35% boundary and clear branch uses 220px', () =
     const far = makeEnemyBullet(center.x + 221, center.y);
     for (let shot = 1; shot <= 10; shot++) Game.onDirectShotBatch(batch(shot, 'enemy', enemy.entityId));
     assert.equal(enemy.health, 33);
+    assert.equal(Game.buildState.visualFeedbackEvents.at(-1).damageLabel, '2D');
+    assert.equal(Game.buildState.visualFeedbackEvents.at(-1).clear, true);
     assert.equal(Game.objectPools.enemyBullets.active.includes(near), false);
     assert.equal(Game.objectPools.enemyBullets.active.includes(edge), false);
     assert.equal(Game.objectPools.enemyBullets.active.includes(far), true);
@@ -558,6 +560,42 @@ test('desperate execute uses the 35% boundary and clear branch uses 220px', () =
     executeEnemy.health = 35;
     for (let shot = 1; shot <= 10; shot++) Game.onDirectShotBatch(batch(shot, 'enemy', executeEnemy.entityId));
     assert.equal(executeEnemy.health, 32);
+});
+
+test('desperate and hunter precision hits always enqueue their damage labels independently of clear/capstone branches', () => {
+    resetCombat();
+    applyBuild('desperate_entry');
+    Game.lives = 1;
+    const desperateEnemy = makeEnemy(100);
+    for (let shot = 1; shot <= 10; shot++) Game.onDirectShotBatch(batch(shot, 'enemy', desperateEnemy.entityId));
+    assert.deepEqual(Game.buildState.visualFeedbackEvents.at(-1), {
+        kind: 'desperate',
+        x: 15,
+        y: 15,
+        impact: true,
+        damageLabel: '2D',
+        clear: false,
+        until: 400,
+    });
+
+    Game.resetBuildState();
+    applyBuild('desperate_entry', 'desperate_execute');
+    Game.lives = 1;
+    const executeEnemy = makeEnemy(100);
+    executeEnemy.health = 35;
+    for (let shot = 1; shot <= 10; shot++) Game.onDirectShotBatch(batch(shot, 'enemy', executeEnemy.entityId));
+    assert.equal(Game.buildState.visualFeedbackEvents.at(-1).damageLabel, '3D');
+    assert.equal(Game.buildState.visualFeedbackEvents.at(-1).clear, false);
+
+    Game.resetBuildState();
+    applyBuild('hunter_entry');
+    const hunterEnemy = makeEnemy(100);
+    for (let shot = 1; shot <= 10; shot++) Game.onDirectShotBatch(batch(shot, 'enemy', hunterEnemy.entityId));
+    assert.equal(Game.buildState.visualFeedbackEvents.at(-1).kind, 'hunter');
+    assert.equal(Game.buildState.visualFeedbackEvents.at(-1).impact, true);
+    assert.equal(Game.buildState.visualFeedbackEvents.at(-1).flash, true);
+    assert.equal(Game.buildState.visualFeedbackEvents.at(-1).damageLabel, '2D');
+    assert.equal(Game.buildState.visualFeedbackEvents.at(-1).clear, false);
 });
 
 test('desperate capstone heals once per Boss cycle after eight direct kills', () => {

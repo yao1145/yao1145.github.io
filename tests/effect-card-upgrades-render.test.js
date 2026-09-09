@@ -199,6 +199,10 @@ test('effect feedback uses the v2.1 radii and non-color shapes', () => {
     Game.drawEffectFeedback({ kind: 'chain', x: 0, y: 0, wide: true });
     Game.drawEffectFeedback({ kind: 'chain', x: 0, y: 0, capstone: true });
     Game.drawEffectFeedback({ kind: 'hunter', x: 0, y: 0 });
+    const callsBeforeImpact = ctx.calls.length;
+    Game.drawEffectFeedback({ kind: 'desperate', x: 0, y: 0, impact: true, damageLabel: '3D', clear: false });
+    assert.ok(ctx.calls.slice(callsBeforeImpact).some((call) => call[0] === 'lineTo'));
+    assert.ok(ctx.calls.slice(callsBeforeImpact).some((call) => call[0] === 'fillText'));
     assert.deepEqual(radii, [
         CONFIG.builds.fortress.echoRadius,
         CONFIG.builds.fortress.clearRadius,

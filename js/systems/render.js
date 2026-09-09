@@ -450,6 +450,27 @@ Game.drawHunterFracture = function(cx, cy, radius, label = '2D') {
     ctx.fillText(String(label), cx, cy - r - 8);
 };
 
+Game.drawDesperateImpact = function(cx, cy, label = '2D') {
+    const ctx = this.ctx;
+    const r = 15;
+    ctx.strokeStyle = 'rgba(255, 80, 110, 0.95)';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(cx - r, cy - r);
+    ctx.lineTo(cx - r * 0.25, cy - r * 0.25);
+    ctx.moveTo(cx + r, cy - r);
+    ctx.lineTo(cx + r * 0.25, cy - r * 0.25);
+    ctx.moveTo(cx - r, cy + r);
+    ctx.lineTo(cx - r * 0.25, cy + r * 0.25);
+    ctx.moveTo(cx + r, cy + r);
+    ctx.lineTo(cx + r * 0.25, cy + r * 0.25);
+    ctx.stroke();
+    ctx.fillStyle = '#ff506e';
+    ctx.font = 'bold 11px Consolas, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(String(label), cx, cy - r - 8);
+};
+
 Game.drawRadiusRing = function(x, y, radius, color = 'rgba(255, 209, 102, 0.8)', lineWidth = 2) {
     const r = Number(radius);
     if (!Number.isFinite(r) || r <= 0) return;
@@ -529,7 +550,11 @@ Game.drawEffectFeedback = function(event) {
         return;
     }
     if (kind === 'desperate') {
-        this.drawRadiusRing(x, y, cfg.desperate.clearRadius, '#ff506e');
+        if (event.impact) this.drawDesperateImpact(x, y, event.damageLabel || event.label || '2D');
+        if (event.clear) this.drawRadiusRing(x, y, event.radius ?? cfg.desperate.clearRadius, '#ff506e');
+        // Compatibility for older callers that only supplied a desperate
+        // route event: those events represented the clear-ring feedback.
+        if (!event.impact && !event.clear) this.drawRadiusRing(x, y, cfg.desperate.clearRadius, '#ff506e');
         return;
     }
     if (kind === 'chain') {
@@ -544,8 +569,12 @@ Game.drawEffectFeedback = function(event) {
         return;
     }
     if (kind === 'hunter') {
-        this.drawRadiusRing(x, y, cfg.hunter.clearRadius, '#8ef');
-        if (event.damageLabel || event.label) this.drawHunterFracture(x, y, 20, event.damageLabel || event.label);
+        if (event.clear || (!event.impact && !event.damageLabel && !event.label)) {
+            this.drawRadiusRing(x, y, event.radius ?? cfg.hunter.clearRadius, '#8ef');
+        }
+        if (event.impact || event.damageLabel || event.label) {
+            this.drawHunterFracture(x, y, 20, event.damageLabel || event.label || '2D');
+        }
         return;
     }
     if (kind === 'supply') {

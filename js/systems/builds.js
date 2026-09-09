@@ -913,6 +913,13 @@ Game.triggerBonusStrike = function(targetRef, multiplier, metric) {
     addMetric(state, 'bonusDamage', amount);
     if (typeof this.requestVisualHitStop === 'function' && metric === 'hunterPrecisionDamage') {
         this.requestVisualHitStop(CONFIG.builds.hunter.hitStopMs);
+        const previousColor = target.color;
+        target.color = '#fff';
+        if (typeof setTimeout === 'function') {
+            setTimeout(() => {
+                if (target && !target._dead && target.color === '#fff') target.color = previousColor;
+            }, 50);
+        }
     }
     if (typeof this.createShockwave === 'function') {
         const { x, y } = centerOf(target);
@@ -964,19 +971,25 @@ Game.hunterOnBatch = function(batch) {
     const multiplier = execute ? cfg.executeMult : cfg.strikeMult;
     if (!this.triggerBonusStrike(targetState, multiplier, 'hunterPrecisionDamage')) return;
     addMetric(state, 'hunterPrecisionCount');
+    const { x, y } = centerOf(target);
+    // Precision impact feedback is unconditional; the capstone's clear wave
+    // and Boss window are independent extras with their own gates/cooldowns.
+    const feedback = this.emitBuildFeedback({
+        kind: 'hunter',
+        impact: true,
+        flash: true,
+        x,
+        y,
+        targetId: targetState.entityId,
+        damageLabel: `${multiplier}D`,
+        clear: false,
+    });
     if (targetState.targetType === 'boss' && this.hasBuild('hunter_capstone')) {
         state.timers.hunterWindow = cfg.windowMs;
     }
     if (this.hasBuild('hunter_capstone') && (state.timers.hunterClearCooldown || 0) <= 0) {
-        const { x, y } = centerOf(target);
-        this.emitBuildFeedback({
-            kind: 'hunter',
-            x,
-            y,
-            radius: cfg.clearRadius,
-            targetId: targetState.entityId,
-            damageLabel: `${multiplier}D`,
-        });
+        feedback.clear = true;
+        feedback.radius = cfg.clearRadius;
         clearCount(this, x, y, cfg.clearRadius, 'hunterBulletClears');
         state.timers.hunterClearCooldown = cfg.clearCooldownMs;
     }
@@ -1012,9 +1025,18 @@ Game.desperateOnBatch = function(batch) {
     const multiplier = execute ? cfg.executeMult : cfg.strikeMult;
     if (!this.triggerBonusStrike(hit, multiplier, 'desperateStrikeDamage')) return;
     addMetric(state, 'desperateStrikeCount');
-    if (this.hasBuild('desperate_clear')) {
-        const { x, y } = centerOf(target);
-        this.emitBuildFeedback({ kind: 'desperate', x, y, radius: cfg.clearRadius });
+    const { x, y } = centerOf(target);
+    const hasClear = this.hasBuild('desperate_clear');
+    this.emitBuildFeedback({
+        kind: 'desperate',
+        impact: true,
+        x,
+        y,
+        damageLabel: `${multiplier}D`,
+        clear: hasClear,
+        ...(hasClear ? { radius: cfg.clearRadius } : {}),
+    });
+    if (hasClear) {
         clearCount(this, x, y, cfg.clearRadius, 'desperateBulletClears');
     }
 };
