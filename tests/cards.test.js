@@ -226,21 +226,38 @@ test('completing a core selection applies one pick and keeps combat helpers comp
 
 test('passion, peace, and supply apply their exact player, enemy, and Boss firing rates', () => {
     resetCards();
+    Game.bulletDamage = 4;
+    const baseSpawnRate = Game.enemySpawnRate;
+    const baseBulletSpeed = Game.enemyBulletSpeed;
 
-    Game.activeCard = 'passion';
-    assert.equal(Game.getPlayerShotDelay(), 300 / CONFIG.cards.speedMult);
-    assert.equal(Game.getEnemyShotRate(), 0.2 * CONFIG.cards.speedMult);
-    assert.equal(Game.getBossShotDelay(), 500 / CONFIG.cards.speedMult);
+    const assertScopedRates = (cardId, expected) => {
+        Game.activeCard = cardId;
+        assert.equal(Game.getDirectShotDamage('enemy'), 4, `${cardId} changes enemy direct damage`);
+        assert.equal(Game.getDirectShotDamage('boss'), 4, `${cardId} changes Boss direct damage`);
+        assert.equal(Game.getEnemySpawnRate(), baseSpawnRate, `${cardId} changes enemy spawn rate`);
+        assert.equal(Game.getEnemyBulletSpeed(), baseBulletSpeed, `${cardId} changes enemy bullet speed`);
+        assert.equal(Game.getPlayerShotDelay(), expected.playerShotDelay);
+        assert.equal(Game.getEnemyShotRate(), expected.enemyShotRate);
+        assert.equal(Game.getBossShotDelay(), expected.bossShotDelay);
+    };
 
-    Game.activeCard = 'peace';
-    assert.equal(Game.getPlayerShotDelay(), 300 / CONFIG.cards.peacePlayerRate);
-    assert.equal(Game.getEnemyShotRate(), 0.2 * CONFIG.cards.peaceEnemyRate);
-    assert.equal(Game.getBossShotDelay(), 500 / CONFIG.cards.peaceEnemyRate);
+    assertScopedRates('passion', {
+        playerShotDelay: 300 / CONFIG.cards.speedMult,
+        enemyShotRate: 0.2 * CONFIG.cards.speedMult,
+        bossShotDelay: 500 / CONFIG.cards.speedMult,
+    });
 
-    Game.activeCard = 'supply';
-    assert.equal(Game.getPlayerShotDelay(), 300);
-    assert.equal(Game.getEnemyShotRate(), 0.2 * CONFIG.cards.supplyEnemyShotMult);
-    assert.equal(Game.getBossShotDelay(), 500 / CONFIG.cards.supplyEnemyShotMult);
+    assertScopedRates('peace', {
+        playerShotDelay: 300 / CONFIG.cards.peacePlayerRate,
+        enemyShotRate: 0.2 * CONFIG.cards.peaceEnemyRate,
+        bossShotDelay: 500 / CONFIG.cards.peaceEnemyRate,
+    });
+
+    assertScopedRates('supply', {
+        playerShotDelay: 300,
+        enemyShotRate: 0.2 * CONFIG.cards.supplyEnemyShotMult,
+        bossShotDelay: 500 / CONFIG.cards.supplyEnemyShotMult,
+    });
     assert.equal(Game.getItemSpawnRate(), 0.01 * CONFIG.cards.supplyItemMult);
 });
 
@@ -269,6 +286,24 @@ test('comeback doubles damage and firing rate at two lives but sleeps at three',
     Game.lives = 3;
     assert.equal(Game.getBulletDamage(), 4);
     assert.equal(Game.getPlayerShotDelay(), 300);
+});
+
+test('comeback thresholds stay fixed at two active lives and three inactive lives when maxLives changes', () => {
+    resetCards();
+    Game.activeCard = 'comeback';
+    Game.bulletDamage = 4;
+
+    for (const maxLives of [1, 20, 99]) {
+        Game.maxLives = maxLives;
+
+        Game.lives = 2;
+        assert.equal(Game.getBulletDamage(), 4 * CONFIG.cards.comebackMult, `active at 2 lives with max ${maxLives}`);
+        assert.equal(Game.getPlayerShotDelay(), 300 / CONFIG.cards.comebackMult, `fast at 2 lives with max ${maxLives}`);
+
+        Game.lives = 3;
+        assert.equal(Game.getBulletDamage(), 4, `inactive at 3 lives with max ${maxLives}`);
+        assert.equal(Game.getPlayerShotDelay(), 300, `base rate at 3 lives with max ${maxLives}`);
+    }
 });
 
 test('blitz, glass, boss, and thorns expose their positive effect and explicit constraint', () => {
@@ -342,6 +377,39 @@ test('survival heals at 19999/20000/20001ms, freezes at full health, and resumes
     Game.lives -= 1;
     Game.updateCardEffects(1);
     assert.equal(Game.cardRegenTimer, 1235);
+});
+
+test('survival gates the real timer/life-gain path and caps healing at max lives', () => {
+    resetCards();
+    Game.activeCard = 'survival';
+    const maxLives = Game.getMaxLives();
+    Game.lives = maxLives - 1;
+    assert.equal(Game.canHeal(), true);
+
+    Game.updateCardEffects(CONFIG.cards.survivalHealMs - 1);
+    assert.equal(Game.lives, maxLives - 1);
+    assert.equal(Game.cardRegenTimer, CONFIG.cards.survivalHealMs - 1);
+
+    Game.updateCardEffects(1);
+    assert.equal(Game.lives, maxLives);
+    assert.equal(Game.cardRegenTimer, 0);
+
+    Game.cardRegenTimer = 321;
+    Game.updateCardEffects(CONFIG.cards.survivalHealMs);
+    assert.equal(Game.lives, maxLives);
+    assert.equal(Game.cardRegenTimer, 321);
+
+    const originalCanHeal = Game.canHeal;
+    Game.canHeal = () => false;
+    try {
+        Game.lives = maxLives - 1;
+        Game.cardRegenTimer = 0;
+        Game.updateCardEffects(CONFIG.cards.survivalHealMs);
+        assert.equal(Game.lives, maxLives - 1);
+        assert.equal(Game.cardRegenTimer, 0);
+    } finally {
+        Game.canHeal = originalCanHeal;
+    }
 });
 
 test('bloodlust exchanges at 7/8/16 points, preserves remainders, and retries failed exchanges', () => {
@@ -425,4 +493,56 @@ test('boost enemy bullets use the real hit resolver, grant the five-second shiel
     assert.equal(Game.lives, 1);
     assert.equal(Game.player.shieldTime, 5);
     assert.equal(Game.buildState.locks.fortressBarrier, false);
+});
+
+test('real applyPlayerHit settlement invokes thorns retaliation exactly once', () => {
+    resetCards();
+    Game.activeCard = 'thorns';
+    Game.player = { x: 0, y: 0, width: 30, height: 30, shieldTime: 0 };
+    Game.updateShieldUI = () => {};
+    Game.createExplosion = () => {};
+    Game.createShockwave = () => {};
+    Game.gameOver = () => {};
+
+    const enemy = Game.getObject('enemies');
+    Object.assign(enemy, {
+        entityId: Game.allocateEntityId(),
+        x: 50,
+        y: 0,
+        width: 20,
+        height: 20,
+        health: 1,
+        maxHealth: 1,
+        type: 0,
+        _dead: false,
+    });
+
+    const originalThornsHit = Game.onThornsHit;
+    let retaliationCalls = 0;
+    Game.onThornsHit = function(...args) {
+        retaliationCalls += 1;
+        return originalThornsHit.apply(this, args);
+    };
+
+    try {
+        assert.equal(Game.applyPlayerHit(1, 'enemyBullet'), true);
+        assert.equal(retaliationCalls, 1);
+        assert.equal(Game.lives, 2);
+        assert.equal(Game.objectPools.enemies.active.includes(enemy), false);
+    } finally {
+        Game.onThornsHit = originalThornsHit;
+    }
+});
+
+test('boost life gains respect the normal max-life cap', () => {
+    resetCards();
+    Game.activeCard = 'boost';
+    const maxLives = Game.getMaxLives();
+    assert.equal(maxLives, CONFIG.player.maxLives);
+
+    Game.lives = maxLives - 1;
+    assert.equal(Game.applyLifeGain(CONFIG.cards.boostHeartHeal), 1);
+    assert.equal(Game.lives, maxLives);
+    assert.equal(Game.applyLifeGain(CONFIG.cards.boostHeartHeal), 0);
+    assert.equal(Game.lives, maxLives);
 });
