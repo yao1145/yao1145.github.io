@@ -170,13 +170,17 @@ Game.updateCardSelectionUI = function(model) {
         button.disabled = !show || !preview?.legal;
         button.setAttribute('aria-disabled', String(button.disabled));
         if (preview) {
-            button.title = preview.legal ? '' : preview.reason;
+            const used = (this.cardPickCount || {})[id] || 0;
+            const costText = preview.cost === 0 ? '免费' : `消耗${preview.cost}命`;
+            const metaText = `${used}/${CONFIG.cards.cardMaxPicks}次 · ${costText} · 换后${preview.livesAfter}命/上限${preview.maxLivesAfter}`;
+            button.title = preview.legal ? metaText : `${metaText} · ${preview.reason}`;
+            button.setAttribute('aria-label', `${this.CARDS[id].name}：${this.CARD_DESCS[id]}（${metaText}）`);
             const desc = button.querySelector('.cardDesc');
             if (desc && show) {
-                const used = (this.cardPickCount || {})[id] || 0;
-                const costText = preview.cost === 0 ? '免费' : `消耗${preview.cost}命`;
-                desc.textContent = `${this.CARD_DESCS[id]} · 已选${used}/${CONFIG.cards.cardMaxPicks} · ${costText} · 换后${preview.livesAfter}命/上限${preview.maxLivesAfter}`;
-                if (!preview.legal) desc.textContent += ` · ${preview.reason}`;
+                // Keep the face to one short sentence. Pick count, cost and
+                // post-switch lives remain available via the tooltip/ARIA
+                // label, so the candidate grid does not become a paragraph.
+                desc.textContent = this.CARD_DESCS[id];
             }
             const badge = button.querySelector('.cardBadge');
             if (badge && show) {
@@ -539,8 +543,12 @@ Game.updateCardChipUI = function() {
     if (this.activeCard) {
         const glyph = this.CARDS[this.activeCard].name[0];
         if (this.cardIndicator.textContent !== glyph) this.cardIndicator.textContent = glyph;
+        this.cardIndicator.title = `当前效果卡：${this.CARDS[this.activeCard].name}`;
+        this.cardIndicator.setAttribute?.('aria-label', `当前效果卡：${this.CARDS[this.activeCard].name}`);
         if (this.cardIndicator.style.display !== '') this.cardIndicator.style.display = '';
     } else {
+        this.cardIndicator.title = '';
+        this.cardIndicator.removeAttribute?.('aria-label');
         if (this.cardIndicator.style.display !== 'none') this.cardIndicator.style.display = 'none';
     }
 };

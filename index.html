@@ -29,12 +29,14 @@
                 <div>皇冠: <span id="crowns">0</span></div>
             </div>
 
-            <div class="shieldIndicator" id="shieldIndicator">盾: 0.0</div>
-            <div class="attackIndicator" id="attackIndicator">攻: 0.0</div>
-            <div class="cardIndicator" id="cardIndicator" style="display:none"></div>
-            <div class="summonIndicator" id="summonIndicator">召唤: 0s</div>
-            <div id="cardEffectHud" class="cardEffectHud" aria-live="polite" aria-label="核心卡效果进度" hidden></div>
-            <div id="buildHud" class="buildHud" aria-live="polite" aria-label="本局强化进度" hidden></div>
+            <div class="statusStack" id="statusStack" aria-label="战斗状态">
+                <div class="shieldIndicator" id="shieldIndicator">盾: 0.0</div>
+                <div class="attackIndicator" id="attackIndicator">攻: 0.0</div>
+                <div class="cardIndicator" id="cardIndicator" style="display:none"></div>
+                <div class="summonIndicator" id="summonIndicator">召唤: 0s</div>
+                <div id="cardEffectHud" class="cardEffectHud" aria-label="核心卡效果进度" hidden></div>
+                <div id="buildHud" class="buildHud" aria-label="本局强化进度" hidden></div>
+            </div>
 
             <div id="gameStartPanel" class="uiPanel">
                 <div class="uiMeta">PKUer can fly</div>
@@ -77,7 +79,7 @@
                 <div class="cardGrid">
                     <button type="button" class="effectCard" data-card="passion">
                         <span class="cardName">激情岁月</span>
-                        <span class="cardDesc">自身射速×2·敌人射速×2</span>
+                        <span class="cardDesc">敌我攻速翻倍</span>
                         <span class="cardBadge">当前效果</span>
                     </button>
                     <button type="button" class="effectCard" data-card="survival">
@@ -87,7 +89,7 @@
                     </button>
                     <button type="button" class="effectCard" data-card="comeback">
                         <span class="cardName">绝地反击</span>
-                        <span class="cardDesc">仅≤2命：伤害与射速×2</span>
+                        <span class="cardDesc">低生命时攻速与伤害翻倍</span>
                         <span class="cardBadge">当前效果</span>
                     </button>
                     <button type="button" class="effectCard" data-card="peace">
@@ -97,7 +99,7 @@
                     </button>
                     <button type="button" class="effectCard" data-card="blitz">
                         <span class="cardName">电光石火</span>
-                        <span class="cardDesc">每批+1发·弹速×1.5·禁止回血</span>
+                        <span class="cardDesc">多发提速，但无法回血</span>
                         <span class="cardBadge">当前效果</span>
                     </button>
                     <button type="button" class="effectCard" data-card="bloodlust">
@@ -107,27 +109,27 @@
                     </button>
                     <button type="button" class="effectCard" data-card="chain">
                         <span class="cardName">连环爆炸</span>
-                        <span class="cardDesc">击杀爆炸200px·敌生成×1.30</span>
+                        <span class="cardDesc">击杀引发连锁爆炸，敌人更多</span>
                         <span class="cardBadge">当前效果</span>
                     </button>
                     <button type="button" class="effectCard" data-card="glass">
                         <span class="cardName">玻璃大炮</span>
-                        <span class="cardDesc">伤害×2·射速×1.5·上限1·禁止回血</span>
+                        <span class="cardDesc">伤害与射速翻倍，但只有一命</span>
                         <span class="cardBadge">当前效果</span>
                     </button>
                     <button type="button" class="effectCard" data-card="boss">
                         <span class="cardName">Boss猎手</span>
-                        <span class="cardDesc">Boss伤害×3·普通敌伤害×0.5</span>
+                        <span class="cardDesc">专打 Boss，普通敌人伤害降低</span>
                         <span class="cardBadge">当前效果</span>
                     </button>
                     <button type="button" class="effectCard" data-card="thorns">
                         <span class="cardName">荆棘护甲</span>
-                        <span class="cardDesc">受伤反击200px·Boss掉10%·敌弹速×2</span>
+                        <span class="cardDesc">受伤反击并削 Boss，敌弹更快</span>
                         <span class="cardBadge">当前效果</span>
                     </button>
                     <button type="button" class="effectCard" data-card="supply">
                         <span class="cardName">粮草先行</span>
-                        <span class="cardDesc">道具率×1.5·敌人射速×1.5</span>
+                        <span class="cardDesc">道具增多，但敌人射速提高</span>
                         <span class="cardBadge">当前效果</span>
                     </button>
                     <button type="button" class="effectCard" data-card="fog">
@@ -137,7 +139,7 @@
                     </button>
                     <button type="button" class="effectCard" data-card="boost">
                         <span class="cardName">增益加强</span>
-                        <span class="cardDesc">红心+2·攻/盾15/10s·敌弹伤2</span>
+                        <span class="cardDesc">道具增强，但敌弹每次伤两命</span>
                         <span class="cardBadge">当前效果</span>
                     </button>
                 </div>
@@ -256,7 +258,7 @@
                             <li>Boss猎手 —— 对 Boss 伤害 ×3、普通敌人伤害 ×0.5；射速与敌人属性不变。</li>
                             <li>荆棘护甲 —— 实际受伤时处置玩家 200px 内普通敌人，Boss 损失最大生命 10%；敌弹速度 ×2。</li>
                             <li>粮草先行 —— 自然道具生成率 ×1.5；普通敌人与 Boss 射速 ×1.5。</li>
-                            <li>战争迷雾 —— 追踪弹失效、敌弹速度 ×0.80；顶部 35% 雾区与 40px 渐变遮挡视野。</li>
+                            <li>战争迷雾 —— 追踪弹永久失效、敌弹速度 ×0.80；顶部 35% 雾区与 40px 渐变遮挡视野。</li>
                             <li>增益加强 —— 红心回复 2 命，伤害道具 15s、护盾道具 10s；敌弹每次扣 2 命。</li>
                         </ul>
                         <div class="introH">本局强化路线</div>

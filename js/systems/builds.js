@@ -327,19 +327,6 @@ const STAGE_NAMES = {
     capstone: '进阶',
 };
 
-function buildDetailText(build) {
-    const parts = [];
-    const required = build.requires.map((requirement) => Array.isArray(requirement)
-        ? requirement.map((id) => Game.BUILDS[id].name).join(' 或 ')
-        : Game.BUILDS[requirement].name);
-    if (required.length) parts.push(`前置：${required.join('、')}`);
-    if (build.excludes.length) {
-        parts.push(`与 ${build.excludes.map((id) => Game.BUILDS[id].name).join('、')} 互斥`);
-    }
-    parts.push('本局保留，换卡后仍然保留');
-    return parts.join('；');
-}
-
 Game.beginRewardFlow = function(firstPick = false) {
     this.rewardFlow = {
         phase: 'core',
@@ -456,12 +443,6 @@ Game.setupBuilds = function() {
     if (!this.buildPanel) return;
 
     this.buildPanel.addEventListener('click', (event) => {
-        const detailToggle = event.target.closest('.buildDetailToggle');
-        if (detailToggle) {
-            const option = detailToggle.closest('.buildOption');
-            if (option) option.classList.toggle('expanded');
-            return;
-        }
         const removeButton = event.target.closest('.buildRemoveOption');
         if (removeButton && !removeButton.disabled) {
             this.selectBuildReplacement(removeButton.dataset.remove);
@@ -524,8 +505,6 @@ Game.updateBuildSelectionUI = function() {
             + `<span class="buildName">${build.name}</span>`
             + `<span class="buildMeta">${meta}</span>`
             + `<span class="buildDesc">${build.summary}</span>`
-            + '<span class="buildDetailToggle">详情</span>'
-            + `<span class="buildDetail">${buildDetailText(build)}</span>`
             + '</button>';
     }).join('');
 };

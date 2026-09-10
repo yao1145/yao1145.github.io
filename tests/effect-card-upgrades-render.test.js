@@ -181,6 +181,22 @@ test('fog is 35 percent plus 40px fade, with warnings as boundary highlights onl
     }
 });
 
+test('enemy hit flash is a render-only overlay independent of the sprite cache key', () => {
+    const ctx = makeContext();
+    Game.ctx = ctx;
+    const enemy = { x: 40, y: 50, width: 30, height: 24, color: '#fff' };
+
+    Game.drawEnemyHitFlash(enemy);
+    assert.ok(ctx.calls.some((call) => call[0] === 'arc' && call[1] === 55 && call[2] === 62));
+    assert.equal(ctx.calls.filter((call) => call[0] === 'save').length, 1);
+    assert.equal(ctx.calls.filter((call) => call[0] === 'restore').length, 1);
+
+    ctx.calls.length = 0;
+    enemy.color = '#f00';
+    Game.drawEnemyHitFlash(enemy);
+    assert.equal(ctx.calls.length, 0);
+});
+
 test('render keeps world below fog and player/critical warnings above it, with DOM HUD above canvas', () => {
     const events = [];
     Game.ctx = makeContext();

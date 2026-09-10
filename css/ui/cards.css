@@ -165,14 +165,14 @@
    tooltip and flips inline display '' / none, so the stylesheet's display:
    flex is the visible state and the inline style hides it by default. */
 .cardIndicator {
-    position: absolute;
-    top: 70px;
-    right: 10px;
+    position: static;
     display: flex;
     align-items: center;
     justify-content: center;
+    flex: 0 0 24px;
     width: 24px;
     height: 24px;
+    box-sizing: border-box;
     border-radius: 50%;
     background: #fff;
     box-shadow: 0 0 0 1px rgba(230, 57, 79, 0.7), 0 0 8px rgba(230, 57, 79, 0.45);
@@ -316,28 +316,6 @@
     line-height: 1.5;
     letter-spacing: 0.05em;
     color: rgba(168, 200, 216, 0.85);
-}
-
-/* Toggle + hidden detail block: expanded state is set by JS on the option. */
-.buildDetailToggle {
-    font-family: 'Consolas', 'Courier New', monospace;
-    font-size: 10px;
-    letter-spacing: 0.2em;
-    color: rgba(140, 222, 245, 0.65);
-    text-decoration: underline;
-    text-underline-offset: 3px;
-}
-
-.buildDetail {
-    display: none;
-    font-size: 10px;
-    line-height: 1.5;
-    letter-spacing: 0.04em;
-    color: rgba(140, 222, 245, 0.7);
-}
-
-.buildOption.expanded .buildDetail {
-    display: block;
 }
 
 /* Summary rows reuse the stat-row rhythm of the shared panels. */

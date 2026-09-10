@@ -68,7 +68,7 @@ test('lifecycle methods clear visual state and updateUI is headless-safe', () =>
     }
 });
 
-test('static card and route copy exposes v2.1 tradeoffs and exact feedback HUD markup', () => {
+test('static card and route copy exposes v2.3 tradeoffs and compact HUD markup', () => {
     for (const forbiddenText of [
         '无效果', '伤害减半', '概率回复', '命中12次', '命中 12 次',
         '70px', '90px', '110px', '150px',
@@ -77,13 +77,16 @@ test('static card and route copy exposes v2.1 tradeoffs and exact feedback HUD m
     }
     for (const requiredText of [
         '敌人射速×0.65', '自身射速×0.80', '每20s回1命', 'Boss首次+16',
-        '敌弹速度×0.80', '追踪失效', '200px', '220px', '250px', '260px', '300px',
+        '敌弹速度×0.80', '追踪弹永久失效', '200px', '220px', '250px', '260px', '300px',
         '3000ms', '6000ms', '10000ms', '8秒',
     ]) {
         assert.equal(indexHtml.includes(requiredText), true, `v2.1 copy missing: ${requiredText}`);
     }
     assert.match(indexHtml, /id="cardEffectHud"/);
+    assert.match(indexHtml, /id="statusStack"[^>]*aria-label="战斗状态"/);
     assert.match(hudCss, /\.cardEffectHud/);
+    assert.match(hudCss, /\.statusStack[\s\S]*flex-direction:\s*column/);
     assert.match(cardsCss, /#cardPanel[\s\S]*overflow-y:\s*auto/);
+    assert.doesNotMatch(cardsCss, /\.buildDetail(?:Toggle)?\s*\{/);
     assert.match(responsiveCss, /cardEffectHud/);
 });

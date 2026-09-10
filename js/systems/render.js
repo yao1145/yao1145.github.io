@@ -360,6 +360,7 @@ Game.render = function() {
     const enemyPool = this.objectPools.enemies;
     for (const enemy of enemyPool.active) {
         this.drawEnemySprite(enemy);
+        this.drawEnemyHitFlash(enemy);
 
         // Force-show the health bar for every enemy regardless of type or
         // level. Uniform color rule: green above half health, red at half
@@ -426,6 +427,27 @@ Game.render = function() {
     if (this.boss) {
         this.drawHunterMark(this.boss.entityId, this.boss.x + this.boss.width / 2, this.boss.y + this.boss.height / 2, Math.max(this.boss.width, this.boss.height) / 2 + 6);
     }
+};
+
+// Hit feedback is a render-only overlay. Enemy sprite cache keys deliberately
+// ignore the transient color used by collision code, so taking damage never
+// creates a one-frame cache variant or pays a new badge rasterization cost.
+Game.drawEnemyHitFlash = function(enemy) {
+    if (enemy.color !== '#fff') return;
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.globalAlpha = 0.72;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(
+        enemy.x + enemy.width / 2,
+        enemy.y + enemy.height / 2,
+        Math.min(enemy.width, enemy.height) * 0.48,
+        0,
+        Math.PI * 2,
+    );
+    ctx.fill();
+    ctx.restore();
 };
 
 Game.drawPlayerShieldAndBarrier = function() {
