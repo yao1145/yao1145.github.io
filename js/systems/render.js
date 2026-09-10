@@ -1,6 +1,11 @@
 import { Game } from '../core/game.js';
 import { CONFIG } from '../core/config.js';
 
+// Chain route feedback expands from the event center to the true damage radius
+// over this window, mirroring the 连环爆炸 shockwave. The route emits events
+// with `until = gameTime + 400`, so render.js recovers the start from `until`.
+const CHAIN_RING_MS = 400;
+
 // Presentation state intentionally lives outside the simulation clocks. A
 // hit-stop deadline only makes render() retain the previous canvas frame; the
 // fixed-step update loop keeps advancing while the deadline is active.
@@ -565,7 +570,22 @@ Game.drawEffectFeedback = function(event) {
             else if (Number(event.generation) > 0) radius = cfg.chain.spreadRadius;
             else radius = cfg.chain.baseRadius;
         }
-        this.drawRadiusRing(x, y, radius, Number(event.generation) > 0 ? '#ffb3a1' : '#ff7a45');
+        // Dynamic ring: expands from nothing to the true damage radius while
+        // its alpha collapses to zero. Missing timing metadata (no `gameTime`,
+        // no finite `until`) degrades to a finished ring instead of throwing.
+        const startedAt = Number(event.startedAt) || (Number(event.until) - CHAIN_RING_MS);
+        const elapsed = Number(this.gameTime) - startedAt;
+        const progress = Number.isFinite(elapsed)
+            ? Math.min(1, Math.max(0, elapsed / CHAIN_RING_MS))
+            : 1;
+        const ctx = this.ctx;
+        ctx.strokeStyle = Number(event.generation) > 0 ? '#ffb3a1' : '#ff7a45';
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 1 - progress;
+        ctx.beginPath();
+        ctx.arc(x, y, radius * progress, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
         return;
     }
     if (kind === 'hunter') {

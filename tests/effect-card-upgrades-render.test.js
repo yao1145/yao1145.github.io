@@ -183,6 +183,26 @@ test('render keeps world below fog and player/critical warnings above it, with D
     assert.match(bossCss, /\.bossWarning\s*\{[\s\S]*?z-index:\s*20/);
 });
 
+// Records every globalAlpha write so a fade can be asserted per frame.
+function trackGlobalAlpha(ctx) {
+    const trail = [];
+    let value = ctx.globalAlpha;
+    Object.defineProperty(ctx, 'globalAlpha', {
+        configurable: true,
+        get: () => value,
+        set: (next) => { value = next; trail.push(next); },
+    });
+    return trail;
+}
+
+// Records the radius of every stroked arc.
+function trackArcRadii(ctx) {
+    const radii = [];
+    const arc = ctx.arc.bind(ctx);
+    ctx.arc = (...args) => { radii.push(args[2]); return arc(...args); };
+    return radii;
+}
+
 test('effect feedback uses the v2.1 radii and non-color shapes', () => {
     const ctx = makeContext();
     Game.ctx = ctx;
@@ -192,6 +212,9 @@ test('effect feedback uses the v2.1 radii and non-color shapes', () => {
     Game.buildState = { locks: { hunterTargetId: 9, hunterHits: 10 }, timers: {} };
     const radii = [];
     Game.drawRadiusRing = (_x, _y, radius) => radii.push(radius);
+    // Chain rings are painted as canvas arcs (they animate), so their target
+    // radius is observed from ctx.arc instead of drawRadiusRing.
+    const chainRadii = trackArcRadii(ctx);
     Game.drawEffectFeedback({ kind: 'fortress', x: 0, y: 0, echo: true, clear: true });
     Game.drawEffectFeedback({ kind: 'desperate', x: 0, y: 0 });
     Game.drawEffectFeedback({ kind: 'chain', x: 0, y: 0, generation: 0 });
@@ -199,6 +222,12 @@ test('effect feedback uses the v2.1 radii and non-color shapes', () => {
     Game.drawEffectFeedback({ kind: 'chain', x: 0, y: 0, wide: true });
     Game.drawEffectFeedback({ kind: 'chain', x: 0, y: 0, capstone: true });
     Game.drawEffectFeedback({ kind: 'hunter', x: 0, y: 0 });
+    assert.deepEqual(chainRadii, [
+        CONFIG.builds.chain.baseRadius,
+        CONFIG.builds.chain.spreadRadius,
+        CONFIG.builds.chain.wideRadius,
+        CONFIG.builds.chain.capstoneRadius,
+    ]);
     const callsBeforeImpact = ctx.calls.length;
     Game.drawEffectFeedback({ kind: 'desperate', x: 0, y: 0, impact: true, damageLabel: '3D', clear: false });
     assert.ok(ctx.calls.slice(callsBeforeImpact).some((call) => call[0] === 'lineTo'));
@@ -207,16 +236,103 @@ test('effect feedback uses the v2.1 radii and non-color shapes', () => {
         CONFIG.builds.fortress.echoRadius,
         CONFIG.builds.fortress.clearRadius,
         CONFIG.builds.desperate.clearRadius,
-        CONFIG.builds.chain.baseRadius,
-        CONFIG.builds.chain.spreadRadius,
-        CONFIG.builds.chain.wideRadius,
-        CONFIG.builds.chain.capstoneRadius,
         CONFIG.builds.hunter.clearRadius,
     ]);
     ctx.calls.length = 0;
     Game.drawHunterFracture(0, 0, 20, '3D');
     assert.ok(ctx.calls.some((call) => call[0] === 'lineTo'));
     assert.ok(ctx.calls.some((call) => call[0] === 'fillText'));
+});
+
+test('chain feedback paints a ring that expands to the target radius while fading', () => {
+    // Mirrors the module constant in render.js; the source assertion below
+    // keeps the two from drifting apart.
+    const CHAIN_RING_MS = 400;
+    assert.match(
+        readFileSync(new URL('../js/systems/render.js', import.meta.url), 'utf8'),
+        /const CHAIN_RING_MS = 400;/,
+    );
+
+    const ctx = makeContext();
+    Game.ctx = ctx;
+    const radii = trackArcRadii(ctx);
+    const alphas = trackGlobalAlpha(ctx);
+    const startedAt = 600;
+    const event = { kind: 'chain', x: 30, y: 40, startedAt, until: 10000, generation: 1, radius: 240 };
+
+    const frames = [];
+    for (const elapsed of [0, 100, 200, 300, CHAIN_RING_MS]) {
+        Game.gameTime = startedAt + elapsed;
+        radii.length = 0;
+        alphas.length = 0;
+        Game.drawEffectFeedback(event);
+        frames.push({
+            radius: radii[0],
+            alpha: alphas[0],
+            restored: ctx.globalAlpha,
+            lineWidth: ctx.lineWidth,
+            strokeStyle: ctx.strokeStyle,
+        });
+    }
+
+    // Dynamic expansion: nothing at the start, the true damage radius at the end.
+    assert.deepEqual(frames.map((frame) => frame.radius), [0, 60, 120, 180, 240]);
+    assert.ok(frames[0].radius < 240 * 0.5, 'first frame must not paint the full radius');
+    assert.deepEqual(frames.map((frame) => frame.alpha), [1, 0.75, 0.5, 0.25, 0]);
+    for (let i = 1; i < frames.length; i++) {
+        assert.ok(frames[i].alpha < frames[i - 1].alpha, 'alpha must decrease monotonically');
+        assert.ok(frames[i].radius > frames[i - 1].radius, 'radius must grow monotonically');
+    }
+    assert.ok(frames.every((frame) => frame.restored === 1), 'globalAlpha must be restored to 1');
+    assert.ok(frames.every((frame) => frame.lineWidth <= 2), 'line width stays at or below 2');
+    assert.ok(frames.every((frame) => frame.strokeStyle === '#ffb3a1'), 'second-generation chain color');
+
+    // Without startedAt the window is derived from until - CHAIN_RING_MS.
+    Game.gameTime = 700;
+    radii.length = 0;
+    alphas.length = 0;
+    Game.drawEffectFeedback({ kind: 'chain', x: 0, y: 0, radius: 240, until: 1000 });
+    assert.deepEqual(radii, [60]);
+    assert.deepEqual(alphas, [0.75, 1]);
+});
+
+test('chain feedback renders each route radius exactly at the end of its lifetime', () => {
+    const ctx = makeContext();
+    Game.ctx = ctx;
+    const radii = trackArcRadii(ctx);
+    const alphas = trackGlobalAlpha(ctx);
+
+    for (const radius of [200, 220, 260, 300]) {
+        // startedAt/until put the event at progress 1 while still active.
+        Game.gameTime = 500;
+        radii.length = 0;
+        alphas.length = 0;
+        Game.drawEffectFeedback({ kind: 'chain', x: 0, y: 0, radius, startedAt: 100, until: 10000 });
+        assert.deepEqual(radii, [radius]);
+        assert.deepEqual(alphas, [0, 1], 'fades out and restores globalAlpha');
+    }
+
+    // The first-generation color is unchanged.
+    Game.gameTime = 500;
+    ctx.calls.length = 0;
+    Game.drawEffectFeedback({ kind: 'chain', x: 0, y: 0, radius: 200, startedAt: 100, until: 10000 });
+    assert.equal(ctx.strokeStyle, '#ff7a45');
+});
+
+test('chain feedback never throws without usable timing metadata', () => {
+    const ctx = makeContext();
+    Game.ctx = ctx;
+
+    Game.gameTime = 0;
+    assert.doesNotThrow(() => Game.drawEffectFeedback({ kind: 'chain', x: 1, y: 2, radius: 200, until: 400 }));
+    Game.gameTime = undefined;
+    assert.doesNotThrow(() => Game.drawEffectFeedback({ kind: 'chain', x: 1, y: 2, radius: 200, until: 400 }));
+    assert.doesNotThrow(() => Game.drawEffectFeedback({ kind: 'chain', x: 1, y: 2 }));
+    assert.doesNotThrow(() => Game.drawEffectFeedback({ kind: 'chain', x: 1, y: 2, until: Number.NaN }));
+    assert.doesNotThrow(() => Game.drawEffectFeedback({ kind: 'chain', x: 1, y: 2, until: Number.POSITIVE_INFINITY }));
+    assert.doesNotThrow(() => Game.drawEffectFeedback({ kind: 'chain', x: Number.NaN, y: 0, radius: 200, until: 400 }));
+    assert.doesNotThrow(() => Game.drawEffectFeedback({ kind: 'chain', x: 0, y: 0, startedAt: 'x', until: 'y' }));
+    assert.equal(ctx.globalAlpha, 1, 'globalAlpha stays clean after malformed events');
 });
 
 test('rapid bullets and supply items expose shape feedback without changing gameplay fields', () => {
