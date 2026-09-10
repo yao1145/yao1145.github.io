@@ -78,8 +78,10 @@ Game.checkCollisions = function() {
             break;
         }
 
-        const nearbyEnemies = this.spatialGrid.getNearby(bullet);
+        const nearbyEnemies = this.spatialGrid.getNearby(bullet, 'enemies');
         for (const nearby of nearbyEnemies) {
+            // Keep the guard for compatibility with older/custom grid
+            // adapters that may ignore the optional type argument.
             if (nearby.poolType !== 'enemies') continue;
             const enemy = nearby.obj;
 
@@ -116,28 +118,26 @@ Game.checkCollisions = function() {
     // per shot to the build hooks.
     this.flushDirectShotBatches();
 
-    const nearbyEnemyBullets = this.spatialGrid.getNearby(this.player);
+    const nearbyEnemyBullets = this.spatialGrid.getNearby(this.player, 'enemyBullets');
     for (const nearby of nearbyEnemyBullets) {
-        if (nearby.poolType === 'enemyBullets') {
-            const bullet = nearby.obj;
+        if (nearby.poolType !== 'enemyBullets') continue;
+        const bullet = nearby.obj;
 
-            if (this.isColliding(bullet, this.player)) {
-                this.resolveEnemyBulletHit(bullet);
-                break;
-            }
+        if (this.isColliding(bullet, this.player)) {
+            this.resolveEnemyBulletHit(bullet);
+            break;
         }
     }
 
-    const nearbyEnemies = this.spatialGrid.getNearby(this.player);
+    const nearbyEnemies = this.spatialGrid.getNearby(this.player, 'enemies');
     for (const nearby of nearbyEnemies) {
-        if (nearby.poolType === 'enemies') {
-            const enemy = nearby.obj;
+        if (nearby.poolType !== 'enemies') continue;
+        const enemy = nearby.obj;
 
-            if (this.isColliding(this.player, enemy)) {
-                this.releaseObject('enemies', enemy);
-                this.applyPlayerHit(1, 'enemyCollision');
-                break;
-            }
+        if (this.isColliding(this.player, enemy)) {
+            this.releaseObject('enemies', enemy);
+            this.applyPlayerHit(1, 'enemyCollision');
+            break;
         }
     }
 
@@ -145,15 +145,14 @@ Game.checkCollisions = function() {
         this.applyPlayerHit(1, 'bossCollision');
     }
 
-    const nearbyItems = this.spatialGrid.getNearby(this.player);
+    const nearbyItems = this.spatialGrid.getNearby(this.player, 'items');
     for (const nearby of nearbyItems) {
-        if (nearby.poolType === 'items') {
-            const item = nearby.obj;
+        if (nearby.poolType !== 'items') continue;
+        const item = nearby.obj;
 
-            if (this.isColliding(this.player, item)) {
-                this.collectItem(item);
-                break;
-            }
+        if (this.isColliding(this.player, item)) {
+            this.collectItem(item);
+            break;
         }
     }
 };

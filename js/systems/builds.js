@@ -799,7 +799,7 @@ Game.createDamageExplosion = function(spec = {}) {
         if (typeof this.createShockwave === 'function') this.createShockwave(point.x, point.y);
 
         const candidates = typeof this.spatialGrid?.getWithinRadius === 'function'
-            ? this.spatialGrid.getWithinRadius(point.x, point.y, pointRadius)
+            ? this.spatialGrid.getWithinRadius(point.x, point.y, pointRadius, 'enemies')
             : (this.objectPools?.enemies?.active || []).map((obj) => ({ poolType: 'enemies', obj }));
         for (const entry of candidates) {
             if (entry.poolType && entry.poolType !== 'enemies') continue;
