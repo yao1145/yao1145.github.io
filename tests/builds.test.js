@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import test from 'node:test';
 import { Game } from '../js/core/game.js';
 import { CONFIG } from '../js/core/config.js';
@@ -633,19 +634,32 @@ test('renderRunSummary returns a headless model with card history, builds, and c
     assert.equal(summary.contributions.supplyPulseCoverage, 0.25);
 });
 
-test('renderRunSummary updates #runSummaryBody when a DOM target exists', () => {
+test('renderRunSummary returns the headless model and never touches the DOM', () => {
     resetBuilds();
-    const body = { innerHTML: '' };
-    const previousDocument = globalThis.document;
+    const previous = {
+        document: globalThis.document,
+        score: Game.score,
+        crowns: Game.crowns,
+        gameTime: Game.gameTime,
+        cardHistory: Game.cardHistory,
+        owned: Game.buildState.owned,
+        metrics: Game.buildState.metrics,
+        runSummary: Game.runSummary,
+    };
+    // Any DOM lookup from the run summary is a contract violation now that the
+    // death settlement only shows score and crowns.
     globalThis.document = {
         getElementById(id) {
-            return id === 'runSummaryBody' ? body : null;
+            throw new Error(`renderRunSummary must not touch the DOM (getElementById(${id}))`);
         },
     };
 
     try {
         Game.cardHistory = [{ rewardIndex: 0, cardId: 'peace', name: '平安无事', kept: true }];
         Game.gameTime = 1000;
+        Game.score = 4321;
+        Game.crowns = 7;
+        Game.buildState.owned = ['rapid_entry', 'fortress_entry'];
         Game.buildState.metrics = {
             fortressBlocks: 2,
             bonusDamage: 3,
@@ -655,18 +669,49 @@ test('renderRunSummary updates #runSummaryBody when a DOM target exists', () => 
             supplyMagnetPickups: 1,
             supplyPulseMs: 400,
         };
-        Game.renderRunSummary();
-        assert.match(body.innerHTML, /平安无事/);
-        assert.match(body.innerHTML, /强化贡献/);
-        assert.match(body.innerHTML, /屏障阻挡/);
-        assert.match(body.innerHTML, /额外伤害/);
-        assert.match(body.innerHTML, /清弹数/);
-        assert.match(body.innerHTML, /有效回血/);
-        assert.match(body.innerHTML, /自然\/牵引拾取/);
-        assert.match(body.innerHTML, /40\.0%/);
+
+        let summary;
+        assert.doesNotThrow(() => { summary = Game.renderRunSummary(); });
+
+        assert.equal(summary.score, 4321);
+        assert.equal(summary.crowns, 7);
+        assert.equal(summary.elapsedMs, 1000);
+        assert.deepEqual(summary.cardHistory, Game.cardHistory);
+        assert.equal(summary.cards, summary.cardHistory);
+        assert.deepEqual(summary.builds.map((build) => build.id), ['rapid_entry', 'fortress_entry']);
+        assert.equal(summary.ownedBuilds, summary.builds);
+        assert.equal(summary.metrics.fortressBlocks, 2);
+        assert.equal(summary.metrics.bonusDamage, 3);
+        assert.equal(summary.metrics.bulletClears, 1);
+        assert.equal(summary.metrics.effectiveHealing, 1);
+        assert.equal(summary.metrics.supplyPulseCoverage, 0.4);
+        assert.equal(summary.contributions.fortressBlocks, 2);
+        assert.equal(Game.runSummary, summary);
     } finally {
-        globalThis.document = previousDocument;
+        globalThis.document = previous.document;
+        Game.score = previous.score;
+        Game.crowns = previous.crowns;
+        Game.gameTime = previous.gameTime;
+        Game.cardHistory = previous.cardHistory;
+        Game.buildState.owned = previous.owned;
+        Game.buildState.metrics = previous.metrics;
+        Game.runSummary = previous.runSummary;
     }
+});
+
+test('death settlement markup keeps only score and crowns', () => {
+    const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+    const panel = html.match(/<div id="gameOverPanel"[\s\S]*?<button id="restartButton"[\s\S]*?<\/div>/);
+    assert.ok(panel, 'gameOverPanel block missing');
+
+    assert.match(panel[0], /id="finalScore"/);
+    assert.match(panel[0], /id="finalCrowns"/);
+    assert.match(panel[0], /最终得分/);
+    assert.match(panel[0], /皇冠数量/);
+    assert.equal(panel[0].includes('runSummaryBody'), false, 'runSummaryBody must be gone from the death panel');
+
+    // The boss reward summary is a separate panel and must survive.
+    assert.match(html, /id="rewardSummaryBody"/);
 });
 
 test('game-over summary survives gameOver and clears when returning to the menu', () => {

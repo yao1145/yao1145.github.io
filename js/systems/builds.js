@@ -191,15 +191,6 @@ function numericMetric(metrics, key) {
     return Number.isFinite(value) && value >= 0 ? value : 0;
 }
 
-function escapeSummaryText(value) {
-    return String(value ?? '')
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;')
-        .replaceAll('"', '&quot;')
-        .replaceAll("'", '&#39;');
-}
-
 Game.hasBuild = function(id) {
     return getOwned().includes(id);
 };
@@ -1249,30 +1240,11 @@ Game.renderRunSummary = function() {
         contributions,
     };
     this.runSummary = summary;
-    if (typeof document !== 'undefined') {
-        const body = document.getElementById('runSummaryBody');
-        if (body) {
-            const cardRows = cardHistory.length > 0
-                ? cardHistory.map((entry) => `<div class="summaryRow"><span class="summaryLabel">第${escapeSummaryText(entry.rewardIndex + 1)}轮核心卡</span><span class="summaryValue">${escapeSummaryText(entry.name)}${entry.kept ? ' · 保留' : ' · 更换'}</span></div>`).join('')
-                : '<div class="summaryRow"><span class="summaryLabel">核心卡轨迹</span><span class="summaryValue">无</span></div>';
-            const buildRows = buildsOwned.length > 0
-                ? buildsOwned.map((build) => `<div class="summaryRow"><span class="summaryLabel">${escapeSummaryText(LINE_NAMES[build.line])}</span><span class="summaryValue">${escapeSummaryText(build.name)}</span></div>`).join('')
-                : '<div class="summaryRow"><span class="summaryLabel">本局强化</span><span class="summaryValue">无</span></div>';
-            body.innerHTML = cardRows + buildRows
-                + `<div class="summarySectionTitle">强化贡献</div>`
-                + `<div class="summaryRow"><span class="summaryLabel">屏障阻挡</span><span class="summaryValue">${metrics.fortressBlocks}</span></div>`
-                + `<div class="summaryRow"><span class="summaryLabel">额外伤害</span><span class="summaryValue">${metrics.bonusDamage.toFixed(1)}</span></div>`
-                + `<div class="summaryRow"><span class="summaryLabel">清弹数</span><span class="summaryValue">${metrics.bulletClears}</span></div>`
-                + `<div class="summaryRow"><span class="summaryLabel">有效回血</span><span class="summaryValue">${metrics.effectiveHealing}</span></div>`
-                + `<div class="summaryRow"><span class="summaryLabel">自然/牵引拾取</span><span class="summaryValue">${metrics.supplyNaturalPickups}/${metrics.supplyMagnetPickups}</span></div>`
-                + `<div class="summaryRow"><span class="summaryLabel">补给覆盖率</span><span class="summaryValue">${(supplyPulseCoverage * 100).toFixed(1)}%</span></div>`;
-        }
-    }
     return summary;
 };
 
-// Keep the v2.1 projections authoritative if the legacy panel helpers below
-// remain in this file for the existing DOM integration surface.
+// Keep the v2.1 projections authoritative over the legacy duplicates that
+// remain below in this file.
 const renderV21BuildHudStates = Game.getBuildHudStates;
 const renderV21RunSummary = Game.renderRunSummary;
 
@@ -1385,9 +1357,8 @@ Game.getBuildHudStates = function() {
     return sorted.slice(0, 2).map(({ row }) => row);
 };
 
-// Build a serializable end-of-run model first, then paint it only when the
-// optional summary body exists. This keeps gameOver/headless tests independent
-// of the DOM and lets the later UI layer choose its own surrounding panel.
+// Legacy copy of the end-of-run model. It only builds and returns the
+// serializable summary; the death settlement panel shows score and crowns only.
 Game.renderRunSummary = function() {
     const state = this.buildState || { owned: [], metrics: {} };
     const rawMetrics = state.metrics || {};
@@ -1448,24 +1419,6 @@ Game.renderRunSummary = function() {
     };
     this.runSummary = summary;
 
-    if (typeof document !== 'undefined') {
-        const body = document.getElementById('runSummaryBody');
-        if (body) {
-            const cardRows = cardHistory.length > 0
-                ? cardHistory.map((entry) => `<div class="summaryRow"><span class="summaryLabel">第${escapeSummaryText(entry.rewardIndex + 1)}轮核心卡</span><span class="summaryValue">${escapeSummaryText(entry.name)}${entry.kept ? ' · 保留' : ' · 更换'}</span></div>`).join('')
-                : '<div class="summaryRow"><span class="summaryLabel">核心卡轨迹</span><span class="summaryValue">无</span></div>';
-            const buildRows = buildsOwned.length > 0
-                ? buildsOwned.map((build) => `<div class="summaryRow"><span class="summaryLabel">${escapeSummaryText(LINE_NAMES[build.line])}</span><span class="summaryValue">${escapeSummaryText(build.name)}</span></div>`).join('')
-                : '<div class="summaryRow"><span class="summaryLabel">本局强化</span><span class="summaryValue">无</span></div>';
-            body.innerHTML = cardRows
-                + buildRows
-                + `<div class="summarySectionTitle">强化贡献</div>`
-                + `<div class="summaryRow"><span class="summaryLabel">屏障阻挡</span><span class="summaryValue">${metrics.fortressBlocks}</span></div>`
-                + `<div class="summaryRow"><span class="summaryLabel">连锁击杀</span><span class="summaryValue">${metrics.chainKills}</span></div>`
-                + `<div class="summaryRow"><span class="summaryLabel">精准伤害</span><span class="summaryValue">${contributions.hunterPrecisionDamage}</span></div>`
-                + `<div class="summaryRow"><span class="summaryLabel">补给覆盖率</span><span class="summaryValue">${(supplyPulseCoverage * 100).toFixed(1)}%</span></div>`;
-        }
-    }
     return summary;
 };
 
