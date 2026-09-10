@@ -82,10 +82,6 @@
         overflow-y: auto;
     }
 
-    #gameOverPanel.runSummaryPanel {
-        width: 94%;
-    }
-
     .buildOption {
         padding: 10px 6px;
     }

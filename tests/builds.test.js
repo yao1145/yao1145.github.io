@@ -714,6 +714,21 @@ test('death settlement markup keeps only score and crowns', () => {
     assert.match(html, /id="rewardSummaryBody"/);
 });
 
+test('death settlement panel uses the standard panel width', () => {
+    const root = new URL('../', import.meta.url);
+    const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+    const openTag = html.match(/<div id="gameOverPanel"[^>]*>/);
+    assert.ok(openTag, 'gameOverPanel open tag missing');
+    // The panel shows only score and crowns, so the wide run-summary plate
+    // that predates that simplification must not come back.
+    assert.equal(openTag[0].includes('runSummaryPanel'), false, 'death panel must not use the wide summary layout');
+
+    for (const sheet of ['css/ui/panels.css', 'css/responsive/responsive.css']) {
+        const css = fs.readFileSync(new URL(sheet, root), 'utf8');
+        assert.equal(css.includes('#gameOverPanel.runSummaryPanel'), false, `${sheet} still widens the death panel`);
+    }
+});
+
 test('game-over summary survives gameOver and clears when returning to the menu', () => {
     resetGameFixture();
     resetBuilds();

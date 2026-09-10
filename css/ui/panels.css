@@ -49,11 +49,6 @@
     display: none;
 }
 
-#gameOverPanel.runSummaryPanel {
-    width: min(92%, 720px);
-    max-width: 720px;
-}
-
 .pauseBuildDetails {
     margin: 12px 0 14px;
     padding: 10px;
