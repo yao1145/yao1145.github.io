@@ -537,9 +537,10 @@ Game.updateCardChipUI = function() {
     }
     if (!this.cardIndicator) return;
     if (this.activeCard) {
-        this.cardIndicator.textContent = this.CARDS[this.activeCard].name[0];
-        this.cardIndicator.style.display = '';
+        const glyph = this.CARDS[this.activeCard].name[0];
+        if (this.cardIndicator.textContent !== glyph) this.cardIndicator.textContent = glyph;
+        if (this.cardIndicator.style.display !== '') this.cardIndicator.style.display = '';
     } else {
-        this.cardIndicator.style.display = 'none';
+        if (this.cardIndicator.style.display !== 'none') this.cardIndicator.style.display = 'none';
     }
 };

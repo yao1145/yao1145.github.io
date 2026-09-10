@@ -6,6 +6,88 @@ import { CONFIG } from '../core/config.js';
 // with `until = gameTime + 400`, so render.js recovers the start from `until`.
 const CHAIN_RING_MS = 400;
 
+// HUD rows are presentation objects, not simulation state. Keep a small
+// per-element cache so a throttled UI tick can update text/classes in place
+// instead of tearing down and rebuilding the same DOM subtree.
+const hudRowCaches = new WeakMap();
+
+function setTextIfChanged(element, value) {
+    const next = value == null ? '' : String(value);
+    if (element.textContent !== next) element.textContent = next;
+}
+
+function setHiddenIfChanged(element, hidden) {
+    const next = Boolean(hidden);
+    if (element.hidden !== next) element.hidden = next;
+}
+
+function setClassIfChanged(element, className, enabled) {
+    const next = Boolean(enabled);
+    if (element.classList.contains(className) !== next) {
+        element.classList.toggle(className, next);
+    }
+}
+
+function setDataIfChanged(element, key, value) {
+    const next = value == null ? null : String(value);
+    if (next == null) {
+        if (element.dataset[key] !== undefined) delete element.dataset[key];
+    } else if (element.dataset[key] !== next) {
+        element.dataset[key] = next;
+    }
+}
+
+function setAriaDisabledIfChanged(element, disabled) {
+    const next = Boolean(disabled);
+    const current = element.getAttribute
+        ? element.getAttribute('aria-disabled')
+        : element['aria-disabled'];
+    if (next) {
+        if (current !== 'true') {
+            element.setAttribute('aria-disabled', 'true');
+        }
+    } else if (current != null) {
+        if (element.removeAttribute) element.removeAttribute('aria-disabled');
+        else delete element['aria-disabled'];
+    }
+}
+
+function syncChildren(parent, children) {
+    const current = Array.from(parent.children || []);
+    const same = current.length === children.length
+        && current.every((child, index) => child === children[index]);
+    if (!same) parent.replaceChildren(...children);
+}
+
+function getCachedRows(hud) {
+    let cache = hudRowCaches.get(hud);
+    if (!cache) {
+        cache = { rows: [] };
+        hudRowCaches.set(hud, cache);
+    }
+    return cache;
+}
+
+function getStateKey(state, index, kind) {
+    if (kind === 'build') return state.key || state.line || `index-${index}`;
+    return state.cardId || `index-${index}`;
+}
+
+function reuseOrCreateRow(cache, state, index, kind, create) {
+    const key = getStateKey(state, index, kind);
+    const keyed = cache.rows.find((entry) => !entry.used && entry.key === key);
+    const positional = cache.rows[index] && !cache.rows[index].used ? cache.rows[index] : null;
+    const entry = keyed || positional || { key, row: create() };
+    entry.key = key;
+    entry.used = true;
+    return entry;
+}
+
+function finishRowCache(cache, entries) {
+    for (const entry of cache.rows) entry.used = false;
+    cache.rows = entries.map((entry) => ({ key: entry.key, row: entry.row, used: false }));
+}
+
 // Presentation state intentionally lives outside the simulation clocks. A
 // hit-stop deadline only makes render() retain the previous canvas frame; the
 // fixed-step update loop keeps advancing while the deadline is active.
@@ -37,16 +119,14 @@ Game.updateBuildHUD = function(force = false) {
     if (typeof document === 'undefined') return;
 
     const hud = this.buildHud || document.getElementById('buildHud');
-    if (!hud) {
-        this.updateCardEffectHUD(force);
-        return;
-    }
+    if (!hud) return;
     this.buildHud = hud;
+    const cache = getCachedRows(hud);
 
     if (this.isMenu || this.isGameOver) {
-        hud.replaceChildren();
-        hud.hidden = true;
-        this.updateCardEffectHUD(force);
+        syncChildren(hud, []);
+        finishRowCache(cache, []);
+        setHiddenIfChanged(hud, true);
         return;
     }
 
@@ -55,35 +135,34 @@ Game.updateBuildHUD = function(force = false) {
         : [];
     const rows = Array.isArray(states) ? states.slice(0, 2) : [];
 
-    hud.replaceChildren();
-    hud.hidden = rows.length === 0;
-    if (hud.hidden) {
-        this.updateCardEffectHUD(force);
-        return;
-    }
-
-    for (const state of rows) {
+    const entries = [];
+    const nextRows = [];
+    for (let index = 0; index < rows.length; index += 1) {
+        const state = rows[index];
         if (!state) continue;
-        const row = document.createElement('div');
-        row.className = 'buildHudRow';
-        if (state.line) row.dataset.line = state.line;
-        if (state.key) row.dataset.key = state.key;
-        if (state.active) row.classList.add('isActive');
+        const entry = reuseOrCreateRow(cache, state, index, 'build', () => {
+            const row = document.createElement('div');
+            row.className = 'buildHudRow';
+            row._label = document.createElement('span');
+            row._label.className = 'buildHudLabel';
+            row._value = document.createElement('span');
+            row._value.className = 'buildHudValue';
+            row._tags = document.createElement('span');
+            row._tags.className = 'buildHudTags';
+            return row;
+        });
+        const row = entry.row;
+        setDataIfChanged(row, 'line', state.line);
+        setDataIfChanged(row, 'key', state.key);
+        setClassIfChanged(row, 'isActive', state.active);
 
         const cooldown = Boolean(state.cooldown || state.cooldownActive
             || (Number(state.cooldownMs) > 0 && state.active === false));
-        if (cooldown) {
-            row.classList.add('isCooldown');
-            row.dataset.cooldown = 'true';
-            row.setAttribute('aria-disabled', 'true');
-        }
+        setClassIfChanged(row, 'isCooldown', cooldown);
+        setDataIfChanged(row, 'cooldown', cooldown ? 'true' : null);
+        setAriaDisabledIfChanged(row, cooldown);
 
-        const label = document.createElement('span');
-        label.className = 'buildHudLabel';
-        label.textContent = state.label || state.key || '强化';
-
-        const value = document.createElement('span');
-        value.className = 'buildHudValue';
+        setTextIfChanged(row._label, state.label || state.key || '强化');
         let valueText = state.value == null ? '' : String(state.value);
         // Rapid's active value always uses the authored six-second scale, so
         // the player can compare a warm-up that was extended by a kill.
@@ -94,23 +173,18 @@ Game.updateBuildHUD = function(force = false) {
                 : Number.parseFloat(valueText);
             if (Number.isFinite(remaining)) valueText = `${remaining.toFixed(1)}/6.0s`;
         }
-        value.textContent = valueText;
+        setTextIfChanged(row._value, valueText);
 
         const rawTags = state.tags ?? state.tag;
         const tags = Array.isArray(rawTags) ? rawTags : rawTags ? [rawTags] : [];
-        if (tags.length) {
-            const tag = document.createElement('span');
-            tag.className = 'buildHudTags';
-            tag.textContent = tags.join('·');
-            row.append(label, value, tag);
-        } else {
-            row.append(label, value);
-        }
-
-        hud.append(row);
+        setTextIfChanged(row._tags, tags.join('·'));
+        syncChildren(row, tags.length ? [row._label, row._value, row._tags] : [row._label, row._value]);
+        entries.push(entry);
+        nextRows.push(row);
     }
-
-    this.updateCardEffectHUD(force);
+    syncChildren(hud, nextRows);
+    finishRowCache(cache, entries);
+    setHiddenIfChanged(hud, nextRows.length === 0);
 };
 
 // Card effects have their own painter and state model. In particular, the
@@ -121,10 +195,12 @@ Game.updateCardEffectHUD = function(force = false) {
     const hud = this.cardEffectHud || document.getElementById('cardEffectHud');
     if (!hud) return;
     this.cardEffectHud = hud;
+    const cache = getCachedRows(hud);
 
     if (this.isMenu || this.isGameOver) {
-        hud.replaceChildren();
-        hud.hidden = true;
+        syncChildren(hud, []);
+        finishRowCache(cache, []);
+        setHiddenIfChanged(hud, true);
         return;
     }
 
@@ -132,32 +208,35 @@ Game.updateCardEffectHUD = function(force = false) {
         ? this.getCardEffectHudStates()
         : (typeof this.getCardEffectHudState === 'function' ? this.getCardEffectHudState() : null);
     const states = Array.isArray(source) ? source : source ? [source] : [];
-    hud.replaceChildren();
-    hud.hidden = states.length === 0;
-    if (hud.hidden) return;
-
-    for (const state of states) {
+    const entries = [];
+    const nextRows = [];
+    for (let index = 0; index < states.length; index += 1) {
+        const state = states[index];
         if (!state) continue;
-        const row = document.createElement('div');
-        row.className = 'cardEffectHudRow';
-        if (state.cardId) row.dataset.card = state.cardId;
-        if (state.paused || state.cooldown) row.classList.add('isPaused');
-
-        const label = document.createElement('span');
-        label.className = 'cardEffectHudLabel';
-        label.textContent = state.label || state.cardId || '';
-        row.append(label);
+        const entry = reuseOrCreateRow(cache, state, index, 'card', () => {
+            const row = document.createElement('div');
+            row.className = 'cardEffectHudRow';
+            row._label = document.createElement('span');
+            row._label.className = 'cardEffectHudLabel';
+            row._tags = document.createElement('span');
+            row._tags.className = 'cardEffectHudTags';
+            return row;
+        });
+        const row = entry.row;
+        setDataIfChanged(row, 'card', state.cardId);
+        setClassIfChanged(row, 'isPaused', state.paused || state.cooldown);
+        setTextIfChanged(row._label, state.label || state.cardId || '');
 
         const rawTags = state.tags ?? state.tag;
         const tags = Array.isArray(rawTags) ? rawTags : rawTags ? [rawTags] : [];
-        if (tags.length) {
-            const tag = document.createElement('span');
-            tag.className = 'cardEffectHudTags';
-            tag.textContent = tags.join('·');
-            row.append(tag);
-        }
-        hud.append(row);
+        setTextIfChanged(row._tags, tags.join('·'));
+        syncChildren(row, tags.length ? [row._label, row._tags] : [row._label]);
+        entries.push(entry);
+        nextRows.push(row);
     }
+    syncChildren(hud, nextRows);
+    finishRowCache(cache, entries);
+    setHiddenIfChanged(hud, nextRows.length === 0);
 };
 
 const LINE_LABELS = {
@@ -826,6 +905,7 @@ if (typeof coreGameOver === 'function') {
         coreGameOver.call(this);
         this.updatePauseBuildDetails();
         this.updateBuildHUD(true);
+        this.updateCardEffectHUD(true);
     };
 }
 
@@ -836,6 +916,7 @@ if (typeof coreReturnToMainMenu === 'function') {
         coreReturnToMainMenu.call(this);
         this.updatePauseBuildDetails();
         this.updateBuildHUD(true);
+        this.updateCardEffectHUD(true);
     };
 }
 

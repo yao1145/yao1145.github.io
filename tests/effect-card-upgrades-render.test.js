@@ -31,10 +31,13 @@ function makeElement() {
     };
 }
 
-function installDocument(elements) {
+function installDocument(elements, hooks = {}) {
     const previous = globalThis.document;
     globalThis.document = {
-        createElement: () => makeElement(),
+        createElement: () => {
+            hooks.created = (hooks.created || 0) + 1;
+            return makeElement();
+        },
         getElementById: (id) => elements[id] || null,
     };
     return () => { globalThis.document = previous; };
@@ -97,6 +100,60 @@ test('card HUD keeps survival/bloodlust state independent and route HUD at two r
         assert.equal(cardHud.children[0].dataset.card, 'bloodlust');
         assert.equal(cardHud.children[0].children[0].textContent, '血槽 3/8');
     } finally {
+        restore();
+    }
+});
+
+test('HUD refreshes once per updateUI tick and reuses rows and child nodes', () => {
+    const buildHud = makeElement();
+    const cardHud = makeElement();
+    const hooks = { created: 0 };
+    const restore = installDocument({ buildHud, cardEffectHud: cardHud }, hooks);
+    const originalCardHud = Game.updateCardEffectHUD;
+    let cardHudCalls = 0;
+    try {
+        Game.buildHud = buildHud;
+        Game.cardEffectHud = cardHud;
+        Game.isMenu = false;
+        Game.isGameOver = false;
+        Game.getBuildHudStates = () => [
+            { key: 'rapid', line: 'rapid', label: '热机', value: '3.2s', active: true, tags: ['强化整批'] },
+        ];
+        Game.getCardEffectHudState = () => ({ cardId: 'survival', label: '回血 12.0s', paused: false });
+        Game.updateCardEffectHUD = (...args) => {
+            cardHudCalls += 1;
+            return originalCardHud.apply(Game, args);
+        };
+
+        Game.updateUI(true);
+        const firstRow = buildHud.children[0];
+        const firstLabel = firstRow.children[0];
+        const firstValue = firstRow.children[1];
+        const firstTag = firstRow.children[2];
+        const firstCardRow = cardHud.children[0];
+        const createdAfterFirstRefresh = hooks.created;
+
+        Game.updateUI(true);
+        assert.equal(cardHudCalls, 2, 'updateUI invokes card HUD exactly once per tick');
+        assert.equal(buildHud.children[0], firstRow);
+        assert.equal(buildHud.children[0].children[0], firstLabel);
+        assert.equal(buildHud.children[0].children[1], firstValue);
+        assert.equal(buildHud.children[0].children[2], firstTag);
+        assert.equal(cardHud.children[0], firstCardRow);
+        assert.equal(hooks.created, createdAfterFirstRefresh, 'unchanged HUD state creates no DOM nodes');
+
+        Game.getBuildHudStates = () => [
+            { key: 'rapid', line: 'rapid', label: '热机更新', value: '2.1s', active: false },
+        ];
+        Game.updateUI(true);
+        assert.equal(buildHud.children[0], firstRow, 'changed HUD state still reuses its row');
+        assert.equal(buildHud.children[0].children[0], firstLabel);
+        assert.equal(buildHud.children[0].children[1], firstValue);
+        assert.equal(buildHud.children[0].children[0].textContent, '热机更新');
+        assert.equal(buildHud.children[0].children[1].textContent, '2.1s');
+        assert.equal(buildHud.children[0].children.length, 2, 'removed tags do not leave stale visual content');
+    } finally {
+        Game.updateCardEffectHUD = originalCardHud;
         restore();
     }
 });
