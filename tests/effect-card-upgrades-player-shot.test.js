@@ -25,7 +25,7 @@ function resetPlayerFixture() {
     Game.baseBulletCount = 1;
     Game.getBulletCount = () => Game.baseBulletCount;
     Game.getBulletSpeedMult = () => 1;
-    Game.getSupplyPrimaryDamageBonus = () => 0;
+    Game.getSupplyPulseDamageBonus = () => 0;
     Game.consumeRapidBatchEffect = () => ({
         rapidBatchBoosted: false,
         rapidDamageBonus: 0,
@@ -35,7 +35,7 @@ function resetPlayerFixture() {
 
 test('a one-bullet batch makes its only bullet the primary and combines both bonuses', () => {
     resetPlayerFixture();
-    Game.getSupplyPrimaryDamageBonus = () => 0.5;
+    Game.getSupplyPulseDamageBonus = () => CONFIG.builds.supply.pulseDamageBonus;
     Game.consumeRapidBatchEffect = () => ({
         rapidBatchBoosted: true,
         rapidDamageBonus: 1,
@@ -48,14 +48,14 @@ test('a one-bullet batch makes its only bullet the primary and combines both bon
     assert.equal(Game.objectPools.bullets.active.length, 1);
     assert.equal(bullet.isPrimary, true);
     assert.equal(bullet.rapidBatchBoosted, true);
-    assert.equal(bullet.rapidDamageBonus + bullet.supplyDamageBonus, 1.5);
+    assert.equal(bullet.rapidDamageBonus + bullet.supplyDamageBonus, 2);
     assert.equal(bullet.pierceRemaining, 1);
 });
 
-test('a three-bullet batch shares one shot id and assigns rapid/supply effects only to its actual primary', () => {
+test('a three-bullet batch shares one shot id, keeps rapid on its actual primary, and spreads the supply pulse bonus over the whole batch', () => {
     resetPlayerFixture();
     Game.baseBulletCount = 3;
-    Game.getSupplyPrimaryDamageBonus = () => 0.5;
+    Game.getSupplyPulseDamageBonus = () => CONFIG.builds.supply.pulseDamageBonus;
     let consumeCalls = 0;
     Game.consumeRapidBatchEffect = () => {
         consumeCalls += 1;
@@ -78,18 +78,19 @@ test('a three-bullet batch shares one shot id and assigns rapid/supply effects o
     const primary = bullets.find((bullet) => bullet.isPrimary);
     assert.equal(primary.rapidDamageBonus, 1);
     assert.equal(primary.pierceRemaining, 2);
-    assert.equal(primary.supplyDamageBonus, 0.5);
+    // The supply pulse bonus is a flat per-bullet bonus: the whole batch gets
+    // it, primary included.
+    assert.ok(bullets.every((bullet) => bullet.supplyDamageBonus === CONFIG.builds.supply.pulseDamageBonus));
     assert.ok(bullets.filter((bullet) => !bullet.isPrimary).every((bullet) => {
         return bullet.rapidDamageBonus === 0
-            && bullet.pierceRemaining === 0
-            && bullet.supplyDamageBonus === 0;
+            && bullet.pierceRemaining === 0;
     }));
 });
 
 test('a missing planned primary promotes the first generated bullet before consuming batch effects', () => {
     resetPlayerFixture();
     Game.baseBulletCount = 3;
-    Game.getSupplyPrimaryDamageBonus = () => 0.5;
+    Game.getSupplyPulseDamageBonus = () => CONFIG.builds.supply.pulseDamageBonus;
 
     const originalGetObject = Game.getObject;
     let bulletCalls = 0;
@@ -125,9 +126,9 @@ test('a missing planned primary promotes the first generated bullet before consu
     assert.equal(bullets[0].isPrimary, true);
     assert.equal(bullets[0].rapidDamageBonus, 1);
     assert.equal(bullets[0].pierceRemaining, 1);
-    assert.equal(bullets[0].supplyDamageBonus, 0.5);
+    assert.equal(bullets[0].supplyDamageBonus, CONFIG.builds.supply.pulseDamageBonus);
     assert.equal(bullets[1].isPrimary, false);
-    assert.equal(bullets[1].supplyDamageBonus, 0);
+    assert.equal(bullets[1].supplyDamageBonus, CONFIG.builds.supply.pulseDamageBonus);
 });
 
 test('an empty batch does not consume rapid effects or advance rapid sequence', () => {
@@ -149,4 +150,34 @@ test('an empty batch does not consume rapid effects or advance rapid sequence', 
 
     assert.equal(Game.objectPools.bullets.active.length, 0);
     assert.equal(consumeCalls, 0);
+});
+
+test('every bullet of consecutive batches carries the supply pulse bonus while the pulse runs', () => {
+    resetPlayerFixture();
+    Game.baseBulletCount = 3;
+    Game.getSupplyPulseDamageBonus = () => CONFIG.builds.supply.pulseDamageBonus;
+
+    Game.spawnBullet();
+    Game.spawnBullet();
+
+    const bullets = Game.objectPools.bullets.active;
+    assert.equal(bullets.length, 6);
+    assert.equal(new Set(bullets.map((bullet) => bullet.shotId)).size, 2);
+    assert.ok(bullets.every((bullet) => bullet.supplyDamageBonus === CONFIG.builds.supply.pulseDamageBonus));
+});
+
+test('each batch reads the pulse state on its own, so an expired pulse adds nothing', () => {
+    resetPlayerFixture();
+    Game.baseBulletCount = 3;
+    let reads = 0;
+    // The pulse expires between the two batches: one getter read per batch.
+    Game.getSupplyPulseDamageBonus = () => (reads++ === 0 ? CONFIG.builds.supply.pulseDamageBonus : 0);
+
+    Game.spawnBullet();
+    Game.spawnBullet();
+
+    const bullets = Game.objectPools.bullets.active;
+    assert.equal(bullets.length, 6);
+    assert.ok(bullets.slice(0, 3).every((bullet) => bullet.supplyDamageBonus === CONFIG.builds.supply.pulseDamageBonus));
+    assert.ok(bullets.slice(3).every((bullet) => bullet.supplyDamageBonus === 0));
 });

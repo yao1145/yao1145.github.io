@@ -109,18 +109,19 @@ Game.spawnBullet = function() {
     actualPrimary.isPrimary = true;
 
     // Rapid is consumed exactly once per actual batch, after allocation and
-    // primary selection. Supply's pulse bonus is likewise attached only to
-    // that actual primary bullet.
+    // primary selection, and empowers only that actual primary. The supply
+    // pulse bonus is a flat per-bullet bonus: every bullet of the batch gets
+    // it, primary included.
     const rapidEffect = this.consumeRapidBatchEffect();
     const rapidBatchBoosted = Boolean(rapidEffect?.rapidBatchBoosted);
     const rapidDamageBonus = Number(rapidEffect?.rapidDamageBonus) || 0;
     const pierceRemaining = Number(rapidEffect?.pierceRemaining) || 0;
-    const supplyDamageBonus = Number(this.getSupplyPrimaryDamageBonus?.()) || 0;
+    const supplyDamageBonus = Number(this.getSupplyPulseDamageBonus?.()) || 0;
 
     for (const { bullet } of spawned) {
         bullet.rapidBatchBoosted = rapidBatchBoosted;
+        bullet.supplyDamageBonus = supplyDamageBonus;
     }
     actualPrimary.rapidDamageBonus = rapidDamageBonus;
     actualPrimary.pierceRemaining = pierceRemaining;
-    actualPrimary.supplyDamageBonus = supplyDamageBonus;
 };

@@ -206,7 +206,7 @@ export const CONFIG = {
             pulseMs: 4000,
             longPulseMs: 6000,
             maxPulseMs: 8000,
-            primaryDamageBonus: 0.5,
+            pulseDamageBonus: 1,
             magnetRadius: 200,
             magnetSpeed: 0.75,
             fullHeartProgress: 2,

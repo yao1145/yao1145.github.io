@@ -73,7 +73,7 @@ test('build catalog contains four stages for each route with exact tuning', () =
         desperate: { hits: 10, strikeMult: 2, executeMult: 3, executeHealthRatio: 0.35, clearRadius: 220, killsForHeal: 8, healsPerBossCycle: 1 },
         chain: { baseRadius: 200, baseDamage: 1, wideRadius: 260, spreadRadius: 220, spreadDamage: 0.5, maxGeneration: 1, capstoneKills: 3, capstoneRadius: 300 },
         hunter: { hits: 10, resetMs: 1200, strikeMult: 2, executeMult: 3, executeHealthRatio: 0.35, windowMs: 2000, windowMult: 2, lockMemoryMs: 3000, clearRadius: 200, clearCooldownMs: 6000, hitStopMs: 150 },
-        supply: { pickups: 3, pulseMs: 4000, longPulseMs: 6000, maxPulseMs: 8000, primaryDamageBonus: 0.5, magnetRadius: 200, magnetSpeed: 0.75, fullHeartProgress: 2 },
+        supply: { pickups: 3, pulseMs: 4000, longPulseMs: 6000, maxPulseMs: 8000, pulseDamageBonus: 1, magnetRadius: 200, magnetSpeed: 0.75, fullHeartProgress: 2 },
     });
 });
 

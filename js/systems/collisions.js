@@ -207,7 +207,9 @@ function updateDirectDamageMetrics(game, event) {
     // Keep the end-of-run names used by the v2 settlement model alongside
     // the event-shaped names above; both represent the same successful hit.
     add('rapidPrimaryBonusDamage', event.rapidBonusDamage);
-    add('supplyPrimaryBonusDamage', event.supplyBonusDamage);
+    // The supply pulse bonus now lands on every bullet of a batch, so its
+    // settlement metric is no longer primary-scoped.
+    add('supplyPulseBonusDamage', event.supplyBonusDamage);
     if (event.rapidPierceHit) {
         add('rapidPierceHits', 1);
     }

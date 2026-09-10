@@ -648,9 +648,11 @@ Game.getSupplyPulseDuration = function() {
     return Math.min(duration, cfg.maxPulseMs);
 };
 
-Game.getSupplyPrimaryDamageBonus = function() {
+// Flat per-bullet bonus while the supply pulse runs: every bullet of every
+// batch gets it, not just the designated primary.
+Game.getSupplyPulseDamageBonus = function() {
     return this.hasBuild('supply_entry') && (this.buildState?.timers?.supplyPulse || 0) > 0
-        ? CONFIG.builds.supply.primaryDamageBonus
+        ? CONFIG.builds.supply.pulseDamageBonus
         : 0;
 };
 

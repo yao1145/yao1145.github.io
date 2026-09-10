@@ -203,7 +203,7 @@ test('supply counts natural pickups, uses 200px magnet data, and caps pulse at 8
     Game.onItemCollected({ type: 1, spawnSource: 'natural', wasFull: false, healingAllowed: true });
     Game.onItemCollected({ type: 1, spawnSource: 'natural', wasFull: false, healingAllowed: true });
     assert.equal(Game.buildState.timers.supplyPulse, 8000);
-    assert.equal(Game.getSupplyPrimaryDamageBonus(), CONFIG.builds.supply.primaryDamageBonus);
+    assert.equal(Game.getSupplyPulseDamageBonus(), CONFIG.builds.supply.pulseDamageBonus);
 });
 
 test('direct batch handler fixes D once and orders window, rapid, hunter, desperate', () => {

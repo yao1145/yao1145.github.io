@@ -344,7 +344,7 @@ test('supply pulse countdown advances by the fixed simulation step', () => {
     assert.ok(Math.abs(Game.buildState.timers.supplyPulse - (CONFIG.builds.supply.pulseMs - Game.fixedStepMs)) < 1e-9);
 });
 
-test('supply pulse assigns +0.5 damage only to the primary bullet', () => {
+test('supply pulse assigns its +1 damage bonus to every bullet in the batch', () => {
     resetItems();
     Game.buildState.owned = ['supply_entry'];
     Game.buildState.timers.supplyPulse = CONFIG.builds.supply.pulseMs;
@@ -353,12 +353,25 @@ test('supply pulse assigns +0.5 damage only to the primary bullet', () => {
     Game.spawnBullet();
 
     const bullets = Game.objectPools.bullets.active;
+    assert.equal(bullets.length, 3);
     assert.equal(bullets.filter((bullet) => bullet.isPrimary).length, 1);
-    const primary = bullets.find((bullet) => bullet.isPrimary);
-    assert.equal(primary.supplyDamageBonus, CONFIG.builds.supply.primaryDamageBonus);
-    assert.ok(bullets.filter((bullet) => !bullet.isPrimary).every((bullet) => bullet.supplyDamageBonus === 0));
-    assert.equal(Game.getDirectShotDamage('enemy', primary), 1.5);
-    assert.ok(bullets.filter((bullet) => !bullet.isPrimary).every((bullet) => Game.getDirectShotDamage('enemy', bullet) === 1));
+    assert.ok(bullets.every((bullet) => bullet.supplyDamageBonus === CONFIG.builds.supply.pulseDamageBonus));
+    // Base damage 1 + pulse 1, on every bullet of the batch.
+    assert.ok(bullets.every((bullet) => Game.getDirectShotDamage('enemy', bullet) === 2));
+});
+
+test('no supply pulse leaves every bullet of the batch without a bonus', () => {
+    resetItems();
+    Game.buildState.owned = ['supply_entry'];
+    Game.buildState.timers.supplyPulse = 0;
+    Game.baseBulletCount = 3;
+
+    Game.spawnBullet();
+
+    const bullets = Game.objectPools.bullets.active;
+    assert.equal(bullets.length, 3);
+    assert.ok(bullets.every((bullet) => bullet.supplyDamageBonus === 0));
+    assert.ok(bullets.every((bullet) => Game.getDirectShotDamage('enemy', bullet) === 1));
 });
 
 test('a single bullet consumes the supply damage bonus at most once', () => {
@@ -369,7 +382,7 @@ test('a single bullet consumes the supply damage bonus at most once', () => {
     Game.spawnBullet();
 
     const bullet = Game.objectPools.bullets.active[0];
-    assert.equal(Game.getDirectShotDamage('enemy', bullet), 1.5);
+    assert.equal(Game.getDirectShotDamage('enemy', bullet), 2);
     assert.equal(Game.getDirectShotDamage('enemy', bullet), 1);
 });
 
@@ -409,7 +422,7 @@ test('item collection broadcasts exactly one event after applying and releasing 
     }
 });
 
-test('rapid and supply combine on the primary once, and hunter/desperate read the final D', () => {
+test('rapid and supply combine on a one-bullet batch once, and hunter/desperate read the final D', () => {
     resetItems();
     Game.buildState.owned = ['supply_entry', 'hunter_entry'];
     Game.buildState.timers.supplyPulse = CONFIG.builds.supply.pulseMs;
@@ -431,9 +444,9 @@ test('rapid and supply combine on the primary once, and hunter/desperate read th
     Game.baseBulletCount = 1;
     Game.spawnBullet();
     const primary = Game.objectPools.bullets.active[0];
-    assert.equal(primary.rapidDamageBonus + primary.supplyDamageBonus, 1.5);
+    assert.equal(primary.rapidDamageBonus + primary.supplyDamageBonus, 2);
     const directDamage = Game.getDirectShotDamage('enemy', primary);
-    assert.equal(directDamage, 2.5);
+    assert.equal(directDamage, 3);
     assert.equal(Game.getDirectShotDamage('enemy', primary), 1);
 
     for (let shotId = 1; shotId <= CONFIG.builds.hunter.hits; shotId++) {
@@ -450,7 +463,8 @@ test('rapid and supply combine on the primary once, and hunter/desperate read th
         });
     }
 
-    assert.equal(enemy.health, 95);
+    // Hunter precision strikes read D (=3): 10 hits earn one 2D strike.
+    assert.equal(enemy.health, 94);
 
     Game.buildState.owned = ['supply_entry', 'rapid_entry', 'desperate_entry'];
     Game.lives = 1;
@@ -468,5 +482,5 @@ test('rapid and supply combine on the primary once, and hunter/desperate read th
         });
     }
 
-    assert.equal(enemy.health, 90);
+    assert.equal(enemy.health, 88);
 });

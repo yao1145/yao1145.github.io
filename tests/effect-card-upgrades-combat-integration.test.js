@@ -106,7 +106,7 @@ test('direct damage combines rapid and supply once, then only pierces distinct e
         assert.equal(Game.buildState.metrics.rapidBonusDamage, 1);
         assert.equal(Game.buildState.metrics.supplyBonusDamage, 0.5);
         assert.equal(Game.buildState.metrics.rapidPrimaryBonusDamage, 1);
-        assert.equal(Game.buildState.metrics.supplyPrimaryBonusDamage, 0.5);
+        assert.equal(Game.buildState.metrics.supplyPulseBonusDamage, 0.5);
         assert.equal(Game.buildState.metrics.rapidPierceHits, 1);
     } finally {
         Game.getDamageFor = originalGetDamageFor;
