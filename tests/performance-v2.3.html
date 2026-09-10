@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PKUfighter v2.3 performance harness</title>
+    <style>
+        :root { color-scheme: dark; font: 14px/1.45 system-ui, sans-serif; }
+        body { margin: 0; padding: 1rem; background: #101522; color: #e9efff; }
+        canvas { display: block; width: min(100%, 1280px); height: auto; border: 1px solid #33405d; background: #050812; }
+        pre { max-width: 100%; overflow: auto; white-space: pre-wrap; }
+        .status { color: #a9b8d8; }
+    </style>
+</head>
+<body>
+    <h1>PKUfighter v2.3 performance harness</h1>
+    <p id="status" class="status">正在采样……</p>
+    <canvas id="gameCanvas" width="1280" height="720"></canvas>
+    <pre id="result" aria-live="polite">{}</pre>
+    <script type="module" src="./performance-v2.3.js"></script>
+</body>
+</html>
