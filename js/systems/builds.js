@@ -737,20 +737,43 @@ Game.onFortressBarrierConsumed = function() {
 };
 
 // --- 连锁清场 chain ---------------------------------------------------------
+// The chain card and the chain build route are two independent explosion
+// chains, not one merged event: one legal direct kill seeds a card blast and a
+// route blast side by side. The card blast is always a plain 200px/1.0 ring;
+// the wide radius, propagation, and capstone clear belong to the route alone.
+
+const CHAIN_SOURCES = ['card', 'build'];
+
+function isChainSourceEnabled(game, source) {
+    return source === 'card' ? game.activeCard === 'chain' : game.hasBuild('chain_entry');
+}
 
 Game.chainSeedFromKill = function(killEvent = {}) {
+    // Only a legal direct kill seeds a chain. Explosion deaths must never
+    // re-seed, so this gate is never widened to the other kill sources.
     if (killEvent.source !== 'direct') return false;
-    if (this.activeCard !== 'chain' && !this.hasBuild('chain_entry')) return false;
-    return this.createDamageExplosion({ x: killEvent.x, y: killEvent.y });
+    let seeded = false;
+    for (const source of CHAIN_SOURCES) {
+        if (!isChainSourceEnabled(this, source)) continue;
+        if (this.createDamageExplosion({ x: killEvent.x, y: killEvent.y, source })) seeded = true;
+    }
+    return seeded;
 };
 
 Game.createDamageExplosion = function(spec = {}) {
-    const hasCore = this.activeCard === 'chain';
-    const hasEntry = this.hasBuild('chain_entry');
-    if (!hasCore && !hasEntry) return false;
+    // Callers that pass no source keep the historical resolution: owning the
+    // route entry means the build chain, otherwise the card chain.
+    const source = spec.source === 'card' || spec.source === 'build'
+        ? spec.source
+        : (this.hasBuild('chain_entry') ? 'build' : 'card');
+    if (!isChainSourceEnabled(this, source)) return false;
+    const fromCard = source === 'card';
     const state = this.buildState;
     const cfg = CONFIG.builds.chain;
-    const radius = this.hasBuild('chain_radius') ? cfg.wideRadius : cfg.baseRadius;
+    const wide = !fromCard && this.hasBuild('chain_radius');
+    const canSpread = !fromCard && this.hasBuild('chain_spread');
+    const canCapstone = !fromCard && this.hasBuild('chain_capstone');
+    const radius = wide ? cfg.wideRadius : cfg.baseRadius;
     const chainId = ++this.nextChainId;
     const hitIds = new Set();
     const queue = [{ x: spec.x, y: spec.y, generation: 0 }];
@@ -770,7 +793,7 @@ Game.createDamageExplosion = function(spec = {}) {
             x: point.x,
             y: point.y,
             generation: point.generation,
-            wide: point.generation === 0 && this.hasBuild('chain_radius'),
+            wide: point.generation === 0 && wide,
             radius: pointRadius,
         });
         if (typeof this.createExplosion === 'function') this.createExplosion(point.x, point.y, point.generation ? '#ff9f68' : '#ff6b00', 2);
@@ -782,6 +805,8 @@ Game.createDamageExplosion = function(spec = {}) {
         for (const entry of candidates) {
             if (entry.poolType && entry.poolType !== 'enemies') continue;
             const enemy = entry.obj || entry;
+            // Each chain keeps its own hitIds, and a death settled by the
+            // chain that ran first is skipped here: one enemy dies once.
             if (!enemy || enemy._dead || enemy.health <= 0) continue;
             const id = enemy.entityId ?? enemy;
             if (hitIds.has(id)) continue;
@@ -798,16 +823,18 @@ Game.createDamageExplosion = function(spec = {}) {
             addMetric(state, 'chainKills');
             addMetric(state, 'chainExplosionKills');
             addMetric(state, 'chainBonusDamage', Math.max(0, before - Math.max(0, enemy.health)));
-            if (this.hasBuild('chain_spread') && point.generation < cfg.maxGeneration) {
+            if (canSpread && point.generation < cfg.maxGeneration) {
                 queue.push({ x: enemyCenter.x, y: enemyCenter.y, generation: point.generation + 1 });
             }
-            if (this.hasBuild('chain_capstone') && !clearTriggered && chainKills >= cfg.capstoneKills) {
+            if (canCapstone && !clearTriggered && chainKills >= cfg.capstoneKills) {
                 clearTriggered = true;
                 this.emitBuildFeedback({ kind: 'chain', capstone: true, x: enemyCenter.x, y: enemyCenter.y, radius: cfg.capstoneRadius });
                 clearCount(this, enemyCenter.x, enemyCenter.y, cfg.capstoneRadius, 'chainBulletClears');
             }
         }
     }
+    // The route chain is seeded after the card chain, so it wins the recorded
+    // last chain and the HUD keeps reading the route chain's kill count.
     runtime.lastChainId = chainId;
     runtime.lastChainKills = chainKills;
     return true;

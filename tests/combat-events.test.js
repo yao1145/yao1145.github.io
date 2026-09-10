@@ -762,7 +762,7 @@ test('hunter memory, Boss window, and clear cooldown use exact -1/0/+1ms boundar
     }
 });
 
-test('chain uses one fixed 1.0 seed blast, merges core and entry once, and never damages Boss', () => {
+test('chain card and entry stack two fixed 1.0 seed blasts and never damage Boss', () => {
     resetCombat();
     applyBuild('chain_entry');
     Game.activeCard = 'chain';
@@ -773,7 +773,9 @@ test('chain uses one fixed 1.0 seed blast, merges core and entry once, and never
     Game.killEnemy(seed, { source: 'direct', damage: 4 });
     assert.equal(Game.objectPools.enemies.active.includes(target), false);
     assert.equal(Game.boss.health, 100);
-    assert.equal(Game.buildState.counters.chainBlasts, 1);
+    // One card blast plus one route seed; the single 1 HP death settles once.
+    assert.equal(Game.buildState.counters.chainBlasts, 2);
+    assert.equal(Game.buildState.metrics.chainKills, 1);
     assert.equal(Game.buildState.metrics.chainBonusDamage, 1);
 });
 

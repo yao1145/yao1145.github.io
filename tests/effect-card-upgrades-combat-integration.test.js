@@ -218,7 +218,9 @@ test('chain uses fixed damage for one-generation propagation, never damages Boss
     Game.onEnemyKilled = realEnemyKilledHandler;
 
     const seed = makeEnemy(1, 0, 0);
-    const firstGeneration = makeEnemy(1, 100, 0);
+    // Two health so the target survives the 1.0 card blast and is settled by
+    // the route blast, which is the chain that owns propagation and the clear.
+    const firstGeneration = makeEnemy(2, 100, 0);
     const secondGenerationA = makeEnemy(0.5, 300, 0);
     const secondGenerationB = makeEnemy(0.5, 300, 20);
     Game.spatialGrid = {
@@ -246,8 +248,9 @@ test('chain uses fixed damage for one-generation propagation, never damages Boss
 
     try {
         // The direct killing blow is deliberately huge; chain damage must not
-        // derive from it and the core card plus entry must still create one
-        // seed, not two independent cascades.
+        // derive from it. The core card and the entry stack into two separate
+        // chains, so one direct kill spends one card blast plus one route
+        // seed, and only the route chain then propagates and clears.
         seed.health = 0;
         Game.killEnemy(seed, { source: 'direct', damage: 99 });
 
@@ -260,7 +263,7 @@ test('chain uses fixed damage for one-generation propagation, never damages Boss
         assert.equal(Game.boss.health, 100);
         assert.equal(Game.buildState.metrics.chainBulletClears, 1);
         assert.equal(Game.objectPools.enemyBullets.active.includes(nearLastKill), false);
-        assert.equal(Game.buildState.counters.chainBlasts, 2);
+        assert.equal(Game.buildState.counters.chainBlasts, 3);
         assert.equal(Game.objectPools.enemies.active.includes(firstGeneration), false);
         assert.equal(Game.objectPools.enemies.active.includes(secondGenerationA), false);
         assert.equal(Game.objectPools.enemies.active.includes(secondGenerationB), false);
