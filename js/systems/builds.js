@@ -923,8 +923,8 @@ Game.triggerBonusStrike = function(targetRef, multiplier, metric) {
         this.requestVisualHitStop(CONFIG.builds.hunter.hitStopMs);
         const previousColor = target.color;
         target.color = '#fff';
-        if (typeof setTimeout === 'function') {
-            setTimeout(() => {
+        if (typeof this.scheduleRunTask === 'function') {
+            this.scheduleRunTask(() => {
                 if (target && !target._dead && target.color === '#fff') target.color = previousColor;
             }, 50);
         }

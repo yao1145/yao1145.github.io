@@ -46,6 +46,10 @@ export const Game = {
     // Direct hits collected during one checkCollisions pass and delivered to
     // the build hooks by flushDirectShotBatches().
     directHitQueue: [],
+    // Incremented whenever a run is abandoned or restarted. Delayed combat
+    // callbacks capture this value so work from an old run cannot mutate the
+    // next one.
+    runGeneration: 0,
 
     allocateEntityId: function() {
         this.nextEntityId += 1;
@@ -115,6 +119,53 @@ export const Game = {
     resetCardEffectState: function() {
         this.cardRegenTimer = 0;
         this.bloodlustMeter = 0;
+    },
+
+    resetRunState: function() {
+        this.runGeneration += 1;
+        this.clearVisualState();
+        if (typeof this.clearAllPools === 'function') this.clearAllPools();
+        if (typeof this.resetBuildState === 'function') this.resetBuildState();
+
+        this.activeCard = null;
+        if (typeof this.resetCardHistory === 'function') this.resetCardHistory();
+        else this.cardHistory = [];
+        this.resetCardEffectState();
+        this.cardPickCount = {};
+        this.cardSelectionModel = null;
+        this.cardSelectionRewardIndex = 0;
+
+        this.rewardFlow = null;
+        this.isCardSelectionOpen = false;
+        this.isBuildSelectionOpen = false;
+        this.isRewardSummaryOpen = false;
+        this.runSummary = null;
+        this.directHitQueue = [];
+
+        this.isDamageBoost = false;
+        this.damageBoostTime = 0;
+        this.isBossStage = false;
+        this.boss = null;
+
+        this.keys = {};
+        this.touch = {
+            isTouching: false,
+            startX: 0,
+            startY: 0,
+            currentX: 0,
+            currentY: 0,
+        };
+        this.lastUIUpdateTime = 0;
+
+        if (typeof this.updateCardHighlight === 'function') this.updateCardHighlight();
+        if (typeof this.updateCardChipUI === 'function') this.updateCardChipUI();
+    },
+
+    scheduleRunTask: function(callback, delay = 0) {
+        const generation = this.runGeneration;
+        return setTimeout(() => {
+            if (this.runGeneration === generation) callback();
+        }, delay);
     },
 
     init: function() {
@@ -328,8 +379,7 @@ export const Game = {
     startGame: function() {
         // Ready gate: no start until all badges are loaded (badgeLoad, maintained by badges.js).
         if (!this.badgeLoad || this.badgeLoad.status !== 'ready') return;
-        this.clearVisualState();
-        this.resetBuildState();
+        this.resetRunState();
         this.isRunning = true;
         this.isGameOver = false;
         this.isMenu = false;
@@ -351,27 +401,14 @@ export const Game = {
         this.enemyShotRate = 0.01;
         this.enemyBulletSpeed = 4;
         this.gameTime = 0;
-        this.isBossStage = false;
-        this.boss = null;
         this.bossAppearCount = 0;
         this.bossSpawnThreshold = CONFIG.bossSpawnThreshold;
         this.bossSpawnGap = CONFIG.bossSpawnThreshold;
         this.itemSpawnRate = 0.001;
-        this.isDamageBoost = false;
-        this.damageBoostTime = 0;
-        this.activeCard = null;
-        if (typeof this.resetCardHistory === 'function') this.resetCardHistory();
-        else this.cardHistory = [];
-        this.resetCardEffectState();
-        // Fresh run resets per-card pick counts.
-        this.cardPickCount = {};
         setDomDisplay(this.cardIndicator || getDomElement('cardIndicator'), 'none');
 
         // A new run starts outside the boss reward flow (only the opening core
         // card pick, which resumes on its own).
-        this.rewardFlow = null;
-        this.isBuildSelectionOpen = false;
-        this.isRewardSummaryOpen = false;
         setDomDisplay(this.buildPanel, 'none');
         setDomDisplay(this.rewardSummaryPanel, 'none');
 
@@ -380,8 +417,6 @@ export const Game = {
         this.player.lastShot = 0;
         this.player.color = '#0f0';
         this.player.shieldTime = 0;
-
-        this.clearAllPools();
 
         this.accumulator = 0;
         this.lastTime = performance.now();
@@ -524,8 +559,7 @@ export const Game = {
     },
 
     returnToMainMenu: function() {
-        this.clearVisualState();
-        this.resetCardEffectState();
+        this.resetRunState();
         this.isRunning = false;
         this.isGameOver = false;
         this.isMenu = true;
@@ -535,14 +569,6 @@ export const Game = {
         setDomDisplay(getDomElement('hudStats'), 'none');
         setDomDisplay(getDomElement('cardPanel'), 'none');
         setDomDisplay(this.cardIndicator || getDomElement('cardIndicator'), 'none');
-        this.activeCard = null;
-        this.runSummary = null;
-        if (typeof this.resetCardHistory === 'function') this.resetCardHistory();
-        else this.cardHistory = [];
-        this.isCardSelectionOpen = false;
-        this.rewardFlow = null;
-        this.isBuildSelectionOpen = false;
-        this.isRewardSummaryOpen = false;
         setDomDisplay(this.buildPanel, 'none');
         setDomDisplay(this.rewardSummaryPanel, 'none');
 
@@ -558,11 +584,6 @@ export const Game = {
         setDomDisplay(this.summonIndicator, 'none');
         setDomDisplay(this.shieldIndicator, 'none');
         setDomDisplay(this.attackIndicator, 'none');
-        this.isBossStage = false;
-        this.boss = null;
-        this.clearAllPools();
-        if (typeof this.resetBuildState === 'function') this.resetBuildState();
-
         this.updateMainPanel();
         this.enableControlArea(false);
     },

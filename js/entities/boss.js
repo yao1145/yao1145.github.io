@@ -59,7 +59,7 @@ Game.spawnBoss = function() {
 
     this.bossWarning.textContent = `${bossType.name}来袭!`;
     this.bossWarning.style.display = 'block';
-    setTimeout(() => {
+    this.scheduleRunTask(() => {
         this.bossWarning.style.display = 'none';
     }, 2000);
 
@@ -186,7 +186,7 @@ Game.fireBossPattern1 = function(multiplier) {
 Game.fireBossPattern2 = function(multiplier) {
     this.spawnTrackingBullet(this.boss);
     this.spawnWaveBullet(this.boss, this.boss.waveOffset);
-    setTimeout(() => {
+    this.scheduleRunTask(() => {
         if (this.boss) {
             this.spawnRingBullet(this.boss, 8, 0.5 * multiplier);
         }
@@ -196,17 +196,17 @@ Game.fireBossPattern2 = function(multiplier) {
 Game.fireBossPattern3 = function(multiplier) {
     this.spawnWaveBullet(this.boss, this.boss.waveOffset);
     this.spawnWaveBullet(this.boss, this.boss.waveOffset + Math.PI);
-    setTimeout(() => {
+    this.scheduleRunTask(() => {
         if (this.boss) this.spawnScatterBullet(this.boss);
     }, 200);
-    setTimeout(() => {
+    this.scheduleRunTask(() => {
         if (this.boss) this.spawnTrackingBullet(this.boss);
     }, 400);
 };
 
 Game.iceBossPattern1 = function(multiplier) {
     for (let i = 0; i < 2; i++) {
-        setTimeout(() => {
+        this.scheduleRunTask(() => {
             if (this.boss) {
                 const speed = this.getEnemyBulletSpeed() * 0.5 * multiplier;
                 const bulletCount = this.scaledBulletCount(3, speed);
@@ -237,7 +237,7 @@ Game.iceBossPattern1 = function(multiplier) {
 
 Game.iceBossPattern2 = function(multiplier) {
     this.spawnRingBullet(this.boss, 10, 0.4 * multiplier);
-    setTimeout(() => {
+    this.scheduleRunTask(() => {
         if (this.boss) {
             this.spawnTrackingBullet(this.boss);
         }
@@ -246,7 +246,7 @@ Game.iceBossPattern2 = function(multiplier) {
 
 Game.iceBossPattern3 = function(multiplier) {
     for (let i = 0; i < 3; i++) {
-        setTimeout(() => {
+        this.scheduleRunTask(() => {
             if (this.boss) {
                 const bullet = this.getObject('enemyBullets');
                 if (bullet) {
@@ -263,7 +263,7 @@ Game.iceBossPattern3 = function(multiplier) {
         }, i * 100);
     }
     this.spawnRingBullet(this.boss, 10, 0.4 * multiplier);
-    setTimeout(() => {
+    this.scheduleRunTask(() => {
         if (this.boss) {
             this.spawnTrackingBullet(this.boss);
         }
@@ -295,7 +295,7 @@ Game.poisonBossPattern1 = function(multiplier) {
 
 Game.poisonBossPattern2 = function(multiplier) {
     for (let i = 0; i < 3; i++) {
-        setTimeout(() => {
+        this.scheduleRunTask(() => {
             if (this.boss) {
                 this.spawnExplosionBullet(
                     this.boss.x + this.boss.width / 2 + (Math.random() - 0.5) * 100,
@@ -305,7 +305,7 @@ Game.poisonBossPattern2 = function(multiplier) {
             }
         }, i * 300);
     }
-    setTimeout(() => {
+    this.scheduleRunTask(() => {
         if (this.boss) {
             this.spawnScatterBullet(this.boss);
         }
@@ -318,7 +318,7 @@ Game.poisonBossPattern3 = function(multiplier) {
     this.spawnWaveBullet(this.boss, this.boss.waveOffset + Math.PI);
     this.spawnWaveBullet(this.boss, this.boss.waveOffset + Math.PI * 1.5);
 
-    setTimeout(() => {
+    this.scheduleRunTask(() => {
         if (this.boss) {
             this.spawnScatterBullet(this.boss);
         }
@@ -340,7 +340,7 @@ Game.updateBossSummon = function() {
         this.summonIndicator.style.display = 'block';
         this.bossWarning.textContent = 'Boss召唤敌机!';
         this.bossWarning.style.display = 'block';
-        setTimeout(() => {
+        this.scheduleRunTask(() => {
             if (this.boss && this.boss.summonOpen) {
                 this.bossWarning.style.display = 'none';
             }

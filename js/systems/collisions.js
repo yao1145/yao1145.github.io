@@ -93,7 +93,7 @@ Game.checkCollisions = function() {
                 // A landed hit flashes the enemy white; the restore timeout never
                 // re-colors a corpse or a pooled object reused for another enemy.
                 enemy.color = '#fff';
-                setTimeout(() => {
+                this.scheduleRunTask(() => {
                     if (enemy && !enemy._dead && enemy.color === '#fff') {
                         enemy.color = CONFIG.enemyTypes[enemy.type].color;
                     }
@@ -425,7 +425,7 @@ Game.applyPlayerHit = function(damage = 1, source = 'unknown') {
     this.createExplosion(this.player.x + this.player.width/2, this.player.y + this.player.height/2, '#fff', 4);
 
     this.player.color = '#f00';
-    setTimeout(() => {
+    this.scheduleRunTask(() => {
         if (this.player) this.player.color = '#0f0';
     }, 100);
 
