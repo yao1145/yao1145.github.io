@@ -8,6 +8,9 @@ function initializeEnemyBullet(game, bullet, vx, vy) {
     bullet.baseVy = vy;
     bullet.baseSpeed = Math.hypot(vx, vy);
     bullet.fogSpeedApplied = false;
+    // Fogged tracking projectiles remain straight after the card is switched
+    // away. Reset this only when the pooled object is initialized for a new shot.
+    bullet.fogTrackingDisabled = false;
     bullet.fogWarningShown = false;
     bullet.fogWarningUntil = 0;
     game.applyFogBulletRules(bullet);
@@ -173,7 +176,15 @@ Game.spawnExplosionBullet = function(x, y, count = 16) {
 };
 
 Game.applyFogBulletRules = function(bullet) {
-    if (!bullet || this.activeCard !== 'fog' || bullet.fogSpeedApplied) return;
+    if (!bullet) return;
+
+    // This state is intentionally independent of the current card: once a
+    // projectile has existed under fog, it must never regain homing behavior.
+    if (bullet.fogTrackingDisabled) {
+        bullet.isTracking = false;
+        bullet.isStraight = true;
+    }
+    if (this.activeCard !== 'fog' || bullet.fogSpeedApplied) return;
 
     const currentVx = Number.isFinite(bullet.vx) ? bullet.vx : 0;
     const currentVy = Number.isFinite(bullet.vy)
@@ -192,6 +203,7 @@ Game.applyFogBulletRules = function(bullet) {
     bullet.fogSpeedApplied = true;
 
     if (bullet.isTracking) {
+        bullet.fogTrackingDisabled = true;
         bullet.isTracking = false;
         bullet.isStraight = true;
     }

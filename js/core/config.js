@@ -51,7 +51,7 @@ export const CONFIG = {
     // Consistent bullet spacing: a pattern's bullet count scales up with its bullet
     // speed so the gap between adjacent bullets stays roughly constant across levels.
     patternSpacingRef: 4,    // reference speed = level-1 enemyBulletSpeed, where count is "as authored"
-    patternSpacingMax: 32,   // hard cap on bullets per volley (pool/perf safety)
+    patternSpacingMax: 64,   // hard cap on bullets per volley (pool/perf safety)
 
     // UI
     uiUpdateInterval: 100,
@@ -80,7 +80,7 @@ export const CONFIG = {
         // 200 → 400: high fire-rate configurations can outrun the old pool (getObject()
         // nulls are already handled gracefully downstream).
         bullets: 400,
-        enemyBullets: 300,
+        enemyBullets: 1000,
         enemies: 50,
         particles: 100,
         items: 20,

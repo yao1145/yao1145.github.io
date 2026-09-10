@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { Game } from '../js/core/game.js';
 import { CONFIG } from '../js/core/config.js';
+import '../js/core/pools.js';
+import '../js/systems/cards.js';
+import '../js/entities/enemyBullets.js';
 
 const expectedCards = {
     survivalPlayerRate: 0.75,
@@ -113,4 +117,13 @@ test('v2.1 core-card tuning is exact and contains no legacy fields', () => {
 
 test('v2.1 route tuning is exact and contains no legacy fields', () => {
     assert.deepEqual(CONFIG.builds, expectedBuilds);
+});
+
+test('v2.3 enemy projectile capacity and volley cap are expanded', () => {
+    assert.equal(CONFIG.poolMaxSize.enemyBullets, 1000);
+    assert.equal(CONFIG.patternSpacingMax, 64);
+    assert.equal(Game.objectPools.enemyBullets.maxSize, 1000);
+
+    Game.difficulty = 'hard';
+    assert.equal(Game.scaledBulletCount(8, CONFIG.patternSpacingRef * 100), 64);
 });

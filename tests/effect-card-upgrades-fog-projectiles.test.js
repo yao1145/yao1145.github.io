@@ -106,6 +106,33 @@ test('an existing tracking bullet loses tracking on the next fog update and keep
     assert.ok(Math.abs(speedOf(bullet) - CONFIG.enemyBulletSpeed * CONFIG.cards.fogBulletSpeed) < 1e-9);
 });
 
+test('fog permanently disables tracking until the projectile is recycled for a fresh shot', () => {
+    resetFogFixture();
+    const enemy = { x: 0, y: 0, width: 30, height: 30 };
+
+    Game.spawnTrackingBullet(enemy);
+    const bullet = Game.objectPools.enemyBullets.active[0];
+    assert.equal(bullet.fogTrackingDisabled, true);
+    assert.equal(bullet.isTracking, false);
+
+    const direction = Math.atan2(bullet.vy, bullet.vx);
+    Game.activeCard = null;
+    Game.player.x = 900;
+    Game.player.y = 900;
+    Game.updateEnemyBullets();
+
+    assert.equal(bullet.fogTrackingDisabled, true);
+    assert.equal(bullet.isTracking, false);
+    assert.ok(Math.abs(Math.atan2(bullet.vy, bullet.vx) - direction) < 1e-9);
+
+    Game.releaseObject('enemyBullets', bullet);
+    Game.spawnTrackingBullet(enemy);
+    const recycled = Game.objectPools.enemyBullets.active[0];
+    assert.equal(recycled, bullet);
+    assert.equal(recycled.fogTrackingDisabled, false);
+    assert.equal(recycled.isTracking, true);
+});
+
 test('fog boundary warning is set once when a bullet enters the 40px pre-line band', () => {
     resetFogFixture();
     Game.gameTime = 1000;
