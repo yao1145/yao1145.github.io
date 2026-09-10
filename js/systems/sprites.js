@@ -7,10 +7,10 @@ import { CONFIG } from '../core/config.js';
 // curves, triangles) that make up their shapes during the hot render loop.
 //
 // Sprites can only bake once their badge SVGs have loaded, so
-// Game.prebakeSprites() warms the whole cache in one pass the moment every
-// image is ready; the getters below stay lazy so anything missed still bakes
-// on first use, and a getter whose badge image is missing returns null (the
-// blit helpers then simply skip that entity). The animated bosses are
+// Game.prebakeSprites() warms the whole cache in bounded batches the moment
+// every image is ready; the getters below stay lazy as a defensive fallback,
+// and a getter whose badge image is missing returns null (the blit helpers then
+// simply skip that entity). The animated bosses are
 // intentionally NOT pre-rendered — they rotate / pulse / drift, and there is
 // only ever one of them.
 //
@@ -26,6 +26,31 @@ Game.spriteCache = {
     player: null,
 };
 Game.spriteCacheSignature = null;
+Game.spritePrewarmGeneration = 0;
+Game.spritePrewarmRunId = 0;
+Game.spritePrewarmState = { status: 'idle', completed: 0, total: 0, error: null };
+Game.spriteCacheMisses = 0;
+Game.spriteCacheMissCount = 0;
+
+function spritePreloadConfig() {
+    return CONFIG.spritePreload || {};
+}
+
+function isDevelopmentMode(game) {
+    if (game.debugSprites === true || game.spriteDebug === true) return true;
+    if (typeof CONFIG.developmentMode === 'boolean') return CONFIG.developmentMode;
+    return typeof location !== 'undefined'
+        && /^(localhost|127\.0\.0\.1|::1)$/.test(location.hostname || '');
+}
+
+Game.noteSpriteCacheMiss = function(kind, key) {
+    if (!this.isRunning || this.isMenu || !isDevelopmentMode(this)) return;
+    this.spriteCacheMisses = (this.spriteCacheMisses || 0) + 1;
+    this.spriteCacheMissCount = this.spriteCacheMisses;
+    if (typeof console !== 'undefined' && typeof console.warn === 'function') {
+        console.warn(`[sprites] 战斗期间缓存未命中: ${kind} ${key}`);
+    }
+};
 
 // Cache validity depends on the device scale and the logical dimensions used
 // by the baked sprites, not on the viewport dimensions. This lets a resize
@@ -35,10 +60,33 @@ Game.getSpriteCacheSignature = function(dpr = this.dpr || 1) {
     const enemyDimensions = CONFIG.enemyTypes
         .map(({ width, height }) => `${width}x${height}`)
         .join(',');
-    return [dpr, `${player.width}x${player.height}`, enemyDimensions, '20x20', '100', '512'].join('|');
+    const preload = spritePreloadConfig();
+    const bulletSpecs = (preload.bullets || [])
+        .map(({ width, height, color, id }) => `${id || ''}:${width}x${height}:${color}`)
+        .join(',');
+    const itemSpecs = (preload.items || [])
+        .map(({ type, width, height, color, id }) => `${id || ''}:${type}:${width}x${height}:${color}`)
+        .join(',');
+    const enemyVariants = (Game.ENEMY_BADGES || [])
+        .map((variants) => variants.join(','))
+        .join('|');
+    return [
+        dpr,
+        `${player.width}x${player.height}`,
+        enemyDimensions,
+        enemyVariants,
+        bulletSpecs,
+        itemSpecs,
+        preload.bossSize || 100,
+        preload.menuEmblemSize || 512,
+    ].join('|');
 };
 
 Game.invalidateSpriteCaches = function() {
+    // Invalidate in-flight asynchronous warm-ups as well as their canvases.
+    // A resize can otherwise let an old batch populate a cache for a stale
+    // DPR after the new batch has already started.
+    this.spritePrewarmGeneration = (this.spritePrewarmGeneration || 0) + 1;
     this.spriteCache.enemies = {};
     this.spriteCache.bullets = {};
     this.spriteCache.items = {};
@@ -82,6 +130,7 @@ Game.getEnemySprite = function(enemy) {
     const key = `${enemy.type}-${variant}-${enemy.width}x${enemy.height}-${Game.dpr}`;
     let sprite = this.spriteCache.enemies[key];
     if (!sprite) {
+        this.noteSpriteCacheMiss('enemy', key);
         const badgeKey = this.getEnemyBadgeKey(enemy.type, variant);
         if (!badgeKey) return null; // badge not loaded: don't bake or cache; renderer skips
         sprite = bakeBadgeSprite(badgeKey, enemy.width, enemy.height);
@@ -94,6 +143,7 @@ Game.getBulletSprite = function(width, height, color) {
     const key = `${width}x${height}-${color}-${Game.dpr}`;
     let sprite = this.spriteCache.bullets[key];
     if (!sprite) {
+        this.noteSpriteCacheMiss('bullet', key);
         sprite = bakeRect(width, height, color);
         this.spriteCache.bullets[key] = sprite;
     }
@@ -104,6 +154,7 @@ Game.getItemSprite = function(type, width, height, color) {
     const key = `${type}-${width}x${height}-${color}-${Game.dpr}`;
     let sprite = this.spriteCache.items[key];
     if (!sprite) {
+        this.noteSpriteCacheMiss('item', key);
         const { canvas, ctx } = Game.makeSpriteCanvas(width, height);
         const realCtx = Game.ctx;
         Game.ctx = ctx;
@@ -117,6 +168,7 @@ Game.getItemSprite = function(type, width, height, color) {
 
 Game.getPlayerSprite = function() {
     if (!this.spriteCache.player) {
+        this.noteSpriteCacheMiss('player', 'player');
         const badgeKey = this.getPlayerBadgeKey();
         if (!Game.badgeImages[badgeKey]) return null; // badge not loaded: renderer skips
         // The school seal flies as-is; no hull or engine pods to bake around.
@@ -194,36 +246,145 @@ Game.drawPlayerSprite = function() {
     this.ctx.drawImage(sprite, this.player.x, this.player.y, this.player.width, this.player.height);
 };
 
-// One-shot prebake: badges.js calls this once every badge image is ready,
-// filling the cache up front (player, all enemy variants, all bullet specs,
-// items, boss badges) so gameplay never pays a first-use bake cost. Everything
-// routes through the bake getters above; nothing is drawn here directly.
-Game.prebakeSprites = function() {
-    this.getPlayerSprite();
+// Return the complete, enumerable warm-up plan.  The data table in CONFIG is
+// the source of truth for projectiles/items; player/enemy/boss/menu entries
+// are derived from their canonical dimensions and loaded badge variants.
+Game.getSpritePreloadTasks = function() {
+    const preload = spritePreloadConfig();
+    const tasks = [{
+        kind: 'player',
+        key: 'player',
+        run: () => this.getPlayerSprite(),
+    }];
+
     for (let type = 0; type < CONFIG.enemyTypes.length; type++) {
-        const t = CONFIG.enemyTypes[type];
-        const variants = (Game.ENEMY_BADGES[type] || []).length;
-        for (let v = 0; v < variants; v++) {
-            this.getEnemySprite({ type: type, variant: v, width: t.width, height: t.height, color: t.color });
+        const spec = CONFIG.enemyTypes[type];
+        const variants = (Game.ENEMY_BADGES?.[type] || []).length;
+        for (let variant = 0; variant < variants; variant++) {
+            tasks.push({
+                kind: 'enemy',
+                key: `${type}:${variant}`,
+                run: () => this.getEnemySprite({
+                    type, variant, width: spec.width, height: spec.height, color: spec.color,
+                }),
+            });
         }
     }
-    // (w, h, color) specs match every bullet combination used in enemyBullets.js/boss.js/player.js
-    const bulletSpecs = [
-        [4, 12, '#ff0'], [4, 12, '#f90'],  // player normal / boosted
-        [4, 12, '#f0f'],                   // enemy straight bullet
-        [6, 6, '#ff0'],                    // tracking bullet
-        [5, 5, '#0af'], [6, 6, '#0af'],    // ring bullet / ice fan
-        [6, 6, '#f0f'],                    // wave bullet
-        [5, 5, '#f90'],                    // scatter bullet
-        [6, 6, '#f00'],                    // explosion bullet
-        [6, 15, '#00f'],                   // ice pillar bullet
-        [5, 5, '#a0f'],                    // poison ring bullet
-    ];
-    for (const [w, h, c] of bulletSpecs) this.getBulletSprite(w, h, c);
-    this.getItemSprite(0, 20, 20, '#f00');
-    this.getItemSprite(1, 20, 20, '#f90');
-    this.getItemSprite(2, 20, 20, '#0af');
-    for (let type = 0; type < CONFIG.bossTypes.length; type++) this.getBossBadgeSprite(type, 100);
-    this.getMenuEmblemCanvas();
-    this.spriteCacheSignature = this.getSpriteCacheSignature();
+
+    for (const spec of preload.bullets || []) {
+        tasks.push({
+            kind: 'bullet',
+            key: spec.id || `${spec.width}x${spec.height}:${spec.color}`,
+            run: () => this.getBulletSprite(spec.width, spec.height, spec.color),
+        });
+    }
+    for (const spec of preload.items || []) {
+        tasks.push({
+            kind: 'item',
+            key: spec.id || `${spec.type}:${spec.width}x${spec.height}:${spec.color}`,
+            run: () => this.getItemSprite(spec.type, spec.width, spec.height, spec.color),
+        });
+    }
+    for (let type = 0; type < CONFIG.bossTypes.length; type++) {
+        tasks.push({
+            kind: 'boss',
+            key: String(type),
+            run: () => typeof this.getBossBadgeSprite === 'function'
+                ? this.getBossBadgeSprite(type, preload.bossSize || 100)
+                : null,
+        });
+    }
+    tasks.push({
+        kind: 'menu',
+        key: 'emblem',
+        run: () => typeof this.getMenuEmblemCanvas === 'function'
+            ? this.getMenuEmblemCanvas()
+            : null,
+    });
+    return tasks;
+};
+
+function scheduleSpriteBatch(callback, delay) {
+    if (typeof setTimeout === 'function') return setTimeout(callback, delay);
+    callback();
+    return null;
+}
+
+// Batch the expensive canvas work and yield between every batch.  The
+// generation guard makes cancellation cheap and prevents an old resize batch
+// from writing into the cache for a newer DPR/dimension signature.
+Game.prebakeSprites = function() {
+    const generation = this.spritePrewarmGeneration || 0;
+    const runId = (this.spritePrewarmRunId || 0) + 1;
+    this.spritePrewarmRunId = runId;
+    const tasks = this.getSpritePreloadTasks();
+    const preload = spritePreloadConfig();
+    const batchSize = Math.max(1, Number(preload.batchSize) || 1);
+    const state = this.spritePrewarmState = {
+        status: 'preparing',
+        completed: 0,
+        total: tasks.length,
+        batchSize,
+        runId,
+        error: null,
+    };
+    const promise = new Promise((resolve) => {
+        let cursor = 0;
+        const finish = (result) => {
+            // Cancellation is terminal for this run. Never fall through to
+            // the ready path, even if a future caller reports cancellation
+            // while the run id still happens to match.
+            if (result?.cancelled) return resolve({ cancelled: true });
+            if (this.spritePrewarmRunId !== runId) return resolve({ cancelled: true });
+            if (result?.error) {
+                state.status = 'error';
+                state.error = result.error;
+                if (this.badgeLoad?.phase === 'sprites' && this.badgeLoad.prewarmRunId === runId) {
+                    this.badgeLoad.status = 'error';
+                    this.badgeLoad.stage = 'sprites';
+                    this.badgeLoad.spriteError = result.error;
+                    if (typeof this.updateLoadUI === 'function') this.updateLoadUI();
+                }
+                return resolve(result);
+            }
+            state.status = 'ready';
+            this.spriteCacheSignature = this.getSpriteCacheSignature();
+            if (this.badgeLoad?.phase === 'sprites' && this.badgeLoad.prewarmRunId === runId) {
+                this.badgeLoad.status = 'ready';
+                this.badgeLoad.stage = 'ready';
+                if (typeof this.updateLoadUI === 'function') this.updateLoadUI();
+            }
+            resolve({ completed: state.completed, total: state.total });
+        };
+        const runBatch = () => {
+            if (this.spritePrewarmRunId !== runId || this.spritePrewarmGeneration !== generation) {
+                return finish({ cancelled: true });
+            }
+            try {
+                const end = Math.min(cursor + batchSize, tasks.length);
+                for (; cursor < end; cursor++) {
+                    const result = tasks[cursor].run();
+                    if (result === null && ['player', 'enemy', 'boss', 'menu'].includes(tasks[cursor].kind)) {
+                        throw new Error(`精灵预生成未完成: ${tasks[cursor].kind}/${tasks[cursor].key}`);
+                    }
+                    state.completed++;
+                }
+                if (this.badgeLoad?.phase === 'sprites'
+                    && this.badgeLoad.prewarmRunId === runId
+                    && typeof this.updateLoadUI === 'function') this.updateLoadUI();
+            } catch (error) {
+                return finish({ error });
+            }
+            if (cursor >= tasks.length) return finish({});
+            // Even the first batch is scheduled asynchronously; this prevents
+            // a resize or a long frame from blocking on the whole warm-up.
+            scheduleSpriteBatch(runBatch, Math.max(0, Number(preload.batchYieldMs) || 0));
+        };
+        scheduleSpriteBatch(runBatch, 0);
+    });
+    this.spritePrewarmPromise = promise;
+    // A resize calls prebakeSprites directly from core/game.js. Keep the
+    // badge readiness gate attached to whichever run is current.
+    if (this.badgeLoad?.phase === 'sprites') this.badgeLoad.prewarmRunId = runId;
+    return promise;
 };

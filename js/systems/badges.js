@@ -1,4 +1,5 @@
 import { Game } from '../core/game.js';
+import { CONFIG } from '../core/config.js';
 
 // School-badge skin. The SVGs in the badge folder (BADGE_DIR) are loaded as
 // images and kept as raw vectors; every consumer rasterizes them at its FINAL
@@ -75,82 +76,163 @@ Game.drawBadge = function(ctx, key, cx, cy, size) {
 Game.badgeImages = {};
 Game.bossBadgeSprites = {};
 
-// Load state machine doubling as the main-menu readiness gate.
-// status: 'loading' | 'ready' | 'error'; total = file count, failed collects
-// the names of files that failed to load, for retry.
-Game.badgeLoad = { status: 'loading', loaded: 0, total: 0, failed: [] };
-
-// Load one badge file; success or not, it settles into the state machine and
-// refreshes the load UI.
-Game.loadBadgeFile = function(file) {
-    const img = new Image();
-    img.onload = () => {
-        Game.badgeImages[file] = img;
-        // Re-bake lazily: anything already stamped procedurally picks the
-        // badge up on the next frame.
-        Game.spriteCache.player = null;
-        Game.spriteCache.enemies = {};
-        Game.badgeLoad.loaded++;
-        Game.onBadgeSettled();
-    };
-    img.onerror = () => {
-        Game.badgeLoad.failed.push(file);
-        Game.onBadgeSettled();
-    };
-    img.src = encodeURI(`${BADGE_DIR}/${file}`);
+// Load state machine doubling as the main-menu readiness gate.  `status` is
+// deliberately not `ready` until both stages settle: `phase: resources` is
+// download progress, and `phase: sprites` is canvas preparation progress.
+Game.badgeLoad = {
+    status: 'loading',
+    phase: 'resources',
+    stage: 'resources',
+    loaded: 0,
+    settled: 0,
+    total: 0,
+    failed: [],
+    token: 0,
+    spriteError: null,
+    prewarmRunId: 0,
 };
 
-// Per-settle step: refresh UI until every file has settled, then finalize by
-// outcome — on success call the sprites.js prebake contract (no args/return)
-// before opening the readiness gate.
-Game.onBadgeSettled = function() {
+function badgeFiles() {
+    return [PLAYER_BADGE, ...BOSS_BADGES, ...Game.ENEMY_BADGES.flat()];
+}
+
+function beginBadgeResourceLoad(files) {
     const load = Game.badgeLoad;
+    load.token = (load.token || 0) + 1;
+    const token = load.token;
+    load.status = 'loading';
+    load.phase = load.stage = 'resources';
+    load.total = files.length;
+    load.loaded = 0;
+    load.settled = 0;
+    load.failed = [];
+    load.spriteError = null;
     Game.updateLoadUI();
-    if (load.loaded + load.failed.length < load.total) return;
+    for (const file of files) Game.loadBadgeFile(file, token);
+}
+
+// Load one badge file with an application-level timeout.  The local settled
+// guard plus load token makes late onload/onerror callbacks harmless, including
+// callbacks from an abandoned retry or a timed-out image.
+Game.loadBadgeFile = function(file, token = this.badgeLoad.token) {
+    const load = this.badgeLoad;
+    const timeoutMs = Math.max(1, Number(CONFIG.spritePreload?.imageTimeoutMs) || 10000);
+    const img = new Image();
+    let settled = false;
+    let timer = null;
+    const settle = (ok, error = null) => {
+        if (settled || load.token !== token) return;
+        settled = true;
+        if (timer !== null) clearTimeout(timer);
+        load.settled++;
+        if (ok) {
+            this.badgeImages[file] = img;
+            this.spriteCache.player = null;
+            this.spriteCache.enemies = {};
+            load.loaded++;
+        } else if (!load.failed.includes(file)) {
+            load.failed.push(file);
+            if (error) load.lastError = error;
+        }
+        this.onBadgeSettled();
+    };
+    img.onload = () => settle(true);
+    img.onerror = () => settle(false, new Error(`校徽加载失败: ${file}`));
+    timer = setTimeout(() => settle(false, new Error(`校徽加载超时: ${file}`)), timeoutMs);
+    try {
+        img.src = encodeURI(`${BADGE_DIR}/${file}`);
+    } catch (error) {
+        settle(false, error);
+    }
+    return img;
+};
+
+// Per-settle step: refresh UI until every resource settles, then start the
+// asynchronous sprite warm-up.  Sprite completion is reported by sprites.js,
+// so a resize-triggered replacement run keeps the same readiness gate.
+Game.onBadgeSettled = function() {
+    const load = this.badgeLoad;
+    this.updateLoadUI();
+    if (load.status !== 'loading' || load.settled < load.total) return;
 
     if (load.failed.length > 0) {
         load.status = 'error';
-    } else {
-        Game.prebakeSprites();
-        load.status = 'ready';
+        load.phase = load.stage = 'resources';
+        this.updateLoadUI();
+        return;
     }
-    Game.updateLoadUI();
+
+    load.status = 'preparing';
+    load.phase = load.stage = 'sprites';
+    load.spriteError = null;
+    this.updateLoadUI();
+    // prebakeSprites is promise-based in production; Promise.resolve also
+    // keeps the gate compatible with a synchronous test stub.
+    try {
+        const promise = this.prebakeSprites();
+        load.prewarmRunId = this.spritePrewarmRunId || load.prewarmRunId;
+        Promise.resolve(promise).then((result) => {
+            if (load.status !== 'preparing' || load.phase !== 'sprites') return;
+            if (result?.cancelled) return;
+            if (result?.error) {
+                load.status = 'error';
+                load.spriteError = result.error;
+                this.updateLoadUI();
+            }
+        }).catch((error) => {
+            if (load.status !== 'preparing' || load.phase !== 'sprites') return;
+            load.status = 'error';
+            load.spriteError = error;
+            this.updateLoadUI();
+        });
+    } catch (error) {
+        load.status = 'error';
+        load.spriteError = error;
+        this.updateLoadUI();
+    }
 };
 
 Game.loadBadges = function() {
-    const files = [PLAYER_BADGE, ...BOSS_BADGES, ...Game.ENEMY_BADGES.flat()];
-    const load = Game.badgeLoad;
-    load.total = files.length;
-    load.loaded = 0;
-    load.failed = [];
-    load.status = 'loading';
-
     // Wire the retry click here (precedent: cards.js wires its own cardPanel
     // delegated click); bound only once.
-    const retryButton = document.getElementById('retryLoadButton');
+    const retryButton = typeof document === 'undefined'
+        ? null
+        : document.getElementById('retryLoadButton');
     if (retryButton && !retryButton.dataset.badgeRetryBound) {
         retryButton.dataset.badgeRetryBound = '1';
         retryButton.addEventListener('click', () => this.retryBadges());
     }
-
-    for (const file of files) Game.loadBadgeFile(file);
+    beginBadgeResourceLoad(badgeFiles());
 };
 
-// Retry failed loads: return early while loading (guards double clicks);
-// otherwise reset the counters and re-issue loads for only the failed files
-// (same URLs, no cache-buster), through the identical settle chain.
+// Retry failed downloads, or retry only the sprite stage when all resources
+// are already present.  Double clicks during either active stage are ignored.
 Game.retryBadges = function() {
-    const load = Game.badgeLoad;
-    if (load.status === 'loading') return;
-
-    const retryFiles = load.failed.slice();
-    load.total = retryFiles.length;
-    load.loaded = 0;
-    load.failed = [];
-    load.status = 'loading';
-
-    Game.updateLoadUI();
-    for (const file of retryFiles) Game.loadBadgeFile(file);
+    const load = this.badgeLoad;
+    if (load.status === 'loading' || load.status === 'preparing') return;
+    if (load.phase === 'sprites' && load.failed.length === 0) {
+        load.status = 'preparing';
+        load.stage = 'sprites';
+        load.spriteError = null;
+        this.updateLoadUI();
+        try {
+            const promise = this.prebakeSprites();
+            load.prewarmRunId = this.spritePrewarmRunId || load.prewarmRunId;
+            Promise.resolve(promise).catch((error) => {
+                if (load.status === 'preparing') {
+                    load.status = 'error';
+                    load.spriteError = error;
+                    this.updateLoadUI();
+                }
+            });
+        } catch (error) {
+            load.status = 'error';
+            load.spriteError = error;
+            this.updateLoadUI();
+        }
+        return;
+    }
+    beginBadgeResourceLoad(load.failed.slice());
 };
 
 // Start-panel loading UI: visibility and labels of the status line
@@ -158,25 +240,33 @@ Game.retryBadges = function() {
 // (#startButton), refreshed on every badgeLoad advance.
 Game.updateLoadUI = function() {
     const load = Game.badgeLoad;
-    const statusEl = document.getElementById('loadStatus');
-    const retryButton = document.getElementById('retryLoadButton');
-    const startButton = document.getElementById('startButton');
+    const getElement = (id) => typeof document === 'undefined' ? null : document.getElementById(id);
+    const statusEl = getElement('loadStatus');
+    const retryButton = getElement('retryLoadButton');
+    const startButton = getElement('startButton');
 
     if (statusEl) {
         if (load.status === 'ready') {
             statusEl.style.display = 'none';
         } else if (load.status === 'error') {
             statusEl.style.display = '';
-            statusEl.textContent = `资源加载失败（${load.failed.length} 张校徽未就绪）`;
+            statusEl.textContent = load.phase === 'sprites'
+                ? `图形准备失败${load.spriteError ? `：${load.spriteError.message || load.spriteError}` : ''}`
+                : `资源下载失败（${load.failed.length} 张校徽未就绪）`;
+        } else if (load.status === 'preparing' || load.phase === 'sprites') {
+            statusEl.style.display = '';
+            const sprite = Game.spritePrewarmState || {};
+            statusEl.textContent = `图形准备中 ${sprite.completed || 0}/${sprite.total || 0}…`;
         } else {
             statusEl.style.display = '';
-            statusEl.textContent = `资源加载中 ${load.loaded}/${load.total}…`;
+            statusEl.textContent = `资源下载中 ${load.loaded}/${load.total}…`;
         }
     }
 
     // Retry entry offered only in the error state.
     if (retryButton) {
         retryButton.style.display = load.status === 'error' ? '' : 'none';
+        retryButton.textContent = load.phase === 'sprites' ? '重试图形准备' : '重试资源下载';
     }
 
     // Loading only happens on the pre-game main menu; this is never called
@@ -204,6 +294,7 @@ Game.getBossBadgeSprite = function(type, size) {
     const cacheKey = `${key}-${size}x${Game.dpr}`;
     let sprite = Game.bossBadgeSprites[cacheKey];
     if (!sprite) {
+        if (typeof Game.noteSpriteCacheMiss === 'function') Game.noteSpriteCacheMiss('boss', cacheKey);
         const { canvas, ctx } = Game.makeSpriteCanvas(size, size);
         Game.drawBadge(ctx, key, size / 2, size / 2, size);
         sprite = canvas;
@@ -216,7 +307,7 @@ Game.getPlayerBadgeKey = () => PLAYER_BADGE;
 
 // Menu backdrop emblem: the player's seal baked once at high resolution so
 // the menu render just drawImages a plain canvas each frame.
-const MENU_EMBLEM_BAKE = 512;
+const MENU_EMBLEM_BAKE = CONFIG.spritePreload?.menuEmblemSize || 512;
 
 Game.getMenuEmblemCanvas = function() {
     if (Game.menuEmblemCanvas) return Game.menuEmblemCanvas;

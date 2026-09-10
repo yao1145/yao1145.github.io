@@ -158,7 +158,7 @@ test('resizeCanvas invalidates and prewarms sprites when DPR or dimensions chang
         Game.player = { width: CONFIG.player.width, height: CONFIG.player.height };
         Game.dpr = 1;
         Game.spriteCacheSignature = Game.getSpriteCacheSignature(1);
-        Game.badgeLoad = { status: 'ready' };
+        Game.badgeLoad = { status: 'ready', phase: 'sprites', failed: [] };
         let prebakes = 0;
         Game.prebakeSprites = () => { prebakes++; };
 
@@ -181,6 +181,102 @@ test('resizeCanvas invalidates and prewarms sprites when DPR or dimensions chang
         Game.player = originalPlayer;
         Game.prebakeSprites = originalPrebake;
         Game.badgeLoad = originalLoad;
+        env.restore();
+    }
+});
+
+test('resizeCanvas restarts an in-flight sprite prewarm and closes the ready gate', () => {
+    const env = installFrameEnvironment();
+    const originalCaches = Game.spriteCache;
+    const originalBoss = Game.bossBadgeSprites;
+    const originalMenu = Game.menuEmblemCanvas;
+    const originalSignature = Game.spriteCacheSignature;
+    const originalPlayer = Game.player;
+    const originalPrebake = Game.prebakeSprites;
+    const originalLoad = Game.badgeLoad;
+    const originalUpdateLoadUI = Game.updateLoadUI;
+    const originalRunId = Game.spritePrewarmRunId;
+    try {
+        Game.spriteCache = { enemies: {}, bullets: {}, items: {}, player: null };
+        Game.bossBadgeSprites = {};
+        Game.menuEmblemCanvas = null;
+        Game.player = { width: CONFIG.player.width, height: CONFIG.player.height };
+        Game.spriteCacheSignature = Game.getSpriteCacheSignature(1);
+        Game.spritePrewarmRunId = 4;
+        Game.badgeLoad = {
+            status: 'preparing', phase: 'sprites', stage: 'sprites',
+            failed: [], prewarmRunId: 4,
+        };
+        let prebakes = 0;
+        let uiUpdates = 0;
+        Game.prebakeSprites = () => {
+            prebakes++;
+            Game.spritePrewarmRunId++;
+            return new Promise(() => {});
+        };
+        Game.updateLoadUI = () => { uiUpdates++; };
+
+        window.devicePixelRatio = 2;
+        Game.resizeCanvas();
+
+        assert.equal(prebakes, 1);
+        assert.equal(Game.badgeLoad.status, 'preparing');
+        assert.equal(Game.badgeLoad.stage, 'sprites');
+        assert.equal(Game.badgeLoad.prewarmRunId, 5);
+        assert.equal(uiUpdates, 1, 'the replacement run refreshes the loading gate');
+    } finally {
+        Game.spriteCache = originalCaches;
+        Game.bossBadgeSprites = originalBoss;
+        Game.menuEmblemCanvas = originalMenu;
+        Game.spriteCacheSignature = originalSignature;
+        Game.player = originalPlayer;
+        Game.prebakeSprites = originalPrebake;
+        Game.badgeLoad = originalLoad;
+        Game.updateLoadUI = originalUpdateLoadUI;
+        Game.spritePrewarmRunId = originalRunId;
+        env.restore();
+    }
+});
+
+test('resizeCanvas converts a synchronous sprite prewarm failure into a retryable error', () => {
+    const env = installFrameEnvironment();
+    const originalCaches = Game.spriteCache;
+    const originalBoss = Game.bossBadgeSprites;
+    const originalMenu = Game.menuEmblemCanvas;
+    const originalSignature = Game.spriteCacheSignature;
+    const originalPlayer = Game.player;
+    const originalPrebake = Game.prebakeSprites;
+    const originalLoad = Game.badgeLoad;
+    const originalUpdateLoadUI = Game.updateLoadUI;
+    try {
+        Game.spriteCache = { enemies: {}, bullets: {}, items: {}, player: null };
+        Game.bossBadgeSprites = {};
+        Game.menuEmblemCanvas = null;
+        Game.player = { width: CONFIG.player.width, height: CONFIG.player.height };
+        Game.spriteCacheSignature = Game.getSpriteCacheSignature(1);
+        Game.badgeLoad = {
+            status: 'ready', phase: 'sprites', stage: 'ready',
+            failed: [], prewarmRunId: 0,
+        };
+        const failure = new Error('prewarm failed');
+        Game.prebakeSprites = () => { throw failure; };
+        Game.updateLoadUI = () => {};
+
+        window.devicePixelRatio = 2;
+        assert.doesNotThrow(() => Game.resizeCanvas());
+        assert.equal(Game.badgeLoad.status, 'error');
+        assert.equal(Game.badgeLoad.phase, 'sprites');
+        assert.equal(Game.badgeLoad.stage, 'sprites');
+        assert.equal(Game.badgeLoad.spriteError, failure);
+    } finally {
+        Game.spriteCache = originalCaches;
+        Game.bossBadgeSprites = originalBoss;
+        Game.menuEmblemCanvas = originalMenu;
+        Game.spriteCacheSignature = originalSignature;
+        Game.player = originalPlayer;
+        Game.prebakeSprites = originalPrebake;
+        Game.badgeLoad = originalLoad;
+        Game.updateLoadUI = originalUpdateLoadUI;
         env.restore();
     }
 });

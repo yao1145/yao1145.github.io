@@ -64,6 +64,36 @@ export const CONFIG = {
     // scale as they fall so they read as collectibles.
     itemSpinSpeed: 0.003,
 
+    // Startup sprite/image preparation.  Keep every static sprite variant in
+    // one enumerable table so a new combat projectile cannot silently miss
+    // the warm-up pass.  Player/enemy dimensions remain sourced from the
+    // canonical player/enemy type tables below.
+    spritePreload: {
+        batchSize: 4,
+        batchYieldMs: 0,
+        imageTimeoutMs: 10000,
+        bossSize: 100,
+        menuEmblemSize: 512,
+        bullets: [
+            { width: 4, height: 12, color: '#ff0', id: 'player-normal' },
+            { width: 4, height: 12, color: '#f90', id: 'player-boosted' },
+            { width: 4, height: 12, color: '#f0f', id: 'enemy-straight' },
+            { width: 6, height: 6, color: '#ff0', id: 'tracking' },
+            { width: 5, height: 5, color: '#0af', id: 'ring' },
+            { width: 6, height: 6, color: '#0af', id: 'ice-fan' },
+            { width: 6, height: 6, color: '#f0f', id: 'wave' },
+            { width: 5, height: 5, color: '#f90', id: 'scatter' },
+            { width: 6, height: 6, color: '#f00', id: 'explosion' },
+            { width: 6, height: 15, color: '#00f', id: 'ice-beam' },
+            { width: 5, height: 5, color: '#a0f', id: 'poison-ring' },
+        ],
+        items: [
+            { type: 0, width: 20, height: 20, color: '#f00', id: 'heart' },
+            { type: 1, width: 20, height: 20, color: '#f90', id: 'damage' },
+            { type: 2, width: 20, height: 20, color: '#0af', id: 'shield' },
+        ],
+    },
+
     // Player base stats
     player: {
         width: 30,

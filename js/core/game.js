@@ -195,9 +195,50 @@ export const Game = {
             }
         }
         this.spriteCacheSignature = spriteCacheSignature;
-        if (needsSpriteRebuild && this.badgeLoad?.status === 'ready'
-            && typeof this.prebakeSprites === 'function') {
-            this.prebakeSprites();
+        const badgeLoad = this.badgeLoad;
+        const canRewarmSprites = needsSpriteRebuild
+            && badgeLoad?.phase === 'sprites'
+            && (!badgeLoad.failed || badgeLoad.failed.length === 0)
+            && (badgeLoad.status === 'ready' || badgeLoad.status === 'preparing')
+            && typeof this.prebakeSprites === 'function';
+        if (canRewarmSprites) {
+            // A resize invalidates the old baked dimensions. Keep the menu
+            // gate closed until the replacement run has finished, including
+            // when this resize interrupts an already-preparing run.
+            badgeLoad.status = 'preparing';
+            badgeLoad.stage = 'sprites';
+            badgeLoad.spriteError = null;
+            if (typeof this.updateLoadUI === 'function') this.updateLoadUI();
+
+            try {
+                const promise = this.prebakeSprites();
+                const runId = this.spritePrewarmRunId || badgeLoad.prewarmRunId;
+                badgeLoad.prewarmRunId = runId;
+                const isCurrentRun = () => badgeLoad.status === 'preparing'
+                    && badgeLoad.phase === 'sprites'
+                    && badgeLoad.prewarmRunId === runId
+                    && (!this.spritePrewarmRunId || this.spritePrewarmRunId === runId);
+                Promise.resolve(promise).then((result) => {
+                    if (!isCurrentRun() || result?.cancelled) return;
+                    if (result?.error) {
+                        badgeLoad.status = 'error';
+                        badgeLoad.stage = 'sprites';
+                        badgeLoad.spriteError = result.error;
+                        if (typeof this.updateLoadUI === 'function') this.updateLoadUI();
+                    }
+                }).catch((error) => {
+                    if (!isCurrentRun()) return;
+                    badgeLoad.status = 'error';
+                    badgeLoad.stage = 'sprites';
+                    badgeLoad.spriteError = error;
+                    if (typeof this.updateLoadUI === 'function') this.updateLoadUI();
+                });
+            } catch (error) {
+                badgeLoad.status = 'error';
+                badgeLoad.stage = 'sprites';
+                badgeLoad.spriteError = error;
+                if (typeof this.updateLoadUI === 'function') this.updateLoadUI();
+            }
         }
 
         if (this.player) {
