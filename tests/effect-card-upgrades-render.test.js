@@ -335,6 +335,28 @@ test('chain feedback never throws without usable timing metadata', () => {
     assert.equal(ctx.globalAlpha, 1, 'globalAlpha stays clean after malformed events');
 });
 
+test('chain feedback rejects a negative or non-finite radius without painting', () => {
+    const ctx = makeContext();
+    Game.ctx = ctx;
+    const radii = trackArcRadii(ctx);
+    Game.gameTime = 500;
+
+    // A finite negative radius would reach ctx.arc() and throw IndexSizeError,
+    // which stops gameLoop from scheduling its next frame.
+    for (const radius of [-1, -240]) {
+        radii.length = 0;
+        assert.doesNotThrow(() => Game.drawEffectFeedback({ kind: 'chain', x: 0, y: 0, radius, startedAt: 100, until: 10000 }));
+        assert.deepEqual(radii, [], `radius ${radius} must not paint`);
+    }
+    for (const radius of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+        radii.length = 0;
+        // A non-finite radius keeps the existing fallback and still paints.
+        assert.doesNotThrow(() => Game.drawEffectFeedback({ kind: 'chain', x: 0, y: 0, radius, startedAt: 100, until: 10000 }));
+        assert.deepEqual(radii, [CONFIG.builds.chain.baseRadius], `radius ${radius} falls back to baseRadius`);
+    }
+    assert.equal(ctx.globalAlpha, 1, 'globalAlpha stays clean after rejected radii');
+});
+
 test('rapid bullets and supply items expose shape feedback without changing gameplay fields', () => {
     const ctx = makeContext();
     Game.ctx = ctx;

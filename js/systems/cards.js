@@ -338,9 +338,10 @@ Game.roundCombatDamage = function(d) {
 };
 
 // Final direct-shot damage for one hit. getDamageFor() is called exactly once
-// per hit; a primary-bullet supply bonus (buildDamageBonus, set at spawn) is
-// folded in before quantization, and the same result feeds both the event's
-// amount and baseDamage so later bonus strikes never re-enter the card
+// per hit; a per-bullet bonus travelling on the bullet (buildDamageBonus, which
+// the collisions.js bridge folds the rapid/supply bonuses into) is added before
+// quantization, independent of isPrimary, and the same result feeds both the
+// event's amount and baseDamage so later bonus strikes never re-enter the card
 // multiplier hooks.
 Game.getDirectShotDamage = function(targetType, bullet) {
     let d = this.getDamageFor(targetType);

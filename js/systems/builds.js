@@ -832,8 +832,9 @@ Game.createDamageExplosion = function(spec = {}) {
             }
         }
     }
-    // The route chain is seeded after the card chain, so it wins the recorded
-    // last chain and the HUD keeps reading the route chain's kill count.
+    // Deliberately asymmetric pair: lastChainId is the last chain created (the
+    // route chain when both sources ran), while lastChainKills is summed across
+    // every chain this event seeded, which is what the HUD 连锁 row reads.
     runtime.lastChainId = chainId;
     runtime.lastChainKills = chainKills;
     return true;

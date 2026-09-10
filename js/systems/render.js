@@ -570,6 +570,9 @@ Game.drawEffectFeedback = function(event) {
             else if (Number(event.generation) > 0) radius = cfg.chain.spreadRadius;
             else radius = cfg.chain.baseRadius;
         }
+        // A finite negative radius would reach ctx.arc() and throw IndexSizeError,
+        // which kills the render loop; reject it the way drawRadiusRing does.
+        if (!(radius > 0)) return;
         // Dynamic ring: expands from nothing to the true damage radius while
         // its alpha collapses to zero. Missing timing metadata (no `gameTime`,
         // no finite `until`) degrades to a finished ring instead of throwing.
