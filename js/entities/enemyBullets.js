@@ -206,6 +206,13 @@ Game.applyFogBulletRules = function(bullet) {
         bullet.fogTrackingDisabled = true;
         bullet.isTracking = false;
         bullet.isStraight = true;
+        // A fogged homing shot must not keep the heading it was aimed at: it
+        // becomes a plain downward shot at the fog-reduced speed.
+        bullet.baseVx = 0;
+        bullet.baseVy = bullet.speed;
+        bullet.vx = 0;
+        bullet.vy = bullet.speed;
+        return;
     }
 
     const waveValue = bullet.isWave
