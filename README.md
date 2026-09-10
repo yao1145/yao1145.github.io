@@ -17,14 +17,15 @@ python -m http.server 8000
 
 ## Highlights
 
-- **Fixed-timestep engine** — the simulation runs at a constant 60 ticks/sec, decoupled from your display's refresh rate, so gameplay speed is identical on every device.
-- **Object pools** — bullets, enemy bullets, enemies, items and particles are recycled instead of re-allocated, avoiding GC churn.
-- **Spatial-grid collisions** — an AABB sweep over a 100px grid is much cheaper than an O(n²) check every frame.
-- **Pre-rendered sprites** — enemies, bullets, items and the player are baked once to offscreen canvases and blitted with `drawImage`, so the hot render loop does no path fills.
+- **Fixed-timestep engine** — the simulation runs at a constant 60 ticks/sec, decoupled from your display's refresh rate; a stalled frame is capped at four catch-up steps and pauses immediately stop catch-up work.
+- **Object pools** — bullets, enemy bullets, enemies, items and particles are recycled instead of re-allocated, avoiding GC churn. The shared enemy-bullet pool holds up to **1000** entries, and a single volley is capped at **64** bullets.
+- **Typed spatial-grid collisions** — a 100px grid keeps separate indexes by object type, so player shots and chain explosions query enemies directly instead of copying and filtering unrelated bullets or items.
+- **Pre-rendered sprites** — enemies, bullets, items and the player are baked in bounded startup batches and blitted with `drawImage`, so the hot render loop does no path fills. The menu distinguishes resource downloads from graphics preparation, retries failures, and retains valid caches across viewport-only resizes.
 - **5 enemy types**, each with a distinct silhouette and behaviour (straight / homing / ring shots, a suicide bomber, and a tank).
 - **3 elemental bosses** (fire / ice / poison), each with three attack patterns gated by remaining health.
-- **Core cards and builds** — choose a legal core card at run start and after each boss. Boss rewards pause through core card → build → summary; six in-run build routes persist across core-card swaps and feed the HUD, pause details and run summary.
-- **School-badge skins** — the player flies under the Peking University emblem while enemies and bosses wear other universities' badges (falls back to procedural sprites if the SVGs are missing).
+- **Effect cards and in-run builds** — choose a legal core card at run start and after each boss, then take an optional route upgrade; six in-run build routes persist across core-card swaps and feed the compact HUD, pause details and run summary.
+- **Compact dynamic HUD** — active card effects and route progress stack tightly in a stable top-right order, moving existing rows down when a higher-priority effect appears so there are no empty gaps.
+- **School-badge skins** — the player flies under the Peking University emblem while enemies and bosses wear other universities' badges; missing SVGs keep the start gate closed and expose a retry action.
 - **Power-up drops** — health, double-damage and shield pickups that spin and gently pulse as they fall.
 - **Crown progression** — earn crowns each run and unlock permanent achievement bonuses (see below).
 - **Persistence** — high score, highest crowns, last score and total crowns are saved to `localStorage`; build routes and card history are run-only and are not saved across runs.
@@ -37,13 +38,13 @@ python -m http.server 8000
 
 ## Gameplay
 
-- **Goal** — survive and rack up score. Every hit (an enemy bullet, a ramming enemy, or touching a boss) costs 1 life and grants a brief 5 s shield; the life cap is **20**, and every life gain — pickups, boss rewards and card heals — respects the current cap. The 玻璃大炮 Glass card overrides that cap to **1**; at 0 lives the run ends.
+- **Goal** — survive and rack up score. Every hit (an enemy bullet, a ramming enemy, or touching a boss) normally costs 1 life and grants a brief 5 s shield; `增益加强` makes enemy-bullet hits cost 2 lives. The life cap is **20**, and every life gain — pickups, boss rewards and card heals — respects the current cap. The 玻璃大炮 Glass card overrides that cap to **1**; at 0 lives the run ends.
 - **Leveling** — the difficulty level rises every 500 points: enemies spawn faster, move faster, fire more often, and their bullets speed up. Speed and bullet-speed growth per level is intentionally gentle. Item density follows a level curve — sparse at first, densest around level 10 (about 5× the base rate), settling back to base from level 20.
 - **Enemies** — five types, each with its own behaviour: straight shooters, a slow 2 HP tank, homing shots, radial bullet rings, and a red kamikaze that detonates when it gets close.
 - **Bosses** — the first boss arrives at **1000 points**; each kill grants **+3 lives and +1 crown**, and raises the score gap to the next boss by **+200**, so bosses appear at 1000 → 2200 → 3600 … Each elemental boss (fire / ice / poison) has three attack patterns that escalate below 70% and 30% health. From the **4th boss onward**, bosses periodically summon waves of normal enemies: a 10 s quiet period after the boss appears, then repeating 30 s summon windows (with a top-right countdown chip) until the boss dies.
 - **Difficulty** — Two modes — 简单模式 Easy: enemy/boss movement and all enemy bullets ×0.7, spawn and enemy fire rates ×0.5, boss shot delay ×1.5; 困难模式 Hard: the reference balance.
-- **Effect cards** — at the start of a run, and after every boss kill, choose up to 1 of 4 legal core cards. Each card may be chosen at most 3 times per run; exhausted cards leave the legal pool. A still-legal current card remains available, and an empty legal pool has a safe skip path. Keeping the current card is free; switching to a different card costs 1 life, except entering or leaving 玻璃大炮, which is free. The equipped card appears in the top-right HUD. The `增益加强` card improves pickups and makes each enemy bullet cost **2 lives**.
-- **Power-ups** — falling pickups: **+1 life** (capped at 20), **double damage for 10 s**, or a **5 s shield**.
+- **Effect cards** — at the start of a run, and after every boss kill, choose up to 1 of 4 legal core cards. Each card may be chosen at most 3 times per run; exhausted cards leave the legal pool. A still-legal current card remains available, and an empty legal pool has a safe skip path. Keeping the current card is free; switching to a different card costs 1 life, except entering or leaving 玻璃大炮, which is free. The equipped card appears in the top-right HUD. The `增益加强` card improves pickups and makes each enemy bullet cost **2 lives**. Under `战争迷雾`, tracking bullets permanently do not track the player, even after leaving the fog area.
+- **Power-ups** — falling pickups: **+1 life** (capped at 20), **double damage for 10 s**, or a **5 s shield**; `增益加强` changes these to +2 life, 15 s damage and 10 s shield.
 - **Crowns** — every boss kill earns a crown; crown totals unlock the permanent achievements below and are never spent.
 
 ### In-run build routes
@@ -59,7 +60,7 @@ Each boss reward continues from the core-card choice into a build choice and the
 
 The run can hold **six builds**. Once full, a candidate can be taken only by replacing a legal existing build while preserving all prerequisites and branch exclusions; skipping is always available. The build HUD shows the two most relevant route progress rows. Normal pause details list every owned build and warn when 玻璃大炮 reduces the maximum life to 1, putting the 绝境反攻 route into dormancy.
 
-The end-of-run summary records the core-card history, owned builds and run-only contributions such as barrier blocks, chain kills, precision damage and supply-pulse coverage. These build records are not persistent progression.
+The end-of-run summary records the core-card history, owned builds and run-only contributions such as barrier blocks, chain kills, precision damage and supply-pulse coverage. These build records are not persistent progression. During play, the HUD shows only the most relevant route rows while the normal pause details list every owned route.
 
 ## Achievements
 
