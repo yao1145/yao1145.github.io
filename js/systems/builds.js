@@ -753,10 +753,18 @@ Game.chainSeedFromKill = function(killEvent = {}) {
     // re-seed, so this gate is never widened to the other kill sources.
     if (killEvent.source !== 'direct') return false;
     let seeded = false;
+    let totalKills = 0;
     for (const source of CHAIN_SOURCES) {
         if (!isChainSourceEnabled(this, source)) continue;
-        if (this.createDamageExplosion({ x: killEvent.x, y: killEvent.y, source })) seeded = true;
+        // Each chain records its own kills as it settles, so the event total is
+        // the sum over the chains this kill seeded.
+        if (!this.createDamageExplosion({ x: killEvent.x, y: killEvent.y, source })) continue;
+        seeded = true;
+        totalKills += Number(this.buildState?._runtime?.lastChainKills) || 0;
     }
+    // The HUD row reports the whole event, while each chain keeps its own kill
+    // count for its own rules (the route capstone counts route kills only).
+    if (seeded) runtimeFor(this.buildState).lastChainKills = totalKills;
     return seeded;
 };
 

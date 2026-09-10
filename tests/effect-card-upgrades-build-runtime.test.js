@@ -211,6 +211,10 @@ function chainFeedback() {
     return Game.buildState.visualFeedbackEvents.filter((event) => event.kind === 'chain');
 }
 
+function hudChainRow() {
+    return Game.getBuildHudStates().find((row) => row.line === 'chain');
+}
+
 test('chain card alone seeds one 200px/1.0 blast with no spread and no clear', () => {
     const { calls, clears } = chainRuntime([], 'chain');
     chainEnemies([1, 150, 0, 2], [2, 250, 0, 2]);
@@ -323,6 +327,51 @@ test('the route wide radius never widens the card blast', () => {
             [0, CONFIG.builds.chain.wideRadius, true],
         ],
     );
+});
+
+test('the chain HUD row shows the summed kills of both stacked chains', () => {
+    // Card blast settles the 1 HP enemy; the route blast settles the two
+    // survivors. The row must show 3/3 progress, not the route chain's 0/3.
+    const { clears } = chainRuntime(['chain_entry', 'chain_capstone'], 'chain');
+    chainEnemies([1, 60, 0, 2], [2, 120, 0, 2], [3, 180, 0, 1]);
+    seedChainKill(0, 0);
+    assert.equal(Game.buildState.metrics.chainKills, 3);
+    assert.equal(Game.buildState._runtime.lastChainKills, 3);
+    assert.equal(hudChainRow().value, `3/${CONFIG.builds.chain.capstoneKills}`);
+    // Only two of those kills belong to the route chain, so the capstone is
+    // still short of its threshold: card kills never feed route progress.
+    assert.deepEqual(clears, []);
+});
+
+test('the chain capstone threshold never counts card-chain kills', () => {
+    // The card blast settles all three soft targets and the route chain finds
+    // them already dead: 3/3 on the row, no route clear.
+    const card = chainRuntime(['chain_entry', 'chain_capstone'], 'chain');
+    chainEnemies([1, 60, 0, 1], [2, 120, 0, 1], [3, 180, 0, 1]);
+    seedChainKill(0, 0);
+    assert.equal(Game.buildState._runtime.lastChainKills, 3);
+    assert.equal(hudChainRow().value, `3/${CONFIG.builds.chain.capstoneKills}`);
+    assert.deepEqual(card.clears, []);
+
+    // Route-only kills still clear once at the third kill.
+    const route = chainRuntime(['chain_entry', 'chain_capstone']);
+    chainEnemies([4, 60, 0, 1], [5, 120, 0, 1], [6, 180, 0, 1]);
+    seedChainKill(0, 0);
+    assert.equal(Game.buildState._runtime.lastChainKills, 3);
+    assert.deepEqual(route.clears, [CONFIG.builds.chain.capstoneRadius]);
+});
+
+test('single-source seeds and direct blasts keep their own kill count', () => {
+    chainRuntime(['chain_entry']);
+    chainEnemies([1, 60, 0, 1], [2, 120, 0, 1]);
+    seedChainKill(0, 0);
+    assert.equal(Game.buildState._runtime.lastChainKills, 2);
+    assert.equal(hudChainRow().value, `2/${CONFIG.builds.chain.capstoneKills}`);
+
+    chainRuntime(['chain_entry'], 'chain');
+    chainEnemies([3, 60, 0, 1]);
+    assert.equal(Game.createDamageExplosion({ x: 0, y: 0 }), true);
+    assert.equal(Game.buildState._runtime.lastChainKills, 1);
 });
 
 test('explosion deaths never re-seed a chain and source defaults to the owned route', () => {
