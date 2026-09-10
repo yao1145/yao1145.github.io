@@ -25,6 +25,27 @@ Game.spriteCache = {
     items: {},
     player: null,
 };
+Game.spriteCacheSignature = null;
+
+// Cache validity depends on the device scale and the logical dimensions used
+// by the baked sprites, not on the viewport dimensions. This lets a resize
+// keep all existing canvases when the same sprites are still applicable.
+Game.getSpriteCacheSignature = function(dpr = this.dpr || 1) {
+    const player = this.player || CONFIG.player;
+    const enemyDimensions = CONFIG.enemyTypes
+        .map(({ width, height }) => `${width}x${height}`)
+        .join(',');
+    return [dpr, `${player.width}x${player.height}`, enemyDimensions, '20x20', '100', '512'].join('|');
+};
+
+Game.invalidateSpriteCaches = function() {
+    this.spriteCache.enemies = {};
+    this.spriteCache.bullets = {};
+    this.spriteCache.items = {};
+    this.spriteCache.player = null;
+    this.bossBadgeSprites = {};
+    this.menuEmblemCanvas = null;
+};
 
 // Create an offscreen canvas at `width` x `height` LOGICAL pixels, backed at
 // device resolution with its context pre-scaled, so callers draw in logical
@@ -56,7 +77,9 @@ function bakeBadgeSprite(key, width, height) {
 
 Game.getEnemySprite = function(enemy) {
     const variant = enemy.variant || 0;
-    const key = `${enemy.type}-${variant}-${enemy.width}x${enemy.height}-${enemy.color}-${Game.dpr}`;
+    // Enemy color is mutable hit-flash state and is not used by badge baking.
+    // Omitting it prevents every white flash from creating a duplicate sprite.
+    const key = `${enemy.type}-${variant}-${enemy.width}x${enemy.height}-${Game.dpr}`;
     let sprite = this.spriteCache.enemies[key];
     if (!sprite) {
         const badgeKey = this.getEnemyBadgeKey(enemy.type, variant);
@@ -202,4 +225,5 @@ Game.prebakeSprites = function() {
     this.getItemSprite(2, 20, 20, '#0af');
     for (let type = 0; type < CONFIG.bossTypes.length; type++) this.getBossBadgeSprite(type, 100);
     this.getMenuEmblemCanvas();
+    this.spriteCacheSignature = this.getSpriteCacheSignature();
 };

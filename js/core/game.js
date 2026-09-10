@@ -19,6 +19,9 @@ export const Game = {
     lastTime: 0,
     accumulator: 0,
     fixedStepMs: 1000 / CONFIG.fixedFrameRate,
+    // Bound catch-up work after a stalled frame. Any remaining backlog is
+    // deliberately discarded so a slow device cannot enter a catch-up spiral.
+    maxCatchUpSteps: 4,
     gameTime: 0,
     score: 0,
     highScore: 0,
@@ -172,18 +175,44 @@ export const Game = {
         this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         this.ctx.imageSmoothingQuality = 'high';
 
-        // Cached sprites were baked for the previous resolution — re-bake lazily.
-        this.spriteCache.enemies = {};
-        this.spriteCache.bullets = {};
-        this.spriteCache.items = {};
-        this.spriteCache.player = null;
-        this.bossBadgeSprites = {};
-        this.menuEmblemCanvas = null;
+        // The viewport does not affect sprite dimensions. Keep already-baked
+        // sprites across a resize unless DPR or one of the source dimensions
+        // changed; those caches are safely invalidated and warmed when ready.
+        const spriteCacheSignature = typeof this.getSpriteCacheSignature === 'function'
+            ? this.getSpriteCacheSignature(dpr)
+            : `dpr:${dpr}`;
+        const needsSpriteRebuild = this.spriteCacheSignature !== spriteCacheSignature;
+        if (needsSpriteRebuild) {
+            if (typeof this.invalidateSpriteCaches === 'function') {
+                this.invalidateSpriteCaches();
+            } else {
+                this.spriteCache.enemies = {};
+                this.spriteCache.bullets = {};
+                this.spriteCache.items = {};
+                this.spriteCache.player = null;
+                this.bossBadgeSprites = {};
+                this.menuEmblemCanvas = null;
+            }
+        }
+        this.spriteCacheSignature = spriteCacheSignature;
+        if (needsSpriteRebuild && this.badgeLoad?.status === 'ready'
+            && typeof this.prebakeSprites === 'function') {
+            this.prebakeSprites();
+        }
 
         if (this.player) {
             this.player.x = Math.min(this.player.x, this.width - this.player.width);
             this.player.y = Math.min(this.player.y, this.height - this.player.height);
         }
+    },
+
+    canAdvanceSimulation: function() {
+        return this.isRunning
+            && !this.isGameOver
+            && !this.isCardSelectionOpen
+            && !this.rewardFlow
+            && !this.isBuildSelectionOpen
+            && !this.isRewardSummaryOpen;
     },
 
     gameLoop: function(currentTime) {
@@ -201,10 +230,27 @@ export const Game = {
             // Advance the simulation in fixed timesteps, decoupled from the display's
             // refresh rate. Movement, timers and spawning all run at a constant 60
             // ticks/sec on every device, keeping gameplay speed deterministic.
-            while (this.accumulator >= this.fixedStepMs) {
+            let catchUpSteps = 0;
+            const maxCatchUpSteps = Math.max(1, Math.floor(this.maxCatchUpSteps || 4));
+            while (this.accumulator >= this.fixedStepMs && catchUpSteps < maxCatchUpSteps) {
+                // update() may open a pause-owned flow (card/build/reward) or
+                // end the run. Stop immediately instead of simulating behind it.
+                if (!this.canAdvanceSimulation()) {
+                    this.accumulator = 0;
+                    break;
+                }
                 this.gameTime += this.fixedStepMs;
                 this.update(this.fixedStepMs);
                 this.accumulator -= this.fixedStepMs;
+                catchUpSteps++;
+                if (!this.canAdvanceSimulation()) {
+                    this.accumulator = 0;
+                    break;
+                }
+            }
+            // Drop any unprocessed backlog after hitting the per-frame budget.
+            if (catchUpSteps >= maxCatchUpSteps && this.accumulator >= this.fixedStepMs) {
+                this.accumulator = 0;
             }
         } else {
             this.accumulator = 0;
