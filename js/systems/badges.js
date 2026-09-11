@@ -27,15 +27,15 @@ const BOSS_BADGES = [
     '上海交通大学-logo.svg',  // poison boss
 ];
 
-// The remaining nine badges, split across the five enemy types. Each enemy
-// rolls a random variant from its type's list on spawn, so all nine appear.
-// Public (Game.ENEMY_BADGES) so other modules can enumerate the enemy seals.
+// One fixed badge per enemy type. Public (Game.ENEMY_BADGES) so other modules
+// can enumerate the enemy seals while the existing variant-aware sprite path
+// remains compatible.
 Game.ENEMY_BADGES = [
-    ['南开大学-logo.svg', '武汉大学-logo.svg'],                // kamikaze
-    ['复旦大学-logo.svg', '西安交通大学-logo.svg'],            // fast shooter
-    ['中国人民大学-logo.svg', '华中科技大学-logo.svg'],        // tank
-    ['中国科学技术大学-logo.svg', '哈尔滨工业大学-logo.svg'],  // tracker
-    ['中国科学院大学-logo.svg'],                               // ring shooter
+    ['南开大学-logo.svg'],                // kamikaze
+    ['复旦大学-logo.svg'],                // fast shooter
+    ['西安交通大学-logo.svg'],            // tank
+    ['中国科学技术大学-logo.svg'],        // tracker
+    ['哈尔滨工业大学-logo.svg'],          // ring shooter
 ];
 
 // Rasterize the badge `key` centered at (cx, cy) at `size` logical px into any
@@ -93,7 +93,7 @@ Game.badgeLoad = {
 };
 
 function badgeFiles() {
-    return [PLAYER_BADGE, ...BOSS_BADGES, ...Game.ENEMY_BADGES.flat()];
+    return [...new Set([PLAYER_BADGE, ...BOSS_BADGES, ...Game.ENEMY_BADGES.flat()])];
 }
 
 function beginBadgeResourceLoad(files) {
@@ -326,5 +326,6 @@ Game.getEnemyBadgeKey = (type, variant) => {
 
 Game.rollEnemyVariant = function(type) {
     const list = Game.ENEMY_BADGES[type] || [];
+    if (list.length <= 1) return 0;
     return Math.floor(Math.random() * list.length);
 };
