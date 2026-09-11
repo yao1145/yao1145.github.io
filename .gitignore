@@ -3,6 +3,7 @@
 /.superpowers
 /.claude
 /docs
+/tests
 
 CLAUDE.md
 AGENTS.md
