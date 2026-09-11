@@ -32,7 +32,7 @@ Game.CARD_DESCS = {
     chain: '击毁即连锁爆炸',
     glass: '伤害×2·生命上限1',
     boss: 'Boss伤×3·小兵减半',
-    thorns: '受击反杀·敌弹翻倍',
+    thorns: '受击反杀·敌机攻速+50%',
     supply: '道具更多·敌射+50%',
     fog: '追踪失效·敌弹速度×0.80·上方视野受阻',
     boost: '道具强化·敌弹伤2',
@@ -385,6 +385,16 @@ Game.getPlayerShotDelay = function() {
         delay /= CONFIG.cards.comebackMult;
     }
     if (this.activeCard === 'glass') delay /= CONFIG.cards.glassShotSpeedMult;
+    if (typeof this.hasBuild === 'function'
+        && this.hasBuild('rapid_entry')
+        && (this.buildState?.timers?.rapidWarmup || 0) > 0) {
+        delay /= CONFIG.builds.rapid.warmupShotSpeedMult;
+    }
+    if (typeof this.hasBuild === 'function'
+        && this.hasBuild('supply_entry')
+        && (this.buildState?.timers?.supplyPulse || 0) > 0) {
+        delay /= CONFIG.builds.supply.pulseShotSpeedMult;
+    }
     return delay;
 };
 
@@ -393,6 +403,7 @@ Game.getEnemyShotRate = function() {
     if (this.activeCard === 'passion') rate *= CONFIG.cards.speedMult;
     if (this.activeCard === 'peace') rate *= peaceEnemyRate();
     if (this.activeCard === 'supply') rate *= CONFIG.cards.supplyEnemyShotMult;
+    if (this.activeCard === 'thorns') rate *= CONFIG.cards.thornsEnemyShotMult;
     if (this.difficulty === 'easy') rate *= CONFIG.difficulty.easy.enemyFireRateMult;
     return rate;
 };
@@ -406,6 +417,7 @@ Game.getBossShotDelay = function() {
     if (this.activeCard === 'passion') rate = CONFIG.cards.speedMult;
     if (this.activeCard === 'peace') rate = peaceEnemyRate();
     if (this.activeCard === 'supply') rate = CONFIG.cards.supplyEnemyShotMult;
+    if (this.activeCard === 'thorns') rate = CONFIG.cards.thornsEnemyShotMult;
     const delay = this.boss.shotDelay / rate;
     return this.difficulty === 'easy' ? delay * CONFIG.difficulty.easy.bossShotDelayMult : delay;
 };
@@ -425,7 +437,7 @@ Game.getEnemySpawnRate = function() {
 };
 
 Game.getEnemyBulletSpeed = function() {
-    let speed = this.enemyBulletSpeed * (this.activeCard === 'thorns' ? CONFIG.cards.thornsBulletSpeedMult : 1);
+    let speed = this.enemyBulletSpeed;
     if (this.difficulty === 'easy') speed *= CONFIG.difficulty.easy.slowMult;
     return speed;
 };
@@ -541,10 +553,10 @@ Game.updateCardChipUI = function() {
     }
     if (!this.cardIndicator) return;
     if (this.activeCard) {
-        const glyph = this.CARDS[this.activeCard].name[0];
-        if (this.cardIndicator.textContent !== glyph) this.cardIndicator.textContent = glyph;
-        this.cardIndicator.title = `当前效果卡：${this.CARDS[this.activeCard].name}`;
-        this.cardIndicator.setAttribute?.('aria-label', `当前效果卡：${this.CARDS[this.activeCard].name}`);
+        const cardName = this.CARDS[this.activeCard].name;
+        this.cardIndicator.textContent = `卡: ${cardName}`;
+        this.cardIndicator.title = `当前效果卡：${cardName}`;
+        this.cardIndicator.setAttribute?.('aria-label', `当前效果卡：${cardName}`);
         if (this.cardIndicator.style.display !== '') this.cardIndicator.style.display = '';
     } else {
         this.cardIndicator.title = '';

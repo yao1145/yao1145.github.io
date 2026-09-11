@@ -156,7 +156,7 @@ export const CONFIG = {
         mobDamageMult: 0.5,         // boss card: damage vs normal enemies
         thornsRadius: 200,          // thorns: all enemies within this radius of the player die per hit
         thornsBossFrac: 0.1,        // thorns: Boss loses maxHealth*this on each player hit
-        thornsBulletSpeedMult: 2,   // thorns: enemy-bullet speed multiplier
+        thornsEnemyShotMult: 1.5,   // thorns: enemy/Boss firing frequency multiplier
         supplyItemMult: 1.5,        // supply: natural item spawn-rate multiplier
         supplyEnemyShotMult: 1.5,  // supply: enemy/Boss firing frequency multiplier
         fogBulletSpeed: 0.8,        // fog: all enemy-bullet base speed multiplier
@@ -190,10 +190,12 @@ export const CONFIG = {
             extensionMs: 400,
             maxExtensionMs: 2000,
             maxActiveMs: 6000,
+            warmupShotSpeedMult: 2,
         },
         fortress: {
             chargeMs: 15000,
             regroupChargeMs: 12000,
+            maxBarrierLayers: 3,
             echoRadius: 200,
             echoDamage: 2,
             clearRadius: 250,
@@ -201,9 +203,8 @@ export const CONFIG = {
         },
         desperate: {
             hits: 10,
-            strikeMult: 2,
-            executeMult: 3,
-            executeHealthRatio: 0.35,
+            strikeMult: 10,
+            executeMult: 15,
             clearRadius: 220,
             killsForHeal: 8,
             healsPerBossCycle: 1,
@@ -221,12 +222,11 @@ export const CONFIG = {
         hunter: {
             hits: 10,
             resetMs: 1200,
-            strikeMult: 2,
-            executeMult: 3,
-            executeHealthRatio: 0.35,
+            strikeMult: 20,
+            executeMult: 40,
             windowMs: 2000,
             windowMult: 2,
-            lockMemoryMs: 3000,
+            lockMemoryMs: 5000,
             clearRadius: 200,
             clearCooldownMs: 6000,
             hitStopMs: 150,
@@ -236,6 +236,7 @@ export const CONFIG = {
             pulseMs: 4000,
             longPulseMs: 6000,
             maxPulseMs: 8000,
+            pulseShotSpeedMult: 1.5,
             pulseDamageBonus: 1,
             magnetRadius: 200,
             magnetSpeed: 0.75,

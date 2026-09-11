@@ -401,9 +401,8 @@ Game.resolveEnemyBulletHit = function(bullet) {
 
     if (this.buildState
         && this.hasBuild('fortress_entry')
-        && this.buildState.locks.fortressBarrier) {
-        this.buildState.locks.fortressBarrier = false;
-        this.buildState.timers.fortressBarrier = 0;
+        && typeof this.consumeFortressBarrier === 'function'
+        && this.consumeFortressBarrier()) {
         this.onFortressBarrierConsumed();
         return 'barrier';
     }

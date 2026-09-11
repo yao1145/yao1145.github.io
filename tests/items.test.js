@@ -463,8 +463,8 @@ test('rapid and supply combine on a one-bullet batch once, and hunter/desperate 
         });
     }
 
-    // Hunter precision strikes read D (=3): 10 hits earn one 2D strike.
-    assert.equal(enemy.health, 94);
+    // Hunter precision strikes read D (=3): 10 hits earn one 20D strike.
+    assert.equal(enemy.health, 40);
 
     Game.buildState.owned = ['supply_entry', 'rapid_entry', 'desperate_entry'];
     Game.lives = 1;
@@ -482,5 +482,5 @@ test('rapid and supply combine on a one-bullet batch once, and hunter/desperate 
         });
     }
 
-    assert.equal(enemy.health, 88);
+    assert.equal(enemy.health, 10);
 });

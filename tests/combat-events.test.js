@@ -228,6 +228,8 @@ test('resetGameFixture restores run state without resetting entity ids', () => {
         },
         locks: {
             fortressBarrier: false,
+            fortressBarrierLayers: 0,
+            fortressBarrierRemaining: 0,
             hunterTargetId: null,
             hunterHits: 0,
             desperateCycleHeal: false,
@@ -515,7 +517,7 @@ test('desperate triggers after 10 low-health direct batches and is inactive abov
     for (let shot = 1; shot <= 9; shot++) Game.onDirectShotBatch(batch(shot, 'enemy', enemy.entityId));
     assert.equal(Game.buildState.counters.desperateHits, 9);
     Game.onDirectShotBatch(batch(10, 'enemy', enemy.entityId));
-    assert.equal(enemy.health, 98);
+    assert.equal(enemy.health, 90);
     assert.equal(Game.buildState.counters.desperateHits, 0);
 
     Game.resetBuildState();
@@ -535,7 +537,7 @@ test('desperate triggers after 10 low-health direct batches and is inactive abov
     assert.equal(glassEnemy.health, 100);
 });
 
-test('desperate execute uses the 35% boundary and clear branch uses 220px', () => {
+test('desperate execute ignores target health and clear branch uses 220px', () => {
     resetCombat();
     applyBuild('desperate_entry', 'desperate_clear');
     Game.lives = 1;
@@ -546,8 +548,8 @@ test('desperate execute uses the 35% boundary and clear branch uses 220px', () =
     const edge = makeEnemyBullet(center.x + 220, center.y);
     const far = makeEnemyBullet(center.x + 221, center.y);
     for (let shot = 1; shot <= 10; shot++) Game.onDirectShotBatch(batch(shot, 'enemy', enemy.entityId));
-    assert.equal(enemy.health, 33);
-    assert.equal(Game.buildState.visualFeedbackEvents.at(-1).damageLabel, '2D');
+    assert.equal(enemy.health, 25);
+    assert.equal(Game.buildState.visualFeedbackEvents.at(-1).damageLabel, '10D');
     assert.equal(Game.buildState.visualFeedbackEvents.at(-1).clear, true);
     assert.equal(Game.objectPools.enemyBullets.active.includes(near), false);
     assert.equal(Game.objectPools.enemyBullets.active.includes(edge), false);
@@ -559,7 +561,7 @@ test('desperate execute uses the 35% boundary and clear branch uses 220px', () =
     const executeEnemy = makeEnemy(100);
     executeEnemy.health = 35;
     for (let shot = 1; shot <= 10; shot++) Game.onDirectShotBatch(batch(shot, 'enemy', executeEnemy.entityId));
-    assert.equal(executeEnemy.health, 32);
+    assert.equal(executeEnemy.health, 20);
 });
 
 test('desperate and hunter precision hits always enqueue their damage labels independently of clear/capstone branches', () => {
@@ -573,7 +575,7 @@ test('desperate and hunter precision hits always enqueue their damage labels ind
         x: 15,
         y: 15,
         impact: true,
-        damageLabel: '2D',
+        damageLabel: '10D',
         clear: false,
         until: 400,
     });
@@ -584,7 +586,7 @@ test('desperate and hunter precision hits always enqueue their damage labels ind
     const executeEnemy = makeEnemy(100);
     executeEnemy.health = 35;
     for (let shot = 1; shot <= 10; shot++) Game.onDirectShotBatch(batch(shot, 'enemy', executeEnemy.entityId));
-    assert.equal(Game.buildState.visualFeedbackEvents.at(-1).damageLabel, '3D');
+    assert.equal(Game.buildState.visualFeedbackEvents.at(-1).damageLabel, '15D');
     assert.equal(Game.buildState.visualFeedbackEvents.at(-1).clear, false);
 
     Game.resetBuildState();
@@ -594,7 +596,7 @@ test('desperate and hunter precision hits always enqueue their damage labels ind
     assert.equal(Game.buildState.visualFeedbackEvents.at(-1).kind, 'hunter');
     assert.equal(Game.buildState.visualFeedbackEvents.at(-1).impact, true);
     assert.equal(Game.buildState.visualFeedbackEvents.at(-1).flash, true);
-    assert.equal(Game.buildState.visualFeedbackEvents.at(-1).damageLabel, '2D');
+    assert.equal(Game.buildState.visualFeedbackEvents.at(-1).damageLabel, '20D');
     assert.equal(Game.buildState.visualFeedbackEvents.at(-1).clear, false);
 });
 
@@ -619,21 +621,21 @@ test('desperate capstone heals once per Boss cycle after eight direct kills', ()
     assert.equal(Game.lives, 1);
 });
 
-test('hunter supports 2D/3D, remembers a target for 3000ms, and bonus does not recurse', () => {
+test('hunter supports 20D/40D, remembers a target for 5000ms, and bonus does not recurse', () => {
     resetCombat();
     applyBuild('hunter_entry', 'hunter_lock');
     const enemy = makeEnemy(100);
     for (let shot = 1; shot <= 9; shot++) Game.onDirectShotBatch(batch(shot, 'enemy', enemy.entityId));
     Game.updateBuildEffects(2999);
     Game.onDirectShotBatch(batch(10, 'enemy', enemy.entityId));
-    assert.equal(enemy.health, 98);
-    assert.equal(Game.buildState.metrics.hunterPrecisionDamage, 2);
+    assert.equal(enemy.health, 80);
+    assert.equal(Game.buildState.metrics.hunterPrecisionDamage, 20);
 
     for (let shot = 11; shot <= 19; shot++) Game.onDirectShotBatch(batch(shot, 'enemy', enemy.entityId));
     enemy.health = 35;
     Game.onDirectShotBatch(batch(20, 'enemy', enemy.entityId));
-    assert.equal(enemy.health, 32);
-    Game.updateBuildEffects(3000);
+    assert.equal(enemy.health, 15);
+    Game.updateBuildEffects(5000);
     assert.equal(Game.buildState.locks.hunterTargetId, null);
     assert.equal(Game.buildState.locks.hunterHits, 0);
 
@@ -642,7 +644,7 @@ test('hunter supports 2D/3D, remembers a target for 3000ms, and bonus does not r
     const executeEnemy = makeEnemy(100);
     executeEnemy.health = 35;
     for (let shot = 1; shot <= 10; shot++) Game.onDirectShotBatch(batch(shot, 'enemy', executeEnemy.entityId));
-    assert.equal(executeEnemy.health, 32);
+    assert.equal(executeEnemy.health, -5);
 });
 
 test('hunter switching targets starts the lock count on the new target', () => {
@@ -717,7 +719,7 @@ test('hunter Boss capstone opens a 2s window, clears 200px with 6s cooldown, and
     const edge = makeEnemyBullet(215, 15);
     const far = makeEnemyBullet(216, 15);
     for (let shot = 1; shot <= 10; shot++) Game.onDirectShotBatch(batch(shot, 'boss', Game.boss.entityId));
-    assert.equal(Game.boss.health, 98);
+    assert.equal(Game.boss.health, 80);
     assert.equal(Game.buildState.timers.hunterWindow, 2000);
     assert.equal(nearbyEnemy.health, 10);
     assert.equal(Game.objectPools.enemyBullets.active.includes(near), false);
@@ -727,19 +729,19 @@ test('hunter Boss capstone opens a 2s window, clears 200px with 6s cooldown, and
 
     const healthBefore = nearbyEnemy.health;
     Game.onDirectShotBatch(batch(11, 'boss', Game.boss.entityId));
-    assert.equal(Game.boss.health, 96);
+    assert.equal(Game.boss.health, 78);
     assert.equal(nearbyEnemy.health, healthBefore);
     assert.equal(Game.buildState.timers.hunterWindow, 0);
 });
 
 test('hunter memory, Boss window, and clear cooldown use exact -1/0/+1ms boundaries', () => {
-    for (const [elapsed, expectedLocked] of [[2999, true], [3000, false], [3001, false]]) {
+    for (const [elapsed, expectedLocked] of [[4999, true], [5000, false], [5001, false]]) {
         resetCombat();
         applyBuild('hunter_entry', 'hunter_lock');
         const enemy = makeEnemy(100);
         Game.onDirectShotBatch(batch(1, 'enemy', enemy.entityId));
         Game.updateBuildEffects(elapsed);
-        assert.equal(Game.buildState.locks.hunterTargetId === enemy.entityId, expectedLocked, `3s memory at ${elapsed}ms`);
+        assert.equal(Game.buildState.locks.hunterTargetId === enemy.entityId, expectedLocked, `5s memory at ${elapsed}ms`);
     }
 
     for (const [elapsed, expectedWindow] of [[1999, 1], [2000, 0], [2001, 0]]) {

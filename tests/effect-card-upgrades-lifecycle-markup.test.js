@@ -188,7 +188,7 @@ test('static card and route copy exposes v2.3 tradeoffs and compact HUD markup',
     for (const requiredText of [
         '敌人射速×0.65', '自身射速×0.80', '每20s回1命', 'Boss首次+16',
         '敌弹速度×0.80', '追踪弹永久失效', '200px', '220px', '250px', '260px', '300px',
-        '3000ms', '6000ms', '10000ms', '8秒',
+        '5000ms', '6000ms', '10000ms', '8秒',
     ]) {
         assert.equal(indexHtml.includes(requiredText), true, `v2.1 copy missing: ${requiredText}`);
     }

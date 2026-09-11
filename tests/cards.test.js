@@ -327,7 +327,9 @@ test('blitz, glass, boss, and thorns expose their positive effect and explicit c
     assert.equal(Game.getDamageFor('enemy'), 4 * CONFIG.cards.mobDamageMult);
 
     Game.activeCard = 'thorns';
-    assert.equal(Game.getEnemyBulletSpeed(), 4 * CONFIG.cards.thornsBulletSpeedMult);
+    assert.equal(Game.getEnemyBulletSpeed(), 4);
+    assert.equal(Game.getEnemyShotRate(), Game.enemyShotRate * CONFIG.cards.thornsEnemyShotMult);
+    assert.equal(Game.getBossShotDelay(), Game.boss.shotDelay / CONFIG.cards.thornsEnemyShotMult);
     assert.equal(CONFIG.cards.thornsRadius, 200);
     assert.equal(CONFIG.cards.thornsBossFrac, 0.1);
 });

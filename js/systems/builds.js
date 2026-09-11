@@ -26,9 +26,9 @@ const ROUTES = [
         line: 'desperate',
         cards: ['comeback', 'bloodlust'],
         builds: [
-            ['desperate_entry', 'entry', '背水蓄势', '低血时直接命中累计10次追加2D打击', []],
+            ['desperate_entry', 'entry', '背水蓄势', '低血时直接命中累计10次追加10D打击', []],
             ['desperate_clear', 'branch', '破围一击', '追加打击清除目标中心220px内敌弹', ['desperate_entry']],
-            ['desperate_execute', 'branch', '绝境追击', '低血目标追加打击由2D提升至3D', ['desperate_entry']],
+            ['desperate_execute', 'branch', '绝境追击', '追加打击由10D提升至15D，无视目标血量', ['desperate_entry']],
             ['desperate_capstone', 'capstone', '最后储备', '低血直接击杀累计8次尝试回复1命，每Boss周期1次', ['desperate_entry', ['desperate_clear', 'desperate_execute']]],
         ],
     },
@@ -47,8 +47,8 @@ const ROUTES = [
         cards: ['glass', 'boss'],
         builds: [
             ['hunter_entry', 'entry', '弱点标记', '同一目标连续命中10次后追加精准打击', []],
-            ['hunter_lock', 'branch', '稳定锁定', '锁定记忆窗口延长至3000ms', ['hunter_entry']],
-            ['hunter_execute', 'branch', '处决校准', '目标低血时精准打击造成更高伤害', ['hunter_entry']],
+            ['hunter_lock', 'branch', '稳定锁定', '锁定记忆窗口延长至5000ms', ['hunter_entry']],
+            ['hunter_execute', 'branch', '处决校准', '精准打击提升至40D，无视目标血量', ['hunter_entry']],
             ['hunter_capstone', 'capstone', '猎王窗口', 'Boss精准打击后2秒追加2D并清除目标200px敌弹', ['hunter_entry', ['hunter_lock', 'hunter_execute']]],
         ],
     },
@@ -172,6 +172,8 @@ Game.resetBuildState = function() {
         },
         locks: {
             fortressBarrier: false,
+            fortressBarrierLayers: 0,
+            fortressBarrierRemaining: 0,
             hunterTargetId: null,
             hunterHits: 0,
             desperateCycleHeal: false,
@@ -301,6 +303,15 @@ Game.applyBuildChoice = function(candidateId, replaceId) {
 
     if (hadDesperateCapstone && !this.buildState.owned.includes('desperate_capstone')) {
         this.buildState.counters.desperateKills = 0;
+    }
+    // Replacement can remove the fortress entry when it has no dependents.
+    // Its charge timer, derived compatibility flag, and numeric capacity are
+    // all run-local and must not leak into a later route acquisition.
+    if (!this.buildState.owned.some((id) => builds[id]?.line === 'fortress')) {
+        this.buildState.timers.fortressBarrier = 0;
+        this.buildState.locks.fortressBarrier = false;
+        this.buildState.locks.fortressBarrierLayers = 0;
+        this.buildState.locks.fortressBarrierRemaining = 0;
     }
     this.buildState.rewardCount += 1;
     return true;
@@ -666,6 +677,51 @@ Game.onEnemyKilled = function(killEvent = {}) {
     this.desperateOnKill(killEvent);
 };
 
+function fortressCapacity(layers) {
+    const count = Math.max(0, Math.min(CONFIG.builds.fortress.maxBarrierLayers, Math.floor(Number(layers) || 0)));
+    return count * (count + 1) / 2;
+}
+
+// Keep the old boolean as a derived compatibility flag. Numeric state is the
+// source of truth so a stale true flag can never block a bullet after all
+// barrier capacity has been consumed.
+Game.normalizeFortressBarrier = function() {
+    const locks = this.buildState?.locks;
+    if (!locks) return { layers: 0, remaining: 0 };
+    let layers = Math.max(0, Math.min(CONFIG.builds.fortress.maxBarrierLayers, Math.floor(Number(locks.fortressBarrierLayers) || 0)));
+    let remaining = Math.max(0, Math.floor(Number(locks.fortressBarrierRemaining) || 0));
+    // Tests and older callers may still arm the legacy boolean directly.
+    if (locks.fortressBarrier === true && remaining <= 0) {
+        layers = Math.max(layers, 1);
+        remaining = fortressCapacity(layers);
+    }
+    if (remaining <= 0) {
+        layers = 0;
+        remaining = 0;
+        locks.fortressBarrier = false;
+    } else {
+        locks.fortressBarrier = true;
+    }
+    locks.fortressBarrierLayers = layers;
+    locks.fortressBarrierRemaining = remaining;
+    return { layers, remaining };
+};
+
+Game.consumeFortressBarrier = function() {
+    const state = this.normalizeFortressBarrier?.();
+    if (!state || state.remaining <= 0) return false;
+    const locks = this.buildState.locks;
+    locks.fortressBarrierRemaining = state.remaining - 1;
+    if (locks.fortressBarrierRemaining <= 0) {
+        locks.fortressBarrierLayers = 0;
+        locks.fortressBarrierRemaining = 0;
+        locks.fortressBarrier = false;
+    } else {
+        locks.fortressBarrier = true;
+    }
+    return true;
+};
+
 // One actual life loss resets fortress charge; shields/barriers never reach
 // this hook. Core thorns remains owned by the combat module.
 Game.onActualPlayerDamage = function() {
@@ -677,6 +733,7 @@ Game.onActualPlayerDamage = function() {
 Game.onFortressBarrierConsumed = function() {
     const state = this.buildState;
     if (!state || !this.player) return;
+    this.normalizeFortressBarrier?.();
     const cfg = CONFIG.builds.fortress;
     const metrics = getBuildMetrics(state);
     addMetric(state, 'fortressBlocks');
@@ -975,8 +1032,7 @@ Game.hunterOnBatch = function(batch) {
     const target = this.resolveBuildTarget(targetState.targetType, targetState.entityId);
     if (!target) return;
     const cfg = CONFIG.builds.hunter;
-    const execute = target.health <= cfg.executeHealthRatio * target.maxHealth;
-    const multiplier = execute ? cfg.executeMult : cfg.strikeMult;
+    const multiplier = this.hasBuild('hunter_execute') ? cfg.executeMult : cfg.strikeMult;
     if (!this.triggerBonusStrike(targetState, multiplier, 'hunterPrecisionDamage')) return;
     addMetric(state, 'hunterPrecisionCount');
     const { x, y } = centerOf(target);
@@ -1029,8 +1085,7 @@ Game.desperateOnBatch = function(batch) {
     const target = this.resolveBuildTarget(hit.targetType, hit.entityId);
     if (!target) return;
     const cfg = CONFIG.builds.desperate;
-    const execute = this.hasBuild('desperate_execute') && target.health <= cfg.executeHealthRatio * target.maxHealth;
-    const multiplier = execute ? cfg.executeMult : cfg.strikeMult;
+    const multiplier = this.hasBuild('desperate_execute') ? cfg.executeMult : cfg.strikeMult;
     if (!this.triggerBonusStrike(hit, multiplier, 'desperateStrikeDamage')) return;
     addMetric(state, 'desperateStrikeCount');
     const { x, y } = centerOf(target);
@@ -1113,17 +1168,31 @@ Game.updateBuildEffects = function(deltaTime = 0) {
     }
 
     if (this.hasBuild('fortress_entry')) {
-        if (!state.locks.fortressBarrier) {
-            const chargeMs = this.hasBuild('fortress_regroup') ? cfg.fortress.regroupChargeMs : cfg.fortress.chargeMs;
+        const barrier = this.normalizeFortressBarrier();
+        const maxLayers = cfg.fortress.maxBarrierLayers;
+        const chargeMs = this.hasBuild('fortress_regroup') ? cfg.fortress.regroupChargeMs : cfg.fortress.chargeMs;
+        if (barrier.layers < maxLayers) {
             state.timers.fortressBarrier += dt;
-            if (state.timers.fortressBarrier >= chargeMs) {
-                state.timers.fortressBarrier = 0;
-                state.locks.fortressBarrier = true;
+            while (state.timers.fortressBarrier >= chargeMs && barrier.layers < maxLayers) {
+                state.timers.fortressBarrier -= chargeMs;
+                barrier.layers += 1;
+                // A newly earned layer adds its ordinal capacity without
+                // restoring charges already spent from the existing stack.
+                barrier.remaining = Math.min(
+                    fortressCapacity(barrier.layers),
+                    barrier.remaining + barrier.layers,
+                );
             }
+            state.locks.fortressBarrierLayers = barrier.layers;
+            state.locks.fortressBarrierRemaining = barrier.remaining;
+            state.locks.fortressBarrier = barrier.remaining > 0;
+            if (barrier.layers >= maxLayers) state.timers.fortressBarrier = 0;
         }
     } else {
         state.timers.fortressBarrier = 0;
         state.locks.fortressBarrier = false;
+        state.locks.fortressBarrierLayers = 0;
+        state.locks.fortressBarrierRemaining = 0;
     }
 
     if (this.hasBuild('supply_entry') && (state.timers.supplyPulse || 0) > 0) {
@@ -1151,9 +1220,18 @@ Game.getBuildHudStates = function() {
     }
     if (this.hasBuild('fortress_entry')) {
         const chargeMs = this.hasBuild('fortress_regroup') ? cfg.fortress.regroupChargeMs : cfg.fortress.chargeMs;
-        const barrier = Boolean(state.locks.fortressBarrier);
+        let barrierLayers = Math.max(0, Math.min(cfg.fortress.maxBarrierLayers, Math.floor(Number(state.locks.fortressBarrierLayers) || 0)));
+        let barrierRemaining = Math.max(0, Math.floor(Number(state.locks.fortressBarrierRemaining) || 0));
+        if (state.locks.fortressBarrier && barrierRemaining <= 0) {
+            barrierLayers = Math.max(1, barrierLayers);
+            barrierRemaining = fortressCapacity(barrierLayers);
+        }
+        const barrier = barrierRemaining > 0;
         const cooldown = this.hasBuild('fortress_capstone') && (state.timers.fortressClearCooldown || 0) > 0;
-        addRow({ key: 'fortress', line: 'fortress', label: '屏障', value: barrier ? '就绪' : `${((state.timers.fortressBarrier || 0) / 1000).toFixed(1)}s/${(chargeMs / 1000).toFixed(1)}s` }, barrier, !barrier && (state.timers.fortressBarrier || 0) > 0, cooldown);
+        const value = barrier
+            ? `${barrierLayers}层 ${barrierRemaining}/${fortressCapacity(barrierLayers)}`
+            : `${((state.timers.fortressBarrier || 0) / 1000).toFixed(1)}s/${(chargeMs / 1000).toFixed(1)}s`;
+        addRow({ key: 'fortress', line: 'fortress', label: '屏障', value }, barrier, !barrier && (state.timers.fortressBarrier || 0) > 0, cooldown);
     }
     if (this.hasBuild('desperate_entry')) {
         const active = this.isDesperateActive();
@@ -1257,15 +1335,24 @@ Game.getBuildHudStates = function() {
         }
     }
     if (this.hasBuild('fortress_entry')) {
-        const barrierReady = Boolean(state.locks.fortressBarrier);
+        let barrierLayers = Math.max(0, Math.min(cfg.fortress.maxBarrierLayers, Math.floor(Number(state.locks.fortressBarrierLayers) || 0)));
+        let barrierRemaining = Math.max(0, Math.floor(Number(state.locks.fortressBarrierRemaining) || 0));
+        if (state.locks.fortressBarrier && barrierRemaining <= 0) {
+            barrierLayers = Math.max(1, barrierLayers);
+            barrierRemaining = fortressCapacity(barrierLayers);
+        }
+        const barrierReady = barrierRemaining > 0;
         const chargeMs = this.hasBuild('fortress_regroup')
             ? cfg.fortress.regroupChargeMs : cfg.fortress.chargeMs;
         const charge = state.timers.fortressBarrier || 0;
+        const barrierValue = barrierReady
+            ? `${barrierLayers}层 ${barrierRemaining}/${fortressCapacity(barrierLayers)}`
+            : `${(charge / chargeMs * 100).toFixed(0)}%`;
         addRow({
             key: 'fortress',
             line: 'fortress',
             label: '屏障',
-            value: barrierReady ? '就绪' : `${(charge / chargeMs * 100).toFixed(0)}%`,
+            value: barrierValue,
             active: barrierReady,
         }, barrierReady, barrierReady || charge > 0);
     }

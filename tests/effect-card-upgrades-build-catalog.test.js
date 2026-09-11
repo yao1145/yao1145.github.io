@@ -63,7 +63,7 @@ test('v2.1 summaries describe the new thresholds and ranges', () => {
     for (const forbiddenText of ['12次', '45px', '70px', '90px', '110px', '150px', '多代传播']) {
         assert.equal(summaries.includes(forbiddenText), false, `legacy tuning remains: ${forbiddenText}`);
     }
-    for (const requiredText of ['8', '200px', '220px', '250px', '260px', '300px', '3000ms', '6秒']) {
+    for (const requiredText of ['8', '200px', '220px', '250px', '260px', '300px', '5000ms', '6秒']) {
         assert.equal(summaries.includes(requiredText), true, `v2.1 tuning is missing: ${requiredText}`);
     }
 });
@@ -112,6 +112,8 @@ test('resetBuildState initializes the v2.1 route state schema', () => {
     });
     assert.deepEqual(Game.buildState.locks, {
         fortressBarrier: false,
+        fortressBarrierLayers: 0,
+        fortressBarrierRemaining: 0,
         hunterTargetId: null,
         hunterHits: 0,
         desperateCycleHeal: false,

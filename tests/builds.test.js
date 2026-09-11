@@ -69,12 +69,12 @@ test('build catalog contains four stages for each route with exact tuning', () =
     assert.deepEqual(CONFIG.builds, {
         maxOwned: 6,
         offerCount: 3,
-        rapid: { hits: 8, decayMs: 2000, activeMs: 4000, strengthenEveryShots: 2, retainedHits: 4, basePierce: 1, widePierce: 2, primaryDamageBonus: 1, bossHitsForExtension: 6, extensionMs: 400, maxExtensionMs: 2000, maxActiveMs: 6000 },
-        fortress: { chargeMs: 15000, regroupChargeMs: 12000, echoRadius: 200, echoDamage: 2, clearRadius: 250, clearCooldownMs: 10000 },
-        desperate: { hits: 10, strikeMult: 2, executeMult: 3, executeHealthRatio: 0.35, clearRadius: 220, killsForHeal: 8, healsPerBossCycle: 1 },
+        rapid: { hits: 8, decayMs: 2000, activeMs: 4000, strengthenEveryShots: 2, retainedHits: 4, basePierce: 1, widePierce: 2, primaryDamageBonus: 1, bossHitsForExtension: 6, extensionMs: 400, maxExtensionMs: 2000, maxActiveMs: 6000, warmupShotSpeedMult: 2 },
+        fortress: { chargeMs: 15000, regroupChargeMs: 12000, maxBarrierLayers: 3, echoRadius: 200, echoDamage: 2, clearRadius: 250, clearCooldownMs: 10000 },
+        desperate: { hits: 10, strikeMult: 10, executeMult: 15, clearRadius: 220, killsForHeal: 8, healsPerBossCycle: 1 },
         chain: { baseRadius: 200, baseDamage: 1, wideRadius: 260, spreadRadius: 220, spreadDamage: 0.5, maxGeneration: 1, capstoneKills: 3, capstoneRadius: 300 },
-        hunter: { hits: 10, resetMs: 1200, strikeMult: 2, executeMult: 3, executeHealthRatio: 0.35, windowMs: 2000, windowMult: 2, lockMemoryMs: 3000, clearRadius: 200, clearCooldownMs: 6000, hitStopMs: 150 },
-        supply: { pickups: 3, pulseMs: 4000, longPulseMs: 6000, maxPulseMs: 8000, pulseDamageBonus: 1, magnetRadius: 200, magnetSpeed: 0.75, fullHeartProgress: 2 },
+        hunter: { hits: 10, resetMs: 1200, strikeMult: 20, executeMult: 40, windowMs: 2000, windowMult: 2, lockMemoryMs: 5000, clearRadius: 200, clearCooldownMs: 6000, hitStopMs: 150 },
+        supply: { pickups: 3, pulseMs: 4000, longPulseMs: 6000, maxPulseMs: 8000, pulseShotSpeedMult: 1.5, pulseDamageBonus: 1, magnetRadius: 200, magnetSpeed: 0.75, fullHeartProgress: 2 },
     });
 });
 
@@ -274,6 +274,8 @@ test('resetBuildState clears run state without resetting entity identity', () =>
     });
     assert.deepEqual(Game.buildState.locks, {
         fortressBarrier: false,
+        fortressBarrierLayers: 0,
+        fortressBarrierRemaining: 0,
         hunterTargetId: null,
         hunterHits: 0,
         desperateCycleHeal: false,
@@ -383,6 +385,8 @@ test('resetBuildState clears card history and all run-local contribution state',
     });
     assert.deepEqual(Game.buildState.locks, {
         fortressBarrier: false,
+        fortressBarrierLayers: 0,
+        fortressBarrierRemaining: 0,
         hunterTargetId: null,
         hunterHits: 0,
         desperateCycleHeal: false,
@@ -561,8 +565,8 @@ test('all six routes emit serializable trigger, damage, clear, heal, pickup, and
                 events: [{ shotId, targetType: 'enemy', entityId: target.entityId, baseDamage: 1 }],
             });
         }
-        assert.equal(Game.buildState.metrics.hunterPrecisionDamage, 2);
-        assert.equal(Game.buildState.metrics.desperateStrikeDamage, 2);
+        assert.equal(Game.buildState.metrics.hunterPrecisionDamage, 20);
+        assert.equal(Game.buildState.metrics.desperateStrikeDamage, 10);
         assert.equal(Game.buildState.metrics.hunterBulletClears, 3);
         assert.equal(Game.buildState.metrics.desperateBulletClears, 3);
 
@@ -592,8 +596,8 @@ test('all six routes emit serializable trigger, damage, clear, heal, pickup, and
         assert.equal(summary.contributions.rapidActivations, 1);
         assert.equal(summary.contributions.fortressBlocks, 1);
         assert.equal(summary.contributions.chainKills, 3);
-        assert.equal(summary.contributions.hunterPrecisionDamage, 2);
-        assert.equal(summary.contributions.desperateStrikeDamage, 2);
+        assert.equal(summary.contributions.hunterPrecisionDamage, 20);
+        assert.equal(summary.contributions.desperateStrikeDamage, 10);
         assert.equal(summary.contributions.effectiveHealing, 1);
         assert.equal(summary.contributions.supplyNaturalPickups, 4);
         assert.equal(summary.contributions.supplyMagnetPickups, 1);

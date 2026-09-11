@@ -121,7 +121,7 @@ test('desperate uses floored low-health contract, target-centred clear, and pres
         return 2;
     };
     for (let shotId = 1; shotId <= 10; shotId++) Game.onDirectShotBatch(batch(shotId, enemy.entityId, 'enemy', 2));
-    assert.equal(Game.buildState.metrics.desperateStrikeDamage, 6);
+    assert.equal(Game.buildState.metrics.desperateStrikeDamage, 30);
     assert.deepEqual(clears[0], { x: 310, y: 310, radius: 220 });
     assert.equal(Game.buildState.visualFeedbackEvents.some((event) => event.kind === 'desperate' && event.radius === CONFIG.builds.desperate.clearRadius), true);
 
@@ -395,7 +395,7 @@ test('explosion deaths never re-seed a chain and source defaults to the owned ro
     assert.equal(Game.buildState.counters.chainBlasts, 1);
 });
 
-test('hunter has 3s lock memory, independent clear cooldown, hit-stop, and Boss window', () => {
+test('hunter has 5s lock memory, independent clear cooldown, hit-stop, and Boss window', () => {
     resetRuntime(['hunter_entry', 'hunter_lock', 'hunter_capstone']);
     const enemy = { entityId: 1, x: 0, y: 0, width: 20, height: 20, health: 100, maxHealth: 100, _dead: false };
     const boss = { entityId: 2, x: 0, y: 0, width: 30, height: 30, health: 100, maxHealth: 100, _dead: false };
@@ -406,7 +406,7 @@ test('hunter has 3s lock memory, independent clear cooldown, hit-stop, and Boss 
     Game.requestVisualHitStop = (ms) => { if (ms === 150) hitStops++; };
     Game.clearEnemyBulletsInRadius = (_x, _y, radius) => { assert.equal(radius, 200); clears++; return 1; };
     for (let shotId = 1; shotId <= 10; shotId++) Game.onDirectShotBatch(batch(shotId, boss.entityId, 'boss', 2));
-    assert.equal(Game.buildState.metrics.hunterPrecisionDamage, 4);
+    assert.equal(Game.buildState.metrics.hunterPrecisionDamage, 40);
     assert.equal(Game.buildState.timers.hunterWindow, 2000);
     assert.equal(hitStops, 1);
     assert.equal(clears, 1);
