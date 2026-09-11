@@ -1,8 +1,10 @@
-/example
 /others
 /.codex
 /.superpowers
+/.claude
+/tests
+/docs
 
 CLAUDE.md
 AGENTS.md
-/docs
+
