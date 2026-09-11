@@ -56,7 +56,7 @@
                     <button id="easyModeButton" class="difficultyButton" type="button">简单模式</button>
                     <button id="hardModeButton" class="difficultyButton selected" type="button">困难模式</button>
                 </div>
-                <div class="uiText" id="loadStatus">资源加载中 0/13…</div>
+                <div class="uiText" id="loadStatus">资源加载中 0/9…</div>
                 <button id="startButton" class="uiButton" disabled>加载中…</button>
                 <button id="retryLoadButton" class="uiButton" style="display: none;">重试加载</button>
                 <button id="achievementsButton" class="uiButton uiButtonSecondary">成就</button>
@@ -124,7 +124,7 @@
                     </button>
                     <button type="button" class="effectCard" data-card="thorns">
                         <span class="cardName">荆棘护甲</span>
-                        <span class="cardDesc">受伤反击并削 Boss，敌弹更快</span>
+                        <span class="cardDesc">受伤反击并削 Boss，敌机攻速+50%（Boss同样）</span>
                         <span class="cardBadge">当前效果</span>
                     </button>
                     <button type="button" class="effectCard" data-card="supply">
@@ -223,13 +223,13 @@
                     </section>
                     <section class="introSection">
                         <div class="introH">敌机与 Boss（按校徽）</div>
-                        <p class="introP">敌机按类型对应 1~2 所高校，出场时随机披上其中一枚校徽；Boss 则由固定的三枚校徽镇守。</p>
+                        <p class="introP">五种敌机分别固定使用一枚非 Boss 校徽；Boss 则由固定的三枚校徽镇守。</p>
                         <ul class="introList">
-                            <li><span class="sw" style="background:#f00"></span>红 · <b>南开大学 / 武汉大学</b> —— 近身自爆并放射弹幕。</li>
-                            <li><span class="sw" style="background:#00f"></span>蓝 · <b>复旦大学 / 西安交通大学</b> —— 高速直线弹。</li>
-                            <li><span class="sw" style="background:#a0f"></span>紫 · <b>中国人民大学 / 华中科技大学</b> —— 2 点生命，直线弹。</li>
-                            <li><span class="sw" style="background:#ff0"></span>黄 · <b>中国科学技术大学 / 哈尔滨工业大学</b> —— 发射追踪弹。</li>
-                            <li><span class="sw" style="background:#0af"></span>青 · <b>中国科学院大学</b> —— 环形散射。</li>
+                            <li><span class="sw" style="background:#f00"></span>红 · <b>南开大学</b> —— 近身自爆并放射弹幕。</li>
+                            <li><span class="sw" style="background:#00f"></span>蓝 · <b>复旦大学</b> —— 高速直线弹。</li>
+                            <li><span class="sw" style="background:#a0f"></span>紫 · <b>西安交通大学</b> —— 2 点生命，直线弹。</li>
+                            <li><span class="sw" style="background:#ff0"></span>黄 · <b>中国科学技术大学</b> —— 发射追踪弹。</li>
+                            <li><span class="sw" style="background:#0af"></span>青 · <b>哈尔滨工业大学</b> —— 环形散射。</li>
                             <li>Boss：<b>火焰 · 清华大学</b> / <b>冰霜 · 浙江大学</b> / <b>毒液 · 上海交通大学</b>，血量越低弹幕越凶（&gt;70% / &gt;30% / 更低）。</li>
                         </ul>
                     </section>
@@ -256,7 +256,7 @@
                             <li>连环爆炸 —— 普通唯一击杀产生 200px、1.0 伤害爆炸；敌人生成率 ×1.30，爆炸不伤 Boss。</li>
                             <li>玻璃大炮 —— 伤害 ×2、射速 ×1.5；最大生命锁 1，禁止回血。</li>
                             <li>Boss猎手 —— 对 Boss 伤害 ×3、普通敌人伤害 ×0.5；射速与敌人属性不变。</li>
-                            <li>荆棘护甲 —— 实际受伤时处置玩家 200px 内普通敌人，Boss 损失最大生命 10%；敌弹速度 ×2。</li>
+                            <li>荆棘护甲 —— 实际受伤时处置玩家 200px 内普通敌人，Boss 损失最大生命 10%；敌机攻速+50%（Boss同样）。</li>
                             <li>粮草先行 —— 自然道具生成率 ×1.5；普通敌人与 Boss 射速 ×1.5。</li>
                             <li>战争迷雾 —— 追踪弹永久失效、敌弹速度 ×0.80；顶部 35% 雾区与 40px 渐变遮挡视野。</li>
                             <li>增益加强 —— 红心回复 2 命，伤害道具 15s、护盾道具 10s；敌弹每次扣 2 命。</li>
@@ -264,12 +264,12 @@
                         <div class="introH">本局强化路线</div>
                         <p class="introP">强化只在本局内保留，换核心卡不会清除；新开局会重置，不写入永久记录。共有 6 条路线，每条都是「入门 → 二选一分支 → 进阶」三阶段。两条分支互斥，不能同时拥有：</p>
                         <ul class="introList">
-                            <li><b>疾速压制</b>：8 个不同批次命中启动 4000ms 热机；每 2 批强化整批弹道，主弹额外 +1.0 并穿透 1 次，热机最长 6000ms。</li>
-                            <li><b>坚壁续航</b>：连续 15000ms 无伤获得屏障；分支缩短至 12000ms 或消耗时对 200px 内敌人造成 2.0 回响；进阶清除 250px 敌弹，冷却 10000ms。</li>
-                            <li><b>绝境反攻</b>：最大生命至少 3 且低血时，每 10 个不同批次命中追加 2D；分支清除目标中心 220px 敌弹或低血目标改为 3D；进阶低血直接击杀 8 次每 Boss 周期最多回 1 命。</li>
+                            <li><b>疾速压制</b>：8 个不同批次命中启动 4000ms 热机；热机状态下玩家攻速翻倍，每 2 批强化整批弹道，主弹额外 +1.0 并穿透 1 次，热机最长 6000ms。</li>
+                            <li><b>坚壁续航</b>：连续 15000ms 无伤获得屏障；屏障最多叠加 3 层，依次抵挡 1+2+3 发敌弹；分支缩短至 12000ms 或消耗时对 200px 内敌人造成 2.0 回响；进阶清除 250px 敌弹，冷却 10000ms。</li>
+                            <li><b>绝境反攻</b>：最大生命至少 3 且低血时，每 10 个不同批次命中追加 10D；分支清除目标中心 220px 敌弹或无论血量改为 15D；进阶低血直接击杀 8 次每 Boss 周期最多回 1 命。</li>
                             <li><b>连锁清场</b>：直接击杀播种 200px、1.0 爆炸；分支扩大至 260px 或传播一代 220px、0.5；同链 3 杀后清除 300px 敌弹且每链一次。</li>
-                            <li><b>破甲猎王</b>：同一目标 10 个不同批次命中触发 2D 精准打击；分支记忆窗口 3000ms 或低血改 3D；Boss 触发后 2000ms 内追加 2D，并清除 200px 敌弹（冷却 6000ms）。</li>
-                            <li><b>补给运营</b>：收集 3 个自然道具开启 4000ms 脉冲；分支牵引 200px 或延长至 6000ms；进阶脉冲硬上限 8000ms（8秒），满血红心贡献 2 点进度。</li>
+                            <li><b>破甲猎王</b>：同一目标 10 个不同批次命中触发 20D 精准打击；分支记忆窗口 5000ms 或无论血量改为 40D；Boss 触发后 2000ms 内追加 2D，并清除 200px 敌弹（冷却 6000ms）。</li>
+                            <li><b>补给运营</b>：收集 3 个自然道具开启 4000ms 脉冲；脉冲期间攻速+50%（玩家射速）；分支牵引 200px 或延长至 6000ms；进阶脉冲硬上限 8000ms（8秒），满血红心贡献 2 点进度。</li>
                         </ul>
                         <p class="introP">本局最多持有 6 项强化。满槽后只能从合法替换中选一项，替换必须保留已有前置与分支合法性；也可以跳过。本局强化 HUD 会在右上角显示最相关的两条路线及进度；普通暂停时，暂停面板会列出全部已获得强化。玻璃大炮将生命上限锁为 1，已获得的绝境反攻路线会进入休眠，暂停详情会提示这一点。</p>
                         <p class="introP">游戏结束摘要会记录本局核心卡轨迹、已持有强化与强化贡献：屏障阻挡次数、连锁击杀数、精准伤害和补给脉冲覆盖率等；这些是本局结算信息，不代表跨局永久强化。</p>

@@ -161,25 +161,29 @@
     text-shadow: 0 0 8px rgba(255, 190, 80, 0.5);
 }
 
-/* Active-card HUD chip, third in the top-right stack. JS writes the card glyph, the
-   tooltip and flips inline display '' / none, so the stylesheet's display:
-   flex is the visible state and the inline style hides it by default. */
+/* Active-card HUD label, third in the top-right stack. JS writes the card name,
+   tooltip and flips inline display '' / none, so the stylesheet's display:flex
+   is the visible state and the inline style hides it by default. */
 .cardIndicator {
     position: static;
     display: flex;
     align-items: center;
     justify-content: center;
-    flex: 0 0 24px;
-    width: 24px;
-    height: 24px;
+    flex: 0 0 auto;
+    width: max-content;
+    min-height: 24px;
+    padding: 4px 8px;
     box-sizing: border-box;
-    border-radius: 50%;
-    background: #fff;
-    box-shadow: 0 0 0 1px rgba(230, 57, 79, 0.7), 0 0 8px rgba(230, 57, 79, 0.45);
-    font-size: 13px;
+    border-radius: 4px;
+    border: 1px solid #e6394f;
+    background: rgba(0, 0, 0, 0.7);
+    box-shadow: 0 0 8px rgba(230, 57, 79, 0.45);
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
     font-weight: bold;
-    line-height: 1;
-    color: #10151b;
+    line-height: 1.2;
+    color: #e6394f;
+    white-space: nowrap;
     z-index: 15;
 }
 

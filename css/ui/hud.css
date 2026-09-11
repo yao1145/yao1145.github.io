@@ -37,7 +37,7 @@
 .statusStack > .cardEffectHud { order: 5; }
 .statusStack > .buildHud { order: 6; }
 
-.shieldIndicator, .attackIndicator {
+.shieldIndicator, .attackIndicator, .summonIndicator {
     position: static;
     background: rgba(0, 0, 0, 0.7);
     padding: 4px 8px;
@@ -46,8 +46,11 @@
     border-radius: 4px;
     font-size: 12px;
     display: none;
+    align-items: center;
+    justify-content: center;
     font-family: 'Courier New', monospace;
     white-space: nowrap;
+    line-height: 1.2;
 }
 
 .shieldIndicator {
@@ -63,18 +66,16 @@
 }
 
 .summonIndicator {
-    position: static;
-    background: rgba(0, 0, 0, 0.7);
-    padding: 4px 8px;
-    min-height: 24px;
-    box-sizing: border-box;
-    border-radius: 4px;
     border: 1px solid #a0f;
     color: #a0f;
-    font-size: 12px;
-    display: none;
-    font-family: 'Courier New', monospace;
-    white-space: nowrap;
+}
+
+/* Entity code uses inline `display: block` while a status is active. Keep
+   that state in the same flex-centered rectangle as the card and HUD rows. */
+.shieldIndicator[style*="display: block"],
+.attackIndicator[style*="display: block"],
+.summonIndicator[style*="display: block"] {
+    display: flex !important;
 }
 
 /* Card-effect meters sit above route progress so the two HUDs remain readable
