@@ -36,7 +36,9 @@
     header { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 28px 0; border-bottom: 1px solid var(--line); }
     .name { font-size: 20px; font-weight: 700; letter-spacing: -.5px; }
     .header-tools { display: flex; align-items: center; gap: 12px; }
-    .github { min-height: 44px; display: inline-flex; align-items: center; font-size: 14px; text-underline-offset: 5px; }
+    .github { width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; }
+    .github:hover { color: var(--blue); background: var(--card); }
+    .github svg { width: 24px; height: 24px; fill: currentColor; }
     .language { display: flex; padding: 3px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
     .language button, .theme-toggle { min-width: 44px; min-height: 44px; border: 0; border-radius: 7px; color: var(--muted); background: transparent; font: inherit; font-size: 14px; cursor: pointer; touch-action: manipulation; }
     .language button[aria-pressed="true"] { background: var(--blue); color: var(--button-ink); font-weight: 600; }
@@ -92,7 +94,9 @@
           <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg>
           <span id="theme-label">深色</span>
         </button>
-        <a class="github" href="https://github.com/yao1145">GitHub</a>
+        <a class="github" href="https://github.com/yao1145" aria-label="GitHub" title="GitHub">
+          <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.65 7.65 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+        </a>
       </div>
     </header>
     <main>
