@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="yao1145 的小游戏：PKUfighter 与十步万度。选一款，开始玩。">
+  <meta name="description" content="yao1145 的小游戏：PKUfighter、十步万度与 Cube。选一款，开始玩。">
   <title>yao1145 的小游戏</title>
   <link rel="icon" type="image/svg+xml" sizes="any" href="icons/favicon.svg">
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
@@ -24,7 +24,7 @@
     main { padding: 64px 0 56px; }
     h1 { margin: 0; font-size: clamp(34px, 5vw, 54px); letter-spacing: -1.5px; line-height: 1.25; }
     .intro { margin: 18px 0 36px; color: var(--muted); font-size: 17px; line-height: 1.8; }
-    .games { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    .games { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
     .game { display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: #fff; text-decoration: none; }
     .game:hover { border-color: var(--blue); }
     .preview { height: 232px; display: grid; place-items: center; overflow: hidden; }
@@ -32,6 +32,8 @@
     .badge { width: 82px; height: 82px; padding: 9px; border-radius: 50%; background: #fff; z-index: 1; }
     .shots { position: absolute; width: 5px; height: 24px; top: 26px; background: #86c9ff; border-radius: 4px; box-shadow: -18px 13px #86c9ff, 18px 13px #86c9ff; }
     .clocks { background: #e4eef1; }
+    .cube { background: #e4edff; }
+    .cube svg { width: 230px; height: 200px; }
     .dial-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
     .dial { width: 30px; height: 30px; border: 1px solid #6d8895; border-radius: 50%; position: relative; }
     .dial::before { content: ""; position: absolute; left: 13px; top: 4px; width: 2px; height: 11px; background: #183451; transform-origin: 1px 10px; }
@@ -46,6 +48,7 @@
     .description { font-size: 15px; line-height: 1.8; color: var(--muted); margin: 0 0 24px; flex: 1; }
     .play { align-self: flex-start; background: var(--blue); color: #fff; border-radius: 7px; padding: 11px 20px; font-size: 14px; font-weight: 600; }
     footer { border-top: 1px solid var(--line); padding: 22px 0 30px; font-size: 13px; color: var(--muted); }
+    @media (min-width: 641px) and (max-width: 900px) { .games { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
     @media (max-width: 640px) { .page { width: calc(100% - 32px); } header { padding: 22px 0; } main { padding: 36px 0; } .intro { font-size: 15px; margin-bottom: 26px; } .games { grid-template-columns: 1fr; gap: 20px; } .preview { height: 200px; } .copy { padding: 22px; } }
   </style>
 </head>
@@ -54,7 +57,7 @@
     <header><span class="name">yao1145</span><a class="github" href="https://github.com/yao1145">GitHub</a></header>
     <main>
       <h1>选一款，开始玩。</h1>
-      <p class="intro">一场弹幕挑战，一道连锁谜题。欢迎来到我的小游戏主页。</p>
+      <p class="intro">躲弹幕、拨指针、滚方块。欢迎来到我的小游戏主页。</p>
       <nav class="games" aria-label="选择游戏">
         <a class="game" href="/pkufighter/" aria-labelledby="fighter-title">
           <div class="preview fighter" aria-hidden="true"><span class="shots"></span><img class="badge" src="pkufighter/校徽/北京大学-logo.svg" alt=""></div>
@@ -69,6 +72,17 @@
             <span class="dial"></span><span class="dial"></span><span class="dial"></span><span class="dial"></span><span class="dial"></span>
           </div></div>
           <div class="copy"><h2 id="clocks-title">十步万度</h2><p class="description">拨动 25 枚指针，让旋转接力。挑战 1–12 步的最优角度，收集十二颗满分星星。</p><span class="play">拨动指针</span></div>
+        </a>
+        <a class="game" href="/cube/" aria-labelledby="cube-title">
+          <div class="preview cube" aria-hidden="true"><svg viewBox="0 0 230 200" fill="none">
+            <g transform="translate(32 28)">
+              <path d="M0 0h164v164H0Z" fill="white"/>
+              <path d="M41 0h41v41H41ZM123 0h41v41h-41ZM0 82h123v41H0ZM0 123h41v41H0Z" fill="#245ad6"/>
+              <path d="M0 0h164v164H0ZM41 0v164M82 0v164M123 0v164M0 41h164M0 82h164M0 123h164" stroke="#355981" stroke-width="1"/>
+            </g>
+            <path d="M102 57h41v41h-41Z" fill="white" stroke="#355981"/><path d="m143 57 13 12v41l-13-12Z" fill="#f7f9fc" stroke="#355981"/><path d="M102 98h41l13 12h-42Z" fill="#eef3f8" stroke="#355981"/>
+          </svg></div>
+          <div class="copy"><h2 id="cube-title">Cube</h2><p class="description">在 4×4 棋盘滚动立方体，让六面全蓝。每关只有最少步数，用完还未完成即失败。</p><span class="play">挑战最短路线</span></div>
         </a>
       </nav>
     </main>

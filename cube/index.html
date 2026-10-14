@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="在 4×4 棋盘滚动立方体，把六个面都变蓝。每关只有理论最少步数，用完还未完成即失败。">
+<meta name="theme-color" content="#edf3f9"><title>Cube · 最少步数挑战</title>
+<link rel="icon" href="../icons/favicon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<style>
+:root{color-scheme:light;--paper:#edf3f9;--ink:#183451;--muted:#50677d;--blue:#245ad6;--blue-dark:#1745a4;--line:#bdcddd;--white:#fff;--red:#a63732;--green:#1b6a55;--cell:#d9e4ed}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font-family:"Segoe UI","Microsoft YaHei","PingFang SC",sans-serif}button,select{font:inherit}button,a,summary{touch-action:manipulation}button{cursor:pointer}button:disabled{cursor:default;opacity:.48}button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid var(--blue);outline-offset:4px}a{color:inherit;text-underline-offset:4px}.app{max-width:1100px;margin:auto;padding:24px 28px 36px}.masthead{display:flex;align-items:center;justify-content:flex-end;gap:16px;padding-bottom:18px;border-bottom:1px solid var(--line);font-size:14px}.edition{color:var(--muted)}.intro{display:flex;align-items:end;gap:32px;justify-content:space-between;margin:32px 0 26px}h1{font-size:clamp(46px,7vw,72px);letter-spacing:-3px;line-height:1;margin:0;font-weight:800}.intro p{margin:0;line-height:1.8;font-size:16px;color:var(--muted)}.intro strong{color:var(--ink)}
+.layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(280px,1fr);gap:32px}.play-area{min-width:0}.board-panel{background:#f9fcff;border:1px solid var(--line);border-radius:14px;padding:22px 26px 20px;box-shadow:0 5px 0 #d9e4ed}.board-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:22px;font-size:14px}.board-head b{font-weight:600}.board-head span{color:var(--muted);font-size:13px}.board{display:grid;gap:10px;position:relative;isolation:isolate;max-width:490px;margin:auto}.tile{aspect-ratio:1;position:relative;border:1px solid #a9bed1;border-radius:8px;background:var(--cell);color:#294658;padding:0;min-width:0;box-shadow:0 3px 0 #b7c9d8;transition:background .18s,box-shadow .18s;display:grid;place-items:center}.tile.blue{background:var(--blue);border-color:#144193;color:white;box-shadow:0 3px 0 #1745a4}.tile.blue:before{content:"";width:15%;aspect-ratio:1;background:white;border-radius:3px;transform:rotate(45deg);opacity:.85}.tile .coord{position:absolute;left:8px;bottom:5px;font-size:11px;opacity:.75}.tile.near:hover{outline:2px solid var(--ink);outline-offset:2px}.tile:disabled{opacity:1}.tile.near{cursor:pointer}.tile:not(.near){cursor:default}.legend{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:var(--muted);margin-top:24px;line-height:1.6}.legend span{display:flex;gap:7px;align-items:center}.diamond{width:9px;height:9px;transform:rotate(45deg);background:var(--blue);display:inline-block;flex-shrink:0}
+.cube-anchor{position:absolute;pointer-events:none;z-index:3}.cube-anchor svg{position:absolute;left:-35%;top:-35%;width:135%;height:135%;overflow:visible}.cube-face{stroke:#183451;stroke-width:1;stroke-linejoin:round}
+.net-face svg{width:100%;height:100%;display:block}.net-face.blue:after{display:none}
+.display-options{display:flex;flex-wrap:wrap;gap:4px 12px;margin-bottom:12px;font-size:13px}.display-options label{display:flex;align-items:center;gap:8px;min-height:44px;cursor:pointer}.display-options input{width:18px;height:18px;accent-color:var(--blue);cursor:pointer;margin:0}.display-options input:focus-visible{outline:3px solid var(--blue);outline-offset:3px}.net-controls{justify-content:center}.net-controls.with-net{justify-content:space-between}.net-view{min-width:0}
+.board-help{font-size:13px;line-height:1.7;color:var(--muted);margin:16px 0 0}.stats{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding-bottom:20px;border-bottom:1px solid var(--line)}.stat span{font-size:14px;color:var(--muted);display:block}.stat b{font-size:46px;line-height:1.25;font-weight:750;font-variant-numeric:tabular-nums;letter-spacing:-1px}.stat small{font-size:14px;margin-left:5px;font-weight:400}.budget{font-size:13px;color:var(--muted);grid-column:1/-1;display:flex;justify-content:space-between;gap:12px}.track{display:flex;gap:5px;margin-top:5px;grid-column:1/-1}.track i{height:5px;flex:1;background:#c3d3e2;border-radius:2px}.track i.used{background:var(--blue)}.track i.exhausted{background:var(--red)}.message{margin:18px 0 16px;min-height:78px;line-height:1.7}.message h2{font-size:20px;margin:0 0 4px}.message p{font-size:14px;color:var(--muted);margin:0}.message.lost h2{color:var(--red)}.message.won h2{color:var(--green)}.tools{display:flex;gap:9px;flex-wrap:wrap}.btn{min-height:44px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink);padding:10px 14px;font-size:14px;font-weight:600}.btn:hover:not(:disabled){background:#e1ebf7;border-color:#93aaca}.btn.primary{background:var(--blue);color:white;border-color:var(--blue)}.btn.primary:hover:not(:disabled){background:var(--blue-dark)}.next{margin-top:10px;width:100%}[hidden]{display:none!important}.assist{font-size:12px;color:var(--muted);margin:10px 0 0;line-height:1.6;min-height:20px}.orientation{margin-top:24px;padding-top:20px;border-top:1px solid var(--line)}.orientation h2{font-size:14px;margin:0 0 14px;font-weight:600;display:flex;justify-content:space-between}.orientation h2 span{color:var(--muted);font-weight:400}.net-controls{display:flex;align-items:center;justify-content:space-between;gap:16px}.net{display:grid;grid-template-columns:repeat(4,38px);grid-template-rows:repeat(3,38px);gap:4px}.net-face{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;border:1px solid #9eb4c8;background:var(--cell);border-radius:5px;font-size:11px;color:#294658}.net-face.blue{background:var(--blue);border-color:#144193;color:white}.net-face:nth-child(1){grid-area:1/2}.net-face:nth-child(2){grid-area:3/2}.net-face:nth-child(3){grid-area:2/4}.net-face:nth-child(4){grid-area:2/2}.net-face:nth-child(5){grid-area:2/1}.net-face:nth-child(6){grid-area:2/3}.dpad{display:grid;grid-template:repeat(3,44px)/repeat(3,44px);gap:5px}.dpad button{padding:0;font-size:23px;font-weight:500;display:grid;place-items:center}.dpad button[data-dir="0"]{grid-area:1/2}.dpad button[data-dir="1"]{grid-area:2/3}.dpad button[data-dir="2"]{grid-area:3/2}.dpad button[data-dir="3"]{grid-area:2/1}.dpad .center{grid-area:2/2;display:grid;place-items:center;color:#6787a4;font-size:12px}.sequence{border-top:1px solid var(--line);margin-top:20px;padding-top:16px;color:var(--muted);font-size:13px}.sequence p{margin:6px 0 0;min-height:25px;color:var(--ink);font-size:18px;letter-spacing:4px;overflow-wrap:anywhere}
+.challenges{margin-top:32px;border-top:1px solid var(--line);padding-top:22px}.challenge-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:15px}.challenge-head h2{margin:0;font-size:17px}.challenge-head span{font-size:13px;color:var(--muted)}.levels{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:8px}.level{min-height:62px;border:1px solid var(--line);border-radius:7px;background:#f9fcff;color:var(--ink);padding:6px 0;display:flex;flex-direction:column;align-items:center;gap:4px;position:relative}.level b{font-size:16px}.level span{font-size:11px;color:var(--muted)}.level[aria-pressed="true"]{border:2px solid var(--blue);background:#e1ebff;padding:5px 0}.level.cleared:after{content:"✓";position:absolute;right:4px;top:2px;font-size:12px;color:var(--green);font-weight:700}.extra{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-top:16px}.extra>div{display:flex;gap:8px}.extra p{font-size:13px;margin:0;color:var(--muted);line-height:1.6}.storage-note{font-size:13px;color:var(--red);margin:12px 0 0}.rules{border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-top:28px}.rules summary{font-size:14px;font-weight:600;padding:17px 0;cursor:pointer;min-height:48px}.rule-body{display:grid;grid-template-columns:1fr 1fr;gap:32px;padding-bottom:20px;color:var(--muted);font-size:14px;line-height:1.8}.rule-body h3{font-size:14px;color:var(--ink);margin:0 0 8px}.rule-body p{margin:0 0 6px}.rule-body strong{color:var(--ink)}footer{display:flex;justify-content:space-between;gap:12px;padding-top:18px;font-size:12px;line-height:1.8;color:var(--muted)}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}.skip-link{position:absolute;top:8px;left:8px;transform:translateY(-160%);z-index:8;background:#fff;padding:12px}.skip-link:focus{transform:none}
+@media(max-width:850px){.app{max-width:650px;padding:20px}.intro{gap:20px}.intro p{font-size:14px}.layout{grid-template-columns:1fr;gap:22px}.side{display:grid;grid-template-columns:1fr 1fr;gap:0 22px}.stats,.message,.tools,.assist,.next{grid-column:1}.orientation{grid-column:2;grid-row:1/span 5;margin:0;padding:0;border:0}.net-controls{flex-direction:column;align-items:center}.sequence{grid-column:1/-1}.levels{grid-template-columns:repeat(6,minmax(0,1fr))}.extra{align-items:start}.message{min-height:85px}.board-panel{padding:20px 28px}.intro{margin:24px 0}.stat b{font-size:38px}.stats{gap:10px}.budget{font-size:12px}}
+@media(max-width:480px){.app{padding:16px 14px 24px;padding-top:max(16px,env(safe-area-inset-top));padding-bottom:max(24px,env(safe-area-inset-bottom))}.edition{font-size:12px}.masthead{padding-bottom:14px}.intro{display:block;margin:20px 0}h1{font-size:52px;letter-spacing:-2px}.intro p{margin-top:12px;font-size:14px;line-height:1.7}.intro p br{display:none}.board-panel{padding:17px 16px 15px}.board{gap:8px}.board-head{margin-bottom:20px}.board-head span{font-size:12px}.tile .coord{font-size:10px;left:5px;bottom:4px}.legend{font-size:11px;margin-top:18px}.board-help{font-size:12px}.side{grid-template-columns:minmax(0,1fr) minmax(140px,.85fr);gap:0 12px}.stat span{font-size:12px}.stat b{font-size:34px}.stat small{font-size:12px;margin-left:3px}.stats{padding-bottom:14px}.budget{display:block;font-size:12px}.budget span{display:block}.message h2{font-size:18px}.message p{font-size:13px}.tools{gap:6px}.tools .btn{padding:9px 10px;font-size:12px;flex:1;white-space:nowrap}.orientation h2{font-size:12px;gap:8px;flex-wrap:wrap;line-height:1.7;margin-bottom:8px}.net{grid-template-columns:repeat(4,30px);grid-template-rows:repeat(3,30px);gap:3px}.net-face{font-size:10px}.net-controls{gap:14px}.dpad{gap:4px;grid-template:repeat(3,44px)/repeat(3,44px)}.sequence{margin-top:16px}.challenges{margin-top:24px;padding-top:18px}.levels{gap:6px}.challenge-head h2{font-size:15px}.extra{display:block}.extra p{margin-top:10px}.extra>div .btn{flex:1}.rule-body{grid-template-columns:1fr;gap:14px}footer{display:block}footer span{display:block}}
+/* The cube stands on one whole cell, with its top lifted towards the upper left. */
+.board-panel{padding:24px 44px 20px}.board-head{margin-bottom:34px}.board{gap:0;border:1px solid #183451}.tile,.tile.blue{border:0;border-right:1px solid #183451;border-bottom:1px solid #183451;border-radius:0;box-shadow:none;transition:none}.tile{background:white}.tile.blue:before{display:none}.tile .coord{opacity:.6}.tile.near:hover{outline:2px solid var(--blue);outline-offset:-4px}.legend{margin-top:20px}
+.orientation .net-controls{justify-content:center}.orientation .net-controls.with-net{justify-content:space-between}
+@media(max-width:480px){.board-panel{padding:18px 24px 16px}.board-head{margin-bottom:27px}.board{gap:0}.legend{font-size:10px;gap:6px}.tile .coord{font-size:9px}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+</style></head>
+<body>
+<a href="#game" class="skip-link">跳到游戏</a>
+<main class="app">
+ <header class="masthead"><span class="edition">最少步数挑战</span></header>
+ <div class="intro"><h1>Cube</h1><p>滚动方块，把六个面都变蓝。<br><strong>只有最少步数，用完还未完成即失败。</strong></p></div>
+ <div class="layout" id="game">
+  <section class="play-area" aria-label="游戏棋盘">
+   <div class="board-panel"><div class="board-head"><b id="level-title">第 1 关 · 初识</b><span id="board-size">4 × 4 棋盘</span></div>
+    <div id="board" class="board" role="group" aria-label="点击立方体的相邻格移动"></div>
+    <div class="legend"><span><i class="diamond" aria-hidden="true"></i>蓝格与接触面交换颜色</span><span id="dice-legend" hidden>对面点数之和为 7</span></div>
+   </div>
+   <p class="board-help">点击相邻格，或用方向键 / WASD 移动。Z 撤销，R 重开。</p>
+  </section>
+  <section class="side" aria-label="步数与控制">
+   <div class="stats"><div class="stat"><span>剩余步数</span><b id="remaining">6</b><small>步</small></div><div class="stat"><span>蓝色面</span><b id="collected">0</b><small>/ 6</small></div><div class="budget"><span>最少 / 上限 <strong id="optimal">6</strong> 步</span><span>已走 <strong id="used">0</strong> 步</span></div><div class="track" id="track" aria-hidden="true"></div></div>
+   <div id="message" class="message" role="status" aria-live="polite" aria-atomic="true"><h2>每一步都算数</h2><p>把棋盘上的六块蓝色，收进立方体。</p></div>
+   <div class="tools"><button class="btn" id="undo" disabled>撤销</button><button class="btn" id="restart">重开</button></div>
+   <button class="btn primary next" id="next" hidden>下一关</button>
+   <p class="assist" id="analysis">正在计算当前局面的最短路线…</p>
+   <div class="orientation"><div class="display-options" role="group" aria-label="显示选项"><label><input id="show-net" type="checkbox" autocomplete="off">显示六面展开图</label><label><input id="show-pips" type="checkbox" autocomplete="off">显示骰子点数</label></div><div class="net-controls" id="net-controls"><section class="net-view" id="net-view" hidden aria-label="六面展开图"><h2>六面展开图 <span>随滚动实时更新</span></h2><div class="net" id="net" aria-label="骰子六面的当前颜色"></div></section><div class="dpad" aria-label="方向控制"><button class="btn" data-dir="0" aria-label="向上滚动">↑</button><button class="btn" data-dir="1" aria-label="向右滚动">→</button><button class="btn" data-dir="2" aria-label="向下滚动">↓</button><button class="btn" data-dir="3" aria-label="向左滚动">←</button><span class="center" aria-hidden="true">移动</span></div></div></div>
+   <div class="sequence">本次路线 <p id="sequence" aria-label="尚未移动">—</p></div>
+  </section>
+ </div>
+ <section class="challenges" aria-label="选择挑战"><div class="challenge-head"><h2>十二关，步步到位</h2><span id="progress">已通关 0 / 12</span></div><div id="levels" class="levels"></div><div class="extra"><div><button class="btn" id="daily">每日一局</button><button class="btn" id="random">随机挑战</button></div><p>所有关卡可直接挑战。通关记录保存在此浏览器。</p></div><p id="storage-note" class="storage-note" hidden></p></section>
+ <details class="rules"><summary>玩法与最少步数规则</summary><div class="rule-body"><div><h3>颜色会交换</h3><p>每次滚动一格，先翻转立方体，再交换<strong>与棋盘接触的一面和落点</strong>的颜色。</p><p>白面落到蓝格会拾取蓝色；蓝面落到白格会放下蓝色。两者同色时保持原色。起点不会触发交换。</p><p>棋盘始终为 <strong>4×4</strong>。六个面同时变蓝即完成。每局初始都有六个蓝格，立方体六面为白色。</p></div><div><h3>最短路线才通关</h3><p>每关上限等于从初始局面出发的<strong>理论最少步数</strong>。用完仍未完成即失败，之后不能继续移动。</p><p>此规则下，任意初始蓝格布局和白格起点都有解，最短解最多 <strong>17 步</strong>；每局仍使用自身的最少步数作为上限。</p><p>越界不计步。撤销会退回上一步并返还一步，也可从失败局面撤销。重开恢复本局初始棋盘。</p><p>每日棋盘以北京时间的日期生成。</p></div></div></details>
+ <footer><span>灵感与规则：<a href="https://www.chiark.greenend.org.uk/~sgtatham/puzzles/js/cube.html" target="_blank" rel="noopener">Simon Tatham 的 Cube</a></span><span>可离线游玩 · 每关最短解已验证</span></footer>
+</main>
+<script id="cube-engine">
+/* Face bits: top, bottom, north, south, west, east. Colours in world directions
+   fully describe the puzzle; individual uncoloured face identities are irrelevant. */
+var CubeEngine = (() => {
+  const permutations = [[3,2,0,1,4,5],[4,5,2,3,1,0],[2,3,1,0,4,5],[5,4,2,3,0,1]];
+  const rotations = permutations.map(p => Array.from({length:64}, (_,m) => p.reduce((r,old,i)=>r|((m>>old&1)<<i),0)));
+  const popcount = m => {let n=0;while(m){m&=m-1;n++;}return n;};
+  const key = (s,n) => (s.board*64+s.faces)*n+s.pos;
+  const decode = (k,n) => {const pos=k%n,mask=Math.floor(k/n);return {pos,faces:mask&63,board:mask>>>6};};
+  function neighbour(pos,d,w,h){
+    const x=pos%w+[0,1,0,-1][d],y=Math.floor(pos/w)+[-1,0,1,0][d];
+    return x<0||x>=w||y<0||y>=h?-1:y*w+x;
+  }
+  function exchange(s){
+    const bit=1<<s.pos;
+    return Boolean(s.board&bit)===Boolean(s.faces&2)?s:{...s,board:s.board^bit,faces:s.faces^2};
+  }
+  function move(s,d,w,h){
+    const pos=neighbour(s.pos,d,w,h);if(pos<0)return null;
+    return exchange({pos,board:s.board,faces:rotations[d][s.faces]});
+  }
+  // Inverse of a move: undo contact exchange BEFORE rolling back.
+  function previous(s,d,w,h){
+    const pos=neighbour(s.pos,(d+2)%4,w,h);if(pos<0)return null;
+    const t=exchange(s);return {pos,board:t.board,faces:rotations[(d+2)%4][t.faces]};
+  }
+  function play(s,d,w,h,budget){
+    if(s.status!=='playing')return s;
+    const t=move(s,d,w,h);if(!t)return s;
+    const used=s.used+1;
+    return {...t,used,status:t.faces===63?'won':used>=budget?'lost':'playing'};
+  }
+  const LEVELS = [{w:4,h:4,board:504,pos:2,optimal:6},{w:4,h:4,board:25740,pos:9,optimal:7},{w:4,h:4,board:59395,pos:4,optimal:8},{w:4,h:4,board:25140,pos:0,optimal:9},{w:4,h:4,board:29826,pos:11,optimal:10},{w:4,h:4,board:33490,pos:14,optimal:11},{w:4,h:4,board:58380,pos:6,optimal:12},{w:4,h:4,board:25733,pos:12,optimal:13},{w:4,h:4,board:20225,pos:12,optimal:14},{w:4,h:4,board:473,pos:15,optimal:15},{w:4,h:4,board:37901,pos:11,optimal:16},{w:4,h:4,board:45187,pos:2,optimal:17}];
+  const initial = l => ({board:l.board,faces:0,pos:l.pos});
+  const identityPose = () => [[1,0,0],[0,1,0],[0,0,1]];
+  const orient = (v,pose) => [0,1,2].map(i=>pose.reduce((sum,axis,j)=>sum+axis[i]*v[j],0));
+  const rollPose = (pose,d) => pose.map(([x,y,z])=>(d===0?[x,-z,y]:d===1?[z,y,-x]:d===2?[x,z,-y]:[-z,y,x]).map(v=>v||0));
+  function createSolver(){
+    const tables=new Map();
+    function table(w,h){
+      const id=`${w}x${h}`;
+      if(!tables.has(id))tables.set(id,build(w,h));
+      return tables.get(id);
+    }
+    async function build(w,h){
+      const n=w*h, distances=new Uint8Array((1<<(n+6))*n);
+      // At most n*C(n+6,6) colour-conserving states can be reached.
+      let combinations=1;for(let i=1;i<=6;i++)combinations=combinations*(n+i)/i;
+      const queue=new Uint32Array(Math.round(combinations)*n);
+      let head=0,tail=0;
+      for(let pos=0;pos<n;pos++){const k=63*n+pos;distances[k]=1;queue[tail++]=k;}
+      while(head<tail){
+        const end=Math.min(head+8192,tail);
+        while(head<end){
+          const k=queue[head++],s=decode(k,n),dist=distances[k];
+          for(let d=0;d<4;d++){
+            const t=previous(s,d,w,h);if(!t)continue;
+            const next=key(t,n);if(distances[next])continue;
+            distances[next]=dist+1;queue[tail++]=next;
+          }
+        }
+        // Yield in browsers, including the main-thread fallback.
+        await new Promise(resolve=>setTimeout(resolve,0));
+      }
+      return distances;
+    }
+    async function analyse(s,w,h){
+      const distances=await table(w,h),distance=distances[key(s,w*h)]-1;
+      let direction=null;
+      if(distance>0)for(let d=0;d<4;d++){
+        const t=move(s,d,w,h);
+        if(t&&distances[key(t,w*h)]===distance){direction=d;break;}
+      }
+      return {distance,direction};
+    }
+    async function random(w,h,min,max,seed){
+      const distances=await table(w,h);
+      let value=seed>>>0||1;
+      const rng=()=>{value^=value<<13;value^=value>>>17;value^=value<<5;return (value>>>0)/4294967296;};
+      for(let attempt=0;attempt<20000;attempt++){
+        const cells=Array.from({length:w*h},(_,i)=>i);
+        for(let i=cells.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[cells[i],cells[j]]=[cells[j],cells[i]];}
+        const board=cells.slice(0,6).reduce((m,p)=>m|(1<<p),0),pos=cells[6];
+        const optimal=distances[key({board,faces:0,pos},w*h)]-1;
+        if(optimal>=min&&optimal<=max)return {w,h,board,pos,optimal};
+      }
+      throw new Error('没有生成符合步数范围的棋盘，请重试。');
+    }
+    return {analyse,random,table};
+  }
+  return {move,previous,play,popcount,key,decode,initial,LEVELS,createSolver,identityPose,orient,rollPose};
+})();
+</script>
+<script>
+(() => {
+ 'use strict';
+ const E=CubeEngine,$=id=>document.getElementById(id),arrows=['↑','→','↓','←'],directions=['上','右','下','左'];
+ const diceValues=[1,6,2,5,3,4];
+ const pipLayouts=[[],[[.5,.5]],[[.26,.26],[.74,.74]],[[.26,.26],[.5,.5],[.74,.74]],[[.26,.26],[.74,.26],[.26,.74],[.74,.74]],[[.26,.26],[.74,.26],[.5,.5],[.26,.74],[.74,.74]],[[.26,.26],[.74,.26],[.26,.5],[.74,.5],[.26,.74],[.74,.74]]];
+ const names=['初识','转个弯','换一面','绕行','留住蓝色','六面协作','小棋盘','迂回','空间记忆','一步不多','收官之前','恰到好处'];
+ const storageKey='cube.minimum.4x4.v2';
+ let cleared={},dailyRecords={},storageAvailable=true;
+ try{
+  const saved=JSON.parse(localStorage.getItem(storageKey)||'{}');
+  for(let i=0;i<12;i++){const record=saved.cleared?.[i];if(record&&record.moves===E.LEVELS[i].optimal&&typeof record.assisted==='boolean')cleared[i]=record;}
+  if(saved.daily&&typeof saved.daily==='object')dailyRecords=saved.daily;
+ }catch{storageAvailable=false;}
+ function storageNotice(){if(!storageAvailable){$('storage-note').hidden=false;$('storage-note').textContent='此浏览器暂不能保存记录。本次通关仍可正常计入。';}}
+ function save(){try{localStorage.setItem(storageKey,JSON.stringify({cleared,daily:dailyRecords}));}catch{storageAvailable=false;}storageNotice();}
+ let worker=null,fallback=null,requestNumber=0,pending=new Map();
+ function localRequest(p){fallback||=E.createSolver();return p.action==='random'?fallback.random(p.w,p.h,p.min,p.max,p.seed):fallback.analyse(p.state,p.w,p.h);}
+ function workerFallback(){
+  worker?.terminate();worker=null;
+  for(const {payload,resolve,reject}of pending.values())localRequest(payload).then(resolve,reject);
+  pending.clear();
+ }
+ try{
+  const source=$('cube-engine').textContent+'\nconst solver=CubeEngine.createSolver();onmessage=async ({data:p})=>{try{const result=p.action==="random"?await solver.random(p.w,p.h,p.min,p.max,p.seed):await solver.analyse(p.state,p.w,p.h);postMessage({id:p.id,result});}catch(error){postMessage({id:p.id,error:error.message});}};';
+  const url=URL.createObjectURL(new Blob([source],{type:'text/javascript'}));
+  worker=new Worker(url);URL.revokeObjectURL(url);
+  worker.onmessage=({data})=>{const task=pending.get(data.id);if(!task)return;pending.delete(data.id);data.error?task.reject(new Error(data.error)):task.resolve(data.result);};
+  worker.onerror=workerFallback;
+ }catch{workerFallback();}
+ function request(payload){
+  if(!worker)return localRequest(payload);
+  return new Promise((resolve,reject)=>{const id=++requestNumber;pending.set(id,{payload,resolve,reject});try{worker.postMessage({...payload,id});}catch{workerFallback();}});
+ }
+ let level,index=0,mode='levels',dailyDate='',state,history=[],assisted=false,answer=null;
+ let revision=0,choice=0,generating=false,analysing=false,animation=null,anchor,solid,tiles=[];
+ function stopAnimation(){animation?.cancel();animation=null;}
+ function makeBoard(){
+  $('board').replaceChildren();$('board').style.gridTemplateColumns=`repeat(${level.w},minmax(0,1fr))`;tiles=[];
+  for(let i=0;i<level.w*level.h;i++){
+   const tile=document.createElement('button');tile.type='button';tile.className='tile';tile.dataset.index=i;
+   const coord=document.createElement('span');coord.className='coord';coord.textContent=`${String.fromCharCode(65+i%level.w)}${Math.floor(i/level.w)+1}`;coord.setAttribute('aria-hidden','true');tile.append(coord);
+   tile.onclick=()=>{const d=[0,1,2,3].find(d=>E.move(state,d,level.w,level.h)?.pos===i);if(d!==undefined)roll(d);};
+   $('board').append(tile);tiles.push(tile);
+  }
+  anchor=document.createElement('div');anchor.className='cube-anchor';anchor.setAttribute('aria-hidden','true');
+  solid=document.createElementNS('http://www.w3.org/2000/svg','svg');solid.setAttribute('viewBox','-35 -35 135 135');solid.setAttribute('aria-hidden','true');anchor.append(solid);$('board').append(anchor);
+ }
+ function positionCube(pos=state.pos){
+  if(!tiles[pos])return;const tile=tiles[pos],size=tile.getBoundingClientRect().width;
+  anchor.style.width=anchor.style.height=`${size}px`;
+  anchor.style.left=`${tile.offsetLeft}px`;anchor.style.top=`${tile.offsetTop}px`;
+ }
+ const geometry=[
+  {n:[0,0,1],v:[[0,0,1],[1,0,1],[1,1,1],[0,1,1]]},
+  {n:[0,0,-1],v:[[0,0,0],[0,1,0],[1,1,0],[1,0,0]]},
+  {n:[0,-1,0],v:[[0,0,0],[1,0,0],[1,0,1],[0,0,1]]},
+  {n:[0,1,0],v:[[0,1,0],[0,1,1],[1,1,1],[1,1,0]]},
+  {n:[-1,0,0],v:[[0,0,0],[0,0,1],[0,1,1],[0,1,0]]},
+  {n:[1,0,0],v:[[1,0,0],[1,1,0],[1,1,1],[1,0,1]]}
+ ];
+ const svgElement = tag => document.createElementNS('http://www.w3.org/2000/svg',tag);
+ const orientedPoint = (point,pose) => E.orient(point.map(v=>v-.5),pose).map(v=>v+.5);
+ const project = ([x,y,z]) => [(x-.3*z)*100,(y-.3*z)*100];
+ function pipPoint(face,u,v){return face.v[0].map((x,i)=>x+u*(face.v[1][i]-x)+v*(face.v[3][i]-x));}
+ function addPips(parent,number,points,blue,radius=6.5){
+  for(const [x,y]of points){const dot=svgElement('circle');dot.setAttribute('cx',x);dot.setAttribute('cy',y);dot.setAttribute('r',radius);dot.setAttribute('fill',blue?'#ffffff':'#183451');parent.append(dot);}
+ }
+ function paintCube(faces,pose,d=0,angle=0){
+  const showPips=$('show-pips').checked;
+  const isX=d%2===0,sign=d<2?1:-1,c=Math.cos(angle*sign),s=Math.sin(angle*sign),pivot=d===1||d===2?1:0;
+  const rotate=([x,y,z])=>isX?[x,y*c-z*s,y*s+z*c]:[x*c+z*s,y,-x*s+z*c];
+  const transform=v=>{const shifted=[...v];shifted[isX?1:0]-=pivot;const result=rotate(shifted);result[isX?1:0]+=pivot;return result;};
+  const depth=([x,y,z])=>.3*x+.3*y+z;
+  const visible=geometry.map((f,i)=>{
+   const normal=E.orient(f.n,pose),slot=geometry.findIndex(g=>g.n.every((v,j)=>v===normal[j]));
+   return {i,slot,n:rotate(normal),v:f.v.map(v=>transform(orientedPoint(v,pose)))};
+  }).filter(f=>depth(f.n)>1e-7).sort((a,b)=>a.v.reduce((sum,v)=>sum+depth(v),0)-b.v.reduce((sum,v)=>sum+depth(v),0));
+  solid.replaceChildren();for(const f of visible){
+   const blue=Boolean(faces>>f.slot&1),number=diceValues[f.i];
+   const polygon=svgElement('polygon');polygon.setAttribute('points',f.v.map(v=>project(v).join(',')).join(' '));polygon.setAttribute('class',`cube-face${blue?' blue':''}`);polygon.dataset.face=f.slot;polygon.dataset.value=number;polygon.setAttribute('fill',blue?'#245ad6':f.slot===0?'#ffffff':f.slot===5?'#f7f9fc':'#eef3f8');solid.append(polygon);
+   if(showPips){
+    const origin=project(f.v[0]),u=project(f.v[1]).map((v,i)=>v-origin[i]),v=project(f.v[3]).map((v,i)=>v-origin[i]);
+    const pips=svgElement('g');pips.classList.add('cube-pips');pips.dataset.face=f.slot;pips.dataset.value=number;
+    pips.setAttribute('transform',`matrix(${u[0]},${u[1]},${v[0]},${v[1]},${origin[0]},${origin[1]})`);
+    addPips(pips,number,pipLayouts[number],blue,.065);solid.append(pips);
+   }
+  }
+ }
+ function startRoll(before,d){
+  let frame,start=null;const token=revision;
+  animation={board:before.board,pos:before.pos,cancel:()=>cancelAnimationFrame(frame)};positionCube(before.pos);paintCube(before.faces,before.pose);
+  function tick(time){
+   if(token!==revision)return;start??=time;const progress=Math.min(1,(time-start)/220),eased=1-Math.pow(1-progress,2);
+   paintCube(before.faces,before.pose,d,eased*Math.PI/2);
+   if(progress<1)frame=requestAnimationFrame(tick);else{animation=null;render();}
+  }
+  frame=requestAnimationFrame(tick);
+ }
+ function renderLevels(){
+  $('levels').replaceChildren();E.LEVELS.forEach((l,i)=>{
+   const btn=document.createElement('button');btn.className='level';btn.classList.toggle('cleared',!!cleared[i]);btn.setAttribute('aria-pressed',String(mode==='levels'&&index===i));btn.dataset.level=i;
+   const b=document.createElement('b');b.textContent=i+1;const detail=document.createElement('span');detail.textContent=`${l.optimal} 步`;btn.append(b,detail);
+   btn.setAttribute('aria-label',`第 ${i+1} 关，最少 ${l.optimal} 步${cleared[i]?'，已通关'+(cleared[i].assisted?'，使用提示':'，独立完成'):''}`);
+   btn.onclick=()=>load(l,i,'levels');$('levels').append(btn);
+  });
+  $('progress').textContent=`已通关 ${Object.keys(cleared).length} / 12`;
+ }
+ function showMessage(title,text,type=''){ $('message').className=`message ${type}`;$('message').replaceChildren();const h=document.createElement('h2');h.textContent=title;const p=document.createElement('p');p.textContent=text;$('message').append(h,p);}
+ function render(){
+  const active=state.status==='playing'&&!generating,remaining=level.optimal-state.used;
+  const showNet=$('show-net').checked,showPips=$('show-pips').checked;
+  $('net-view').hidden=!showNet;$('dice-legend').hidden=!showPips;$('net-controls').classList.toggle('with-net',showNet);
+  $('net').setAttribute('aria-label',showPips?'骰子六面的点数和当前颜色':'骰子六面的当前颜色');
+  $('level-title').textContent=mode==='levels'?`第 ${index+1} 关 · ${names[index]}`:mode==='daily'?`每日一局 · ${dailyDate}`:'随机挑战';
+  $('board-size').textContent=`${level.w} × ${level.h} 棋盘`;$('remaining').textContent=remaining;$('optimal').textContent=level.optimal;$('used').textContent=state.used;$('collected').textContent=E.popcount(state.faces);
+  $('track').replaceChildren();for(let i=0;i<level.optimal;i++){const tick=document.createElement('i');if(i<state.used)tick.className=state.status==='lost'?'used exhausted':'used';$('track').append(tick);}
+  const available=new Map();for(let d=0;d<4;d++){const t=E.move(state,d,level.w,level.h);if(t)available.set(t.pos,d);}
+  tiles.forEach((tile,i)=>{
+   const blue=Boolean((animation?animation.board:state.board)>>i&1),near=active&&available.has(i);
+   tile.classList.toggle('blue',blue);tile.classList.toggle('near',near);tile.disabled=!near;
+   tile.setAttribute('aria-label',`${String.fromCharCode(65+i%level.w)}${Math.floor(i/level.w)+1}，${blue?'蓝格':'白格'}${i===state.pos?'，立方体当前位置':near?'，可向'+directions[available.get(i)]+'移动':''}`);
+  });
+  if(!animation){paintCube(state.faces,state.pose);positionCube();}
+  $('net').replaceChildren();geometry.forEach((worldFace,i)=>{
+   const physical=geometry.findIndex(f=>E.orient(f.n,state.pose).every((v,j)=>v===worldFace.n[j])),number=diceValues[physical],blue=Boolean(state.faces>>i&1);
+   const el=document.createElement('div');el.className=`net-face${blue?' blue':''}`;el.dataset.value=number;el.dataset.face=i;el.setAttribute('aria-label',`${showPips?number+' 点面':'展开图第 '+(i+1)+' 面'}：${blue?'蓝色':'白色'}`);
+   const svg=svgElement('svg');svg.setAttribute('viewBox','0 0 100 100');svg.setAttribute('aria-hidden','true');
+   const origin=worldFace.v[0],u=worldFace.v[1].map((v,j)=>v-origin[j]),v=worldFace.v[3].map((v,j)=>v-origin[j]);
+   const points=pipLayouts[number].map(([a,b])=>{const point=orientedPoint(pipPoint(geometry[physical],a,b),state.pose).map((x,j)=>x-origin[j]);return [u,v].map(axis=>axis.reduce((sum,x,j)=>sum+x*point[j],0)*100);});
+   if(showPips)addPips(svg,number,points,blue);el.append(svg);$('net').append(el);
+  });
+  document.querySelectorAll('[data-dir]').forEach(btn=>btn.disabled=!active||!E.move(state,Number(btn.dataset.dir),level.w,level.h));
+  $('undo').disabled=!history.length||generating;$('restart').disabled=generating;
+  $('random').disabled=$('daily').disabled=generating;$('next').hidden=state.status!=='won'||mode!=='levels'||index===11;
+  const route=history.map(h=>arrows[h.direction]).join(' ');$('sequence').textContent=route||'—';$('sequence').setAttribute('aria-label',route?history.map(h=>directions[h.direction]).join('，'):'尚未移动');
+  if(generating)showMessage('正在准备棋盘','正在确定本局的最少步数…');
+  else if(state.status==='won')showMessage(Object.keys(cleared).length===12&&mode==='levels'?'十二关全部完成！':'最少步数通关！',`恰好 ${state.used} 步，六面全蓝。${assisted?'本局使用了提示。':'本局独立完成。'}`,'won');
+  else if(state.status==='lost')showMessage('步数用完，挑战失败',`${level.optimal} 步内未能集齐六面。撤销一步调整路线，或重开再试。`,'lost');
+  else showMessage('每一步都算数',state.used?'保持蓝色在正确的面上，继续滚动。':'把棋盘上的六块蓝色，收进立方体。');
+  if(analysing)$('analysis').textContent='正在计算当前局面的最短路线…';
+  else if(answer?.distance<0)$('analysis').textContent='当前局面无法完成，请撤销或重开。';
+  else if(answer){const lack=answer.distance-remaining;$('analysis').textContent=state.status==='won'?'记录已计入通关进度。':state.status==='lost'?`当前局面还需 ${answer.distance} 步。`:lack>0?`当前最少还需 ${answer.distance} 步，比剩余多 ${lack} 步。可撤销调整。`:`当前最少还需 ${answer.distance} 步。`;}
+ }
+ async function analyse(){
+  const token=revision;analysing=true;answer=null;$('analysis').textContent='正在计算当前局面的最短路线…';
+  try{const result=await request({action:'analyse',state:{board:state.board,faces:state.faces,pos:state.pos},w:level.w,h:level.h});if(token!==revision)return;answer=result;analysing=false;render();}
+  catch{if(token!==revision)return;analysing=false;$('analysis').textContent='路线计算失败。可继续游玩，重开后重新计算。';}
+ }
+ function load(l,i,newMode,date=''){
+  stopAnimation();revision++;choice++;level={...l};index=i;mode=newMode;dailyDate=date;generating=false;state={...E.initial(level),pose:E.identityPose(),used:0,status:'playing'};history=[];assisted=false;answer=null;analysing=true;makeBoard();renderLevels();render();analyse();
+ }
+ function recordWin(){
+  const record={moves:state.used,assisted};
+  if(mode==='levels'){if(!cleared[index]||!assisted)cleared[index]=record;}
+  if(mode==='daily'){if(!dailyRecords[dailyDate]||!assisted)dailyRecords[dailyDate]=record;const dates=Object.keys(dailyRecords).sort();for(const d of dates.slice(0,-31))delete dailyRecords[d];}
+  save();renderLevels();
+ }
+ function roll(d){
+  if(generating)return;const before=state,next=E.play(state,d,level.w,level.h,level.optimal);if(next===state)return;
+  stopAnimation();history.push({state:{...state},direction:d});state={...next,pose:E.rollPose(before.pose,d)};revision++;answer=null;analysing=true;if(state.status==='won')recordWin();
+  if(!matchMedia('(prefers-reduced-motion: reduce)').matches)startRoll(before,d);
+  render();
+  analyse();
+ }
+ function undo(){if(generating||!history.length)return;stopAnimation();state=history.pop().state;revision++;answer=null;analysing=true;render();analyse();}
+ $('undo').onclick=undo;$('restart').onclick=()=>load(level,index,mode,dailyDate);$('next').onclick=()=>load(E.LEVELS[index+1],index+1,'levels');
+ $('show-net').onchange=render;$('show-pips').onchange=render;
+ document.querySelectorAll('[data-dir]').forEach(btn=>btn.onclick=()=>roll(Number(btn.dataset.dir)));
+ document.addEventListener('keydown',event=>{
+  if(event.ctrlKey||event.metaKey||event.altKey||event.target.closest('input:not([type="checkbox"]),select,textarea,summary,[contenteditable="true"]'))return;
+  const d={ArrowUp:0,ArrowRight:1,ArrowDown:2,ArrowLeft:3,w:0,d:1,s:2,a:3}[event.key.length===1?event.key.toLowerCase():event.key];
+  if(d!==undefined){event.preventDefault();if(!event.repeat)roll(d);}
+  else if(event.key.toLowerCase()==='z'){event.preventDefault();undo();}
+  else if(event.key.toLowerCase()==='r'&&!generating){event.preventDefault();load(level,index,mode,dailyDate);}
+ });
+ async function generate(type){
+  const token=++choice;generating=true;revision++;stopAnimation();render();
+  const date=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+  let seed;if(type==='daily')seed=Number(date.replace(/\D/g,''))^0x43554245;else{const array=new Uint32Array(1);crypto.getRandomValues(array);seed=array[0];}
+  try{
+   const result=await request({action:'random',w:4,h:4,min:type==='daily'?10:8,max:17,seed});if(token!==choice)return;
+   load(result,-1,type,type==='daily'?date:'');
+  }catch(error){if(token!==choice)return;generating=false;render();showMessage('棋盘生成失败','点击每日一局或随机挑战重试。');analyse();}
+ }
+ $('daily').onclick=()=>generate('daily');$('random').onclick=()=>generate('random');
+ new ResizeObserver(()=>positionCube(animation?.pos??state.pos)).observe($('board'));
+ window.CubeGame={snapshot:()=>({state:{...state},level:{...level},index,mode,assisted,history:history.length}),ready:()=>!analysing&&!generating};
+ $('show-net').checked=false;$('show-pips').checked=false;storageNotice();load(E.LEVELS[0],0,'levels');
+})();
+</script>
+</body></html>
