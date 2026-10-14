@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#153f47">
 <title>十步万度 · 指针连锁小游戏</title>
 <style>
@@ -25,6 +25,36 @@
 @media(max-width:600px){.star-shelf{grid-template-columns:repeat(6,minmax(0,1fr));gap:7px}.collection{padding:13px 14px}.star-slot{flex-direction:row;justify-content:center;gap:4px}.star-slot svg{width:22px;height:22px}.crown-stage{padding:34px 20px 27px}.crown-orbit{top:191px;height:274px}.crown-kicker{margin-top:30px;font-size:12px}.crown-copy h2{font-size:39px}.crown-copy>p:last-of-type{font-size:13px}.crown-return{padding:12px 16px}}
 @media(prefers-reduced-motion:reduce){.star-slot.new-star svg,.coronation[open] .grand-crown,.coronation[open] .orbit-star,.coronation[open] .crown-glint,.coronation[open] .crown-copy{animation:none!important}}
 
+/* Keep the board and live score together on phones; collection follows play. */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{min-height:100svh}
+.coronation{max-height:calc(100svh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom))}
+@media(max-width:600px),(max-width:900px) and (max-height:500px){
+ .app{display:flex;flex-direction:column;padding:12px 12px 20px;padding-top:max(12px,env(safe-area-inset-top));padding-right:max(12px,env(safe-area-inset-right));padding-bottom:max(20px,env(safe-area-inset-bottom));padding-left:max(12px,env(safe-area-inset-left))}
+ .masthead{order:1;gap:8px;padding-bottom:12px}.intro{order:2;margin:16px 0 14px;display:block}.intro h1{font-size:36px;letter-spacing:1px}.intro p{max-width:none;margin-top:6px;font-size:14px;line-height:1.6}.intro p br{display:none}
+ .settings{order:3;margin:0 0 14px;align-items:center;gap:12px}.settings label{gap:8px;font-size:14px}.settings select,.speed select{font-size:16px;min-height:44px}.settings p{max-width:155px;font-size:12px;line-height:1.5}
+ .game-layout{order:4}.collection{order:5;margin:22px 0 0}.rules{order:6;margin-top:20px}.foot{order:7;padding-bottom:0}
+ .board-help{margin-top:12px;align-items:center}.keyboard-hint{display:none}.board-help>span{font-size:13px;line-height:1.6}.speed{font-size:13px}
+ .rule-body{grid-template-columns:1fr;gap:14px;font-size:15px;line-height:1.8}
+}
+@media(max-width:600px){
+ .edition{display:none}.brand{gap:6px;font-size:13px}.mark{width:25px;height:25px}.top-actions .button{padding:9px 11px;font-size:14px}
+ .game-layout{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:16px 12px}
+ .game-layout>section{grid-column:1/-1;grid-row:2;min-width:0}.score-panel{display:contents}
+ .score-top{grid-column:1/-1;grid-row:1;display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:12px;align-items:center}
+ .score-label{grid-column:1;grid-row:1;font-size:13px}.score{grid-column:1;grid-row:2;margin:3px 0 0;gap:4px}.score-value{font-size:40px;letter-spacing:-2px;line-height:1.05}.degree{font-size:23px}
+ .goal-line{grid-column:2;grid-row:1/span 2;flex-direction:column;align-items:flex-end;gap:6px;font-size:13px}.goal-line #percent{font-size:20px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+ .progress{grid-column:1/-1;margin:8px 0 5px}.goal-note{grid-column:1/-1;min-height:0;font-size:12px;line-height:1.5}.milestone{margin-top:2px}
+ .board-panel{padding:12px 8px 12px}.board-header{gap:8px;margin-bottom:10px;font-size:12px}.board{gap:8px}.board-body{grid-template-columns:12px minmax(0,1fr);gap:6px}.coordinate-top{margin-left:18px}.dial{padding:5px;border-radius:7px;min-height:44px;min-width:44px;-webkit-tap-highlight-color:transparent}
+ .board-footer{margin-top:14px;gap:6px;font-size:11px}.legend{gap:4px}.legend-symbol{width:8px;height:8px}
+ .clicks{grid-column:1;grid-row:3;margin:0;padding:0;border:0;min-width:0}.section-line{font-size:13px}.section-line strong{font-size:16px}.steps{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px;margin:10px 0}.step{width:100%;max-width:27px;font-size:11px}
+ .round{grid-column:2;grid-row:3;margin:0;padding:12px;gap:10px;min-width:0;grid-template-columns:1fr}.round-right{border-left:0;border-top:1px solid var(--line);padding:8px 0 0}.round-value{font-size:22px}.round-right .round-value{font-size:19px}
+ .feedback{grid-column:1/-1;grid-row:4;margin:0;min-height:0;padding:0 0 16px}.feedback p{font-size:14px}.history{grid-column:1/-1;grid-row:5;margin:0}.history li,.history-empty{font-size:13px}
+ .collection-heading{flex-wrap:wrap}.collection{padding:14px}.collection p{font-size:13px}.collection h2{font-size:16px}.star-shelf{grid-template-columns:repeat(6,minmax(0,1fr))}.star-slot{font-size:12px;min-height:32px}.crown-button{min-height:44px}
+}
+@media(min-width:640px) and (max-width:900px) and (max-height:500px){
+ .app{max-width:900px}.intro{display:flex;gap:20px;margin:12px 0}.intro p{margin:0;max-width:340px}.settings p{max-width:none}.game-layout{grid-template-columns:minmax(280px,1fr) minmax(260px,1fr);gap:20px}.board-panel{padding:12px}.board{gap:8px}.board-header{margin-bottom:10px}.board-footer{margin-top:12px}.score-panel{display:block}.score-value{font-size:40px}.clicks{margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}.round{grid-template-columns:1fr 1fr;margin-top:16px;padding:12px}.round-right{border-top:0;border-left:1px solid var(--line);padding:0 0 0 12px}
+}
 </style>
 </head>
 <body>
@@ -45,7 +75,7 @@
     <div class="board-body"><div class="coordinate-left" aria-hidden="true"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span></div><div class="board" id="board" role="group" aria-label="5 行 5 列，共 25 个表盘" aria-describedby="keyboard-help"></div></div>
     <div class="board-footer"><span class="legend"><i class="legend-symbol" aria-hidden="true"></i>正在旋转</span><span class="legend"><i class="legend-symbol trail" aria-hidden="true"></i>本轮经过</span><span>顺时针 +90°</span></div>
    </div>
-   <div class="board-help"><span id="keyboard-help">点按表盘开始。<br>键盘：方向键移动，Enter / 空格拨动。</span><label class="speed" for="speed">动画<select id="speed"><option value="145">标准</option><option value="45">快速</option><option value="0">即时</option></select></label></div>
+   <div class="board-help"><span id="keyboard-help">点按表盘开始。<span class="keyboard-hint"><br>键盘：方向键移动，Enter / 空格拨动。</span></span><label class="speed" for="speed">动画<select id="speed"><option value="145">标准</option><option value="45">快速</option><option value="0">即时</option></select></label></div>
   </section>
   <aside class="score-panel" aria-label="游戏统计">
    <div class="score-top"><p class="score-label">累计旋转角度</p><div class="score"><span class="score-value" id="total">0</span><span class="degree">°</span></div><div class="goal-line"><span>本局最优 <strong id="optimal-angle">10,800°</strong></span><span id="percent">0%</span></div><div class="progress" id="progress" role="progressbar" aria-label="本局最优值完成度" aria-valuemin="0" aria-valuemax="10800" aria-valuenow="0"><div class="progress-fill" id="progress-fill"></div></div><p class="goal-note" id="remaining">最优 120 次旋转，还差 10,800°</p><p class="goal-note milestone" id="milestone">万度里程碑：10,000°</p></div>
