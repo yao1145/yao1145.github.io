@@ -34,6 +34,10 @@ Cube uses `cube.minimum.4x4.v2` for completion records. Undo restores the previo
 
 Players can independently enable the unfolded six-face view and dice pips 1–6; both are off by default on page load. Numbers remain attached to their physical faces as the cube rolls, with opposite faces summing to seven. The board view and unfolded six-face view share the same orientation, and undo restores both colours and dice orientation. Display toggles preserve the current game state.
 
+Swipe up, right, down or left on the board to roll one cell. Small movements, ambiguous diagonal drags, cancelled gestures and multitouch do not trigger a roll. The page scrolls normally outside the board, and pinch zoom remains available. Each legal swipe counts once, with the same move budget and loss lockout as buttons and keyboard controls.
+
+Rolling uses reusable SVG surfaces with continuous geometry around the contact edge. Animation defaults to 360 ms per move; players can choose slower 600 ms rolling or switch it off. This explicit game setting also applies on devices with reduced motion enabled. Consecutive inputs wait for each roll to finish. Undo, restart or changing challenges clears buffered inputs.
+
 Exhaustive 4×4 search: all 80,080 initial states with six blue board squares, six white cube faces and a white starting square are solvable. Their shortest solutions range from 6 to 17 moves. Allowing a blue starting square yields 128,128 initial states and the same maximum of 17. Across all 1,193,808 states with six blue elements distributed between the board and cube, the maximum shortest distance to completion is 18 moves. Starting squares do not trigger an initial colour exchange.
 
 Focused checks (test files are locally ignored): `node tests/cube-engine.cjs` and `node tests/cube-browser.cjs`. Engine checks compare rolling with an independent geometric oracle and every level's optimum with a separate forward BFS; browser checks cover the strict budget, controls, persistence, responsive layout and offline play.
