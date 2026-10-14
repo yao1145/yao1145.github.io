@@ -1,10 +1,11 @@
-/* Yaozi: spiral in → burst → gather → shimmer → fall. Vanilla JS / Canvas 2D. */
+/* Yaozi: emerge → gather → shimmer → explode and fall. Vanilla JS / Canvas 2D. */
 (() => {
   'use strict';
 
   const COLORS = ['#ff496f', '#ff7797', '#ffc4d2', '#ffdda0', '#fff0cf'];
-  const ENTRANCE = 1.85;
-  const DURATION = ENTRANCE + 6.1;
+  const HOLD_START = 3.3;
+  const BURST = 5.1;
+  const DURATION = 8;
   const clamp = (v, lo = 0, hi = 1) => Math.min(hi, Math.max(lo, v));
   const random = (lo, hi) => lo + Math.random() * (hi - lo);
   let active = null;
@@ -124,22 +125,24 @@
       const midX = (minX + maxX) / 2, midY = (minY + maxY) / 2;
       particles = points.map(([x, y]) => {
         const angle = random(0, Math.PI * 2), depth = random(-1, 1);
-        const speed = random(160, 460);
-        const entryAngle = Math.floor(random(0, 4)) * Math.PI / 2 + random(-0.24, 0.24);
-        const entryRadius = random(0.95, 1.2);
+        const speed = random(120, 330) * scale;
         return {
-          x: Math.cos(entryAngle) * width * 0.76 * entryRadius,
-          y: Math.sin(entryAngle) * height * 0.76 * entryRadius,
-          z: random(-3, 3),
-          vx: Math.cos(angle) * speed * Math.sqrt(1 - depth * depth),
-          vy: Math.sin(angle) * speed * Math.sqrt(1 - depth * depth) * 0.7,
-          vz: depth * speed * 0.75,
+          x: random(-width * 0.46, width * 0.46),
+          y: random(-height * 0.4, height * 0.4),
+          z: random(-70, 70),
+          vx: random(-5, 5) * scale,
+          vy: random(-7, -2) * scale,
+          vz: random(-3, 3) * scale,
+          burstX: Math.cos(angle) * speed * Math.sqrt(1 - depth * depth),
+          burstY: Math.sin(angle) * speed * Math.sqrt(1 - depth * depth) - 65 * scale,
+          burstZ: depth * speed * 0.75,
+          released: false,
           tx: (x - midX + random(-1.6, 1.6)) * scale,
           ty: (y - midY + random(-1.6, 1.6)) * scale,
           tz: random(-8, 8) * scale,
-          gather: ENTRANCE + random(0.43, 0.66), release: ENTRANCE + random(3.72, 4.06),
-          life: ENTRANCE + random(5.25, 5.8), size: random(4.5, 9),
-          entryAngle, entryRadius, entryDelay: random(0, 0.28),
+          appear: random(0.06, 1.05), gather: random(1.35, 1.7),
+          release: BURST + random(0, 0.12),
+          life: random(7.1, 7.55), size: random(4.5, 9),
           color: Math.floor(random(0, COLORS.length)), phase: random(0, Math.PI * 2),
           twinkle: random(15, 29)
         };
@@ -162,7 +165,7 @@
         scale = Math.min(width * 0.79 / textWidth, height * 0.32 / textHeight, 1.45);
         const ratio = scale / oldScale;
         for (const p of particles) {
-          for (const key of ['x', 'y', 'z', 'vx', 'vy', 'vz', 'tx', 'ty', 'tz']) p[key] *= ratio;
+          for (const key of ['x', 'y', 'z', 'vx', 'vy', 'vz', 'tx', 'ty', 'tz', 'burstX', 'burstY', 'burstZ']) p[key] *= ratio;
         }
       }
     }
@@ -172,22 +175,11 @@
       camera.y += (pointer.y - camera.y) * Math.min(1, dt * 3);
       for (const p of particles) {
         if (time > p.life) continue;
-        if (time < ENTRANCE) {
-          // Four streams sweep around the viewport, tightening into a single core.
-          const progress = clamp((time - p.entryDelay) / 1.38);
-          const radius = Math.pow(1 - progress, 1.22) * p.entryRadius;
-          const angle = p.entryAngle + Math.pow(progress, 1.35) * Math.PI * 3;
-          p.x = Math.cos(angle) * width * 0.76 * radius;
-          p.y = Math.sin(angle) * height * 0.76 * radius;
-          p.z = Math.sin(angle + p.phase) * 70 * radius;
-          // Preserve launch velocities until the core bursts.
-          continue;
-        }
         if (time < p.gather) {
-          const damping = Math.exp(-1.6 * dt);
-          p.vx *= damping; p.vy *= damping; p.vz *= damping;
+          // Quiet drift while individual sparks brighten out of the black canvas.
+          p.vx += Math.sin(time * 1.2 + p.phase) * scale * dt;
         } else if (time < p.release) {
-          const holding = time > ENTRANCE + 1.9;
+          const holding = time > HOLD_START;
           const k = holding ? 46 : 30;
           const damping = Math.exp(-(holding ? 11 : 7) * dt);
           const shimmer = holding ? Math.sin(time * 3 + p.phase) * 0.35 * scale : 0;
@@ -195,9 +187,14 @@
           p.vy = (p.vy + (p.ty + shimmer - p.y) * k * dt) * damping;
           p.vz = (p.vz + (p.tz - p.z) * k * dt) * damping;
         } else {
+          if (!p.released) {
+            // Explode each point from its position in the completed word, once.
+            p.vx = p.burstX; p.vy = p.burstY; p.vz = p.burstZ;
+            p.released = true;
+          }
           const damping = Math.exp(-0.6 * dt);
           p.vx = (p.vx + Math.sin(p.phase) * 7 * scale * dt) * damping;
-          p.vy = (p.vy + 155 * scale * dt) * damping;
+          p.vy = (p.vy + 310 * scale * dt) * damping;
           p.vz *= damping;
         }
         p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
@@ -212,21 +209,11 @@
       ctx.fillRect(0, 0, width, height);
       ctx.globalCompositeOperation = 'lighter';
       const originX = width / 2, originY = height * 0.47;
-      const burstAge = time - ENTRANCE;
-      if (!reduced && burstAge >= 0 && burstAge < 0.5) {
-        // Localized light pulse marks the transition from implosion to explosion.
-        const radius = Math.min(width, height) * (0.12 + burstAge * 0.3);
-        const pulse = ctx.createRadialGradient(originX, originY, 0, originX, originY, radius);
-        pulse.addColorStop(0, '#fff1db'); pulse.addColorStop(0.14, '#ffb99e');
-        pulse.addColorStop(0.5, '#ff496f40'); pulse.addColorStop(1, '#ff496f00');
-        ctx.globalAlpha = Math.exp(-burstAge * 12) * 0.3;
-        ctx.fillStyle = pulse;
-        ctx.fillRect(originX - radius, originY - radius, radius * 2, radius * 2);
-      }
       const yaw = reduced ? 0 : camera.x * 0.04 + Math.sin(time * 0.65) * 0.012;
       const cos = Math.cos(yaw), sin = Math.sin(yaw);
       for (const p of particles) {
-        const fade = reduced ? 0.85 : clamp((p.life - time) / 1.45);
+        const emerge = clamp((time - p.appear) / 0.8);
+        const fade = reduced ? 0.85 : emerge * emerge * (3 - 2 * emerge) * clamp((p.life - time) / 1.45);
         if (fade <= 0) continue;
         const z = p.z * cos - p.x * sin;
         const perspective = 1000 / Math.max(600, 1000 + z);
@@ -234,10 +221,11 @@
         const y = originY + (p.y + camera.y * z * 0.035) * perspective;
         const twinkle = reduced ? 0.8 : 0.66 + Math.sin(time * p.twinkle + p.phase) * 0.24;
         const size = p.size * Math.max(0.65, Math.sqrt(scale)) * perspective;
-        ctx.globalAlpha = fade * twinkle;
+        const burstLight = reduced ? 1 : 1 + 0.5 * Math.exp(-Math.max(0, time - p.release) * 10) * Number(p.released);
+        ctx.globalAlpha = Math.min(1, fade * twinkle * burstLight);
         ctx.drawImage(sprites[p.color], x - size / 2, y - size / 2, size, size);
         // A few fine star glints belong to the letter particles themselves.
-        if (!reduced && time > ENTRANCE + 1.8 && time < p.release && Math.sin(time * 8 + p.phase) > 0.996) {
+        if (!reduced && time > HOLD_START && time < p.release && Math.sin(time * 8 + p.phase) > 0.996) {
           ctx.strokeStyle = COLORS[p.color]; ctx.globalAlpha = fade * 0.65;
           ctx.lineWidth = 0.6;
           ctx.beginPath(); ctx.moveTo(x - size, y); ctx.lineTo(x + size, y);
