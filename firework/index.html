@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#000000">
+  <title>Yaozi · 粒子开屏</title>
+  <style>
+    html, body { margin: 0; width: 100%; height: 100%; background: #000; overflow: hidden; }
+    #replay { position: fixed; right: 28px; bottom: 24px; padding: 12px; border: 1px solid #ffffff26; border-radius: 50%; color: #eecbc1; background: #000; cursor: pointer; }
+    #replay:hover { border-color: #eecbc1; }
+    #replay:focus-visible { outline: 2px solid #ffdca4; outline-offset: 5px; }
+    #replay svg { display: block; width: 20px; height: 20px; }
+  </style>
+</head>
+<body>
+  <button id="replay" type="button" aria-label="重播 Yaozi 开屏动画" title="重播" hidden>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 10a8 8 0 1 1 1 8M4 4v6h6"/></svg>
+  </button>
+  <script src="yaozi-intro.js"></script>
+  <script>
+    const replay = document.getElementById('replay');
+    function play() {
+      replay.hidden = true;
+      YaoziIntro.play({ onComplete() { replay.hidden = false; replay.focus({ preventScroll: true }); } });
+    }
+    replay.addEventListener('click', play);
+    play();
+  </script>
+</body>
+</html>

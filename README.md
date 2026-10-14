@@ -21,6 +21,7 @@ Open http://localhost:8000/ and choose a game. The game URLs are `/pkufighter/`,
 
 ```text
 index.html          # homepage and game links
+firework/           # pure JavaScript Yaozi particle intro and replay preview
 pkufighter/         # original game, scripts, styles, icons and school badges
 clocks/index.html   # self-contained 十步万度 game
 cube/index.html     # self-contained Cube game and exact shortest-path solver
@@ -29,6 +30,8 @@ cube/index.html     # self-contained Cube game and exact shortest-path solver
 GitHub Pages publishes the root directory of the `main` branch. Each game directory has an `index.html`.
 
 PKUfighter's localStorage keys are preserved, so existing scores and crowns remain available on the same origin.
+
+The homepage opens with an eight-second `Yaozi` particle animation: four streams spiral inward from the edges, collapse into a bright core, then burst and gather into glowing letters. The name shimmers, then falls and fades into the homepage. Only the text effect from the reference firework animation is retained. Canvas 2D handles the animation in vanilla JavaScript, with no external libraries, fonts, images, or Python runtime. Open `firework/index.html` for a replayable preview; it also works directly from disk. Skip with the button or Escape. Reduced motion shows the name briefly without moving particles. Hidden tabs pause the animation, and completion releases the canvas and event listeners.
 
 Cube uses `cube.minimum.4x4.v2` for completion records. Undo restores the previous state and move budget. The shortest-path solver runs in a Web Worker, with an asynchronous main-thread fallback. It performs reverse breadth-first search from every solved position, tracking the board, position and six directional face colours. The reverse operation undoes the colour exchange before rolling back. The daily seed uses the date in Asia/Shanghai.
 
