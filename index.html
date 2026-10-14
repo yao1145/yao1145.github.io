@@ -1,296 +1,73 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
-    <title>PKUfighter</title>
-    <link rel="stylesheet" href="css/base/reset.css">
-    <link rel="stylesheet" href="css/ui/layout.css">
-    <link rel="stylesheet" href="css/ui/panels.css">
-    <link rel="stylesheet" href="css/ui/hud.css">
-    <link rel="stylesheet" href="css/ui/boss.css">
-    <link rel="stylesheet" href="css/responsive/mobile.css">
-    <link rel="stylesheet" href="css/responsive/responsive.css">
-    <link rel="stylesheet" href="css/ui/achievements.css">
-    <link rel="stylesheet" href="css/ui/intro.css">
-    <link rel="stylesheet" href="css/ui/cards.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="yao1145 的小游戏：PKUfighter 与十步万度。选一款，开始玩。">
+  <title>yao1145 的小游戏</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="pkufighter/icons/favicon-32.png">
+  <style>
+    :root { color-scheme: light; --ink: #183451; --muted: #4d647b; --paper: #f3f7fc; --blue: #244fc7; --line: #cbd7e6; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font-family: "Microsoft YaHei", "PingFang SC", sans-serif; }
+    a { color: inherit; }
+    a:focus-visible { outline: 3px solid var(--blue); outline-offset: 6px; }
+    .page { width: min(100% - 48px, 1040px); margin: 0 auto; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 28px 0; border-bottom: 1px solid var(--line); }
+    .name { font-size: 20px; font-weight: 700; letter-spacing: -.5px; }
+    .github { font-size: 14px; text-underline-offset: 5px; }
+    main { padding: 64px 0 56px; }
+    h1 { margin: 0; font-size: clamp(34px, 5vw, 54px); letter-spacing: -1.5px; line-height: 1.25; }
+    .intro { margin: 18px 0 36px; color: var(--muted); font-size: 17px; line-height: 1.8; }
+    .games { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    .game { display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: #fff; text-decoration: none; }
+    .game:hover { border-color: var(--blue); }
+    .preview { height: 232px; display: grid; place-items: center; overflow: hidden; }
+    .fighter { position: relative; background: #122947; background-image: radial-gradient(circle at 15% 20%, #8ea8d1 1px, transparent 2px), radial-gradient(circle at 72% 65%, #8ea8d1 1px, transparent 2px), radial-gradient(circle at 42% 85%, #8ea8d1 1px, transparent 2px); background-size: 90px 100px, 140px 120px, 160px 140px; }
+    .badge { width: 82px; height: 82px; padding: 9px; border-radius: 50%; background: #fff; z-index: 1; }
+    .shots { position: absolute; width: 5px; height: 24px; top: 26px; background: #86c9ff; border-radius: 4px; box-shadow: -18px 13px #86c9ff, 18px 13px #86c9ff; }
+    .clocks { background: #e4eef1; }
+    .dial-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+    .dial { width: 30px; height: 30px; border: 1px solid #6d8895; border-radius: 50%; position: relative; }
+    .dial::before { content: ""; position: absolute; left: 13px; top: 4px; width: 2px; height: 11px; background: #183451; transform-origin: 1px 10px; }
+    .dial::after { content: ""; position: absolute; left: 11px; top: 11px; width: 6px; height: 6px; border-radius: 50%; background: #183451; }
+    .dial:nth-child(3n)::before { transform: rotate(90deg); }
+    .dial:nth-child(4n)::before { transform: rotate(180deg); }
+    .dial:nth-child(7n)::before { transform: rotate(270deg); }
+    .dial:nth-child(13) { border-color: #a73e25; }
+    .dial:nth-child(13)::before, .dial:nth-child(13)::after { background: #a73e25; }
+    .copy { padding: 26px 28px 28px; flex: 1; display: flex; flex-direction: column; }
+    h2 { font-size: 26px; margin: 0 0 12px; letter-spacing: -.5px; }
+    .description { font-size: 15px; line-height: 1.8; color: var(--muted); margin: 0 0 24px; flex: 1; }
+    .play { align-self: flex-start; background: var(--blue); color: #fff; border-radius: 7px; padding: 11px 20px; font-size: 14px; font-weight: 600; }
+    footer { border-top: 1px solid var(--line); padding: 22px 0 30px; font-size: 13px; color: var(--muted); }
+    @media (max-width: 640px) { .page { width: calc(100% - 32px); } header { padding: 22px 0; } main { padding: 36px 0; } .intro { font-size: 15px; margin-bottom: 26px; } .games { grid-template-columns: 1fr; gap: 20px; } .preview { height: 200px; } .copy { padding: 22px; } }
+  </style>
 </head>
 <body>
-    <div id="gameContainer">
-        <canvas id="gameCanvas"></canvas>
-
-        <div id="uiOverlay">
-            <div class="stats" id="hudStats">
-                <div>分数: <span id="score">0</span></div>
-                <div>生命: <span id="lives">3</span></div>
-                <div>等级: <span id="level">1</span></div>
-                <div>皇冠: <span id="crowns">0</span></div>
-            </div>
-
-            <div class="statusStack" id="statusStack" aria-label="战斗状态">
-                <div class="shieldIndicator" id="shieldIndicator">盾: 0.0</div>
-                <div class="attackIndicator" id="attackIndicator">攻: 0.0</div>
-                <div class="cardIndicator" id="cardIndicator" style="display:none"></div>
-                <div class="summonIndicator" id="summonIndicator">召唤: 0s</div>
-                <div id="cardEffectHud" class="cardEffectHud" aria-label="核心卡效果进度" hidden></div>
-                <div id="buildHud" class="buildHud" aria-label="本局强化进度" hidden></div>
-            </div>
-
-            <div id="gameStartPanel" class="uiPanel">
-                <div class="uiMeta">PKUer can fly</div>
-                <div class="uiTitle">PKUfighter</div>
-                <div class="uiText">滑动屏幕控制飞机移动</div>
-                <div class="uiStatsBox">
-                    <div class="statRow"><span class="statLabel">上次分数</span><span class="statValue" id="lastScoreValue">0</span></div>
-                    <div class="statRow"><span class="statLabel">最高分数</span><span class="statValue" id="highScoreValue">0</span></div>
-                    <div class="statRow"><span class="statLabel">总皇冠</span><span class="statValue" id="totalCrownsValue">0</span></div>
-                </div>
-                <div id="pauseBuildDetails" class="pauseBuildDetails" hidden>
-                    <div class="pauseBuildTitle">本局强化</div>
-                    <div id="pauseBuildList" class="pauseBuildList" role="list"></div>
-                    <p id="pauseBuildWarning" class="pauseBuildWarning" hidden></p>
-                </div>
-                <div class="difficultyRow" role="group" aria-label="难度选择">
-                    <button id="easyModeButton" class="difficultyButton" type="button">简单模式</button>
-                    <button id="hardModeButton" class="difficultyButton selected" type="button">困难模式</button>
-                </div>
-                <div class="uiText" id="loadStatus">资源加载中 0/9…</div>
-                <button id="startButton" class="uiButton" disabled>加载中…</button>
-                <button id="retryLoadButton" class="uiButton" style="display: none;">重试加载</button>
-                <button id="achievementsButton" class="uiButton uiButtonSecondary">成就</button>
-                <button id="introButton" class="uiButton uiButtonSecondary">游戏介绍</button>
-            </div>
-
-            <div id="gameOverPanel" class="uiPanel">
-                <div class="uiTitle">游戏结束</div>
-                <div class="uiText">最终得分</div>
-                <div id="finalScore" class="uiScore">0</div>
-                <div class="uiText">皇冠数量</div>
-                <div id="finalCrowns" class="uiScore">0</div>
-                <button id="restartButton" class="uiButton">返回主菜单</button>
-            </div>
-
-            <div id="cardPanel" class="uiPanel cardPanel" style="display: none;">
-                <div class="uiMeta">Effect Card</div>
-                <div class="uiTitle">选择效果卡</div>
-                <div class="cardHint" id="cardHint">首次选择免费</div>
-                <div class="cardGrid">
-                    <button type="button" class="effectCard" data-card="passion">
-                        <span class="cardName">激情岁月</span>
-                        <span class="cardDesc">敌我攻速翻倍</span>
-                        <span class="cardBadge">当前效果</span>
-                    </button>
-                    <button type="button" class="effectCard" data-card="survival">
-                        <span class="cardName">生存之道</span>
-                        <span class="cardDesc">射速×0.75·每20s回1命·满血暂停</span>
-                        <span class="cardBadge">当前效果</span>
-                    </button>
-                    <button type="button" class="effectCard" data-card="comeback">
-                        <span class="cardName">绝地反击</span>
-                        <span class="cardDesc">低生命时攻速与伤害翻倍</span>
-                        <span class="cardBadge">当前效果</span>
-                    </button>
-                    <button type="button" class="effectCard" data-card="peace">
-                        <span class="cardName">平安无事</span>
-                        <span class="cardDesc">敌人射速×0.65·自身射速×0.80</span>
-                        <span class="cardBadge">当前效果</span>
-                    </button>
-                    <button type="button" class="effectCard" data-card="blitz">
-                        <span class="cardName">电光石火</span>
-                        <span class="cardDesc">多发提速，但禁用治疗</span>
-                        <span class="cardBadge">当前效果</span>
-                    </button>
-                    <button type="button" class="effectCard" data-card="bloodlust">
-                        <span class="cardName">血之渴望</span>
-                        <span class="cardDesc">8击杀回1命·每Boss+16·射速×0.75</span>
-                        <span class="cardBadge">当前效果</span>
-                    </button>
-                    <button type="button" class="effectCard" data-card="chain">
-                        <span class="cardName">连环爆炸</span>
-                        <span class="cardDesc">击杀引发连锁爆炸，敌人更多</span>
-                        <span class="cardBadge">当前效果</span>
-                    </button>
-                    <button type="button" class="effectCard" data-card="glass">
-                        <span class="cardName">玻璃大炮</span>
-                        <span class="cardDesc">伤害×2·射速×1.5·生命上限1</span>
-                        <span class="cardBadge">当前效果</span>
-                    </button>
-                    <button type="button" class="effectCard" data-card="boss">
-                        <span class="cardName">Boss猎手</span>
-                        <span class="cardDesc">专打 Boss，普通敌人伤害降低</span>
-                        <span class="cardBadge">当前效果</span>
-                    </button>
-                    <button type="button" class="effectCard" data-card="thorns">
-                        <span class="cardName">荆棘护甲</span>
-                        <span class="cardDesc">受伤反击并削 Boss，敌机攻速+50%（Boss同样）</span>
-                        <span class="cardBadge">当前效果</span>
-                    </button>
-                    <button type="button" class="effectCard" data-card="supply">
-                        <span class="cardName">粮草先行</span>
-                        <span class="cardDesc">道具增多，但敌人射速提高</span>
-                        <span class="cardBadge">当前效果</span>
-                    </button>
-                    <button type="button" class="effectCard" data-card="fog">
-                        <span class="cardName">战争迷雾</span>
-                        <span class="cardDesc">追踪失效·敌弹速度×0.80·上方视野受阻</span>
-                        <span class="cardBadge">当前效果</span>
-                    </button>
-                    <button type="button" class="effectCard" data-card="boost">
-                        <span class="cardName">增益加强</span>
-                        <span class="cardDesc">道具增强，但敌弹每次伤两命</span>
-                        <span class="cardBadge">当前效果</span>
-                    </button>
-                </div>
-                <button id="cardSkipButton" class="uiButton uiButtonSecondary" type="button" style="display:none">本轮不换卡</button>
-            </div>
-
-            <div id="buildPanel" class="uiPanel buildPanel" style="display: none;">
-                <div class="uiMeta">Build</div>
-                <div class="uiTitle">选择本局强化</div>
-                <div class="cardHint" id="buildSubtitle">换卡后仍然保留</div>
-                <div class="cardHint" id="buildHint">已持有 0/6 项强化</div>
-                <div class="buildOptions" id="buildOptions"></div>
-                <button id="buildBackButton" class="uiButton uiButtonSecondary" type="button" style="display:none">返回候选列表</button>
-                <button id="buildSkipButton" class="uiButton uiButtonSecondary" type="button">跳过强化</button>
-            </div>
-
-            <div id="rewardSummaryPanel" class="uiPanel rewardSummaryPanel" style="display: none;">
-                <div class="uiMeta">Summary</div>
-                <div class="uiTitle">本局奖励摘要</div>
-                <div id="rewardSummaryBody" class="rewardSummaryBody"></div>
-                <button id="rewardConfirmButton" class="uiButton" type="button">继续战斗</button>
-            </div>
-
-            <div id="achievementsPanel" class="uiPanel">
-                <div class="uiTitle">成就奖励</div>
-                <div class="uiText">当前皇冠: <span id="achievementsCrowns">0</span></div>
-                <div class="achievementRow" data-ach="autoShield">
-                    <div class="achievementTitle">初出茅庐</div>
-                    <div class="achievementDesc">每20秒自动护盾（持续5秒）</div>
-                    <div class="achievementStatus" id="achStatus-autoShield">未解锁</div>
-                </div>
-                <div class="achievementRow" data-ach="lives">
-                    <div class="achievementTitle">小有成就</div>
-                    <div class="achievementDesc">开局5条生命</div>
-                    <div class="achievementStatus" id="achStatus-lives">未解锁</div>
-                </div>
-                <div class="achievementRow" data-ach="bullets2">
-                    <div class="achievementTitle">渐入佳境</div>
-                    <div class="achievementDesc">每次射击2发子弹</div>
-                    <div class="achievementStatus" id="achStatus-bullets2">未解锁</div>
-                </div>
-                <div class="achievementRow" data-ach="firerate">
-                    <div class="achievementTitle">锋芒毕露</div>
-                    <div class="achievementDesc">射击间隔300ms→200ms</div>
-                    <div class="achievementStatus" id="achStatus-firerate">未解锁</div>
-                </div>
-                <div class="achievementRow" data-ach="bullets3">
-                    <div class="achievementTitle">战无不胜</div>
-                    <div class="achievementDesc">每次射击3发子弹</div>
-                    <div class="achievementStatus" id="achStatus-bullets3">未解锁</div>
-                </div>
-                <button id="achievementsBackButton" class="uiButton">返回</button>
-            </div>
-
-            <div id="introPanel" class="uiPanel">
-                <div class="uiMeta">PKUfighter</div>
-                <div class="uiTitle">游戏介绍</div>
-                <div class="introBody">
-                    <section class="introSection">
-                        <div class="introH">游戏目标</div>
-                        <p class="introP">驾驶战机向上开火：躲避弹幕、击落敌机、尽量生存，冲击更高分数。</p>
-                        <p class="introP">你的座机正是 <b>北京大学</b> 的校徽——拦路的敌机与 Boss 也全都顶着各高校的校徽，一决高下。加油，<b>PKUer can fly!</b></p>
-                        <p class="introP">主菜单可选 <b>简单模式</b> / <b>困难模式</b>：简单模式下敌机与敌弹减速 30%、出怪与敌机射速减半、Boss 射击间隔加长 50%；两种模式共用高分与皇冠记录。</p>
-                    </section>
-                    <section class="introSection">
-                        <div class="introH">升级与节奏</div>
-                        <ul class="introList">
-                            <li>等级公式为 <b>floor(分数 / 500) + 1</b>：每 500 分提升 1 级。第 L 级普通出怪率为 <b>0.02 + 0.005×(L−1)</b>，敌机速度为 <b>2 + 0.075×(L−1)</b>，敌机射击率为 <b>0.01 + 0.0005×(L−1)</b>，敌弹基础速度为 <b>4 + 0.125×(L−1)</b>。</li>
-                            <li>道具密度随等级起伏：开局较稀，<b>10</b> 级前后最密（约为开局 5 倍），<b>20</b> 级起回落到开局水平。</li>
-                            <li>被击中 −1 生命并获得 5 秒护盾；生命上限 <b>20</b>，归零则本局结束。</li>
-                            <li>击倒 Boss：<b>+1 皇冠、尝试 +3 生命</b>（受当前生命上限限制），并进入下一次效果卡选择；下次 Boss 的分数门槛 +200（1000 → 2200 → 3600 …）。</li>
-                            <li>从第 <b>4</b> 个 Boss 起，Boss 战有召唤节奏：出场后前 <b>10</b> 秒无召唤，之后循环 <b>30</b> 秒召唤窗口与 <b>30</b> 秒休息；召唤率为当前有效普通出怪率的 <b>30%</b>，右上角会显示倒计时。</li>
-                        </ul>
-                    </section>
-                    <section class="introSection">
-                        <div class="introH">操作方式</div>
-                        <ul class="introList">
-                            <li><b>桌面</b>：<kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> 或方向键移动，<kbd>空格</kbd> 暂停 / 继续。</li>
-                            <li><b>移动端 / 鼠标</b>：按住画面任意处并拖动即可移动战机。</li>
-                        </ul>
-                    </section>
-                    <section class="introSection">
-                        <div class="introH">敌机与 Boss（按校徽）</div>
-                        <p class="introP">五种敌机分别固定使用一枚非 Boss 校徽；Boss 则由固定的三枚校徽镇守。</p>
-                        <ul class="introList">
-                            <li><span class="sw" style="background:#f00"></span>红 · <b>南开大学</b> —— 1 HP、速度 ×1.0；接近玩家时可能自爆并放射弹幕。</li>
-                            <li><span class="sw" style="background:#00f"></span>蓝 · <b>复旦大学</b> —— 1 HP、速度 ×1.5；发射直线弹。</li>
-                            <li><span class="sw" style="background:#a0f"></span>紫 · <b>西安交通大学</b> —— 2 HP、速度 ×0.7；发射直线弹。</li>
-                            <li><span class="sw" style="background:#ff0"></span>黄 · <b>中国科学技术大学</b> —— 1 HP、速度 ×0.9；发射追踪弹。</li>
-                            <li><span class="sw" style="background:#0af"></span>青 · <b>哈尔滨工业大学</b> —— 2 HP、速度 ×0.8；发射环形散射。</li>
-                            <li>所有普通敌机在等级 5、9、13……分别额外获得 +1、+2、+3 HP。</li>
-                            <li>Boss：<b>火焰 · 清华大学</b> / <b>冰霜 · 浙江大学</b> / <b>毒液 · 上海交通大学</b>，血量越低弹幕越凶（&gt;70% / &gt;30% / 更低）。</li>
-                        </ul>
-                    </section>
-                    <section class="introSection">
-                        <div class="introH">道具与皇冠成就</div>
-                        <ul class="introList">
-                            <li><span class="sw" style="background:#f00"></span>红色十字：+1 生命（不超过上限 20）。</li>
-                            <li><span class="sw" style="background:#f90"></span>橙色光点：10 秒双倍伤害。</li>
-                            <li><span class="sw" style="background:#0af"></span>青色圆环：5 秒护盾。</li>
-                            <li>皇冠来自击倒 Boss；总皇冠永久累计，依次解锁开局加成：<b>10</b> 每 20 秒获得 5 秒自动护盾 · <b>30</b> 开局 5 条命 · <b>50</b> 每次双发 · <b>80</b> 射击间隔 300ms→200ms · <b>100</b> 每次三发。</li>
-                        </ul>
-                    </section>
-                    <section class="introSection">
-                        <div class="introH">效果卡</div>
-                        <p class="introP">开局先暂停并从合法核心卡池中选 1 张核心卡；每张卡本局最多选择 3 次，已耗尽的卡不再进入牌池。每轮最多展示 4 张合法候选；当前卡只要仍然合法就会保留在候选中，若牌池没有合法选项则可保底跳过。</p>
-                        <p class="introP">保持当前核心卡免费，更换其他核心卡需扣 1 点生命；玻璃大炮进出均免费，但进入时生命会按上限收敛到 1，离开不会返还失去的生命。以下“射速 ×X”指射击频率 ×X（射击间隔除以 X）。Boss 奖励按「核心卡 → 本局强化 → 奖励摘要」推进；确认摘要后才恢复战斗。</p>
-                        <ul class="introList">
-                            <li><b>激情岁月</b> —— 玩家射击频率 ×2；普通敌机与 Boss 发射频率也 ×2。</li>
-                            <li><b>生存之道</b> —— 玩家射击频率 ×0.75；低于当前生命上限时每 20s 回复 1 命，满血时暂停计时。</li>
-                            <li><b>绝地反击</b> —— 当前生命为 1–2 时，伤害与射击频率 ×2；3 命及以上时休眠。</li>
-                            <li><b>平安无事</b> —— 普通敌机与 Boss 发射频率 ×0.65；玩家射击频率 ×0.80。</li>
-                            <li><b>电光石火</b> —— 每次射击额外 +1 发，玩家子弹速度 ×1.5；禁用治疗效果（独立的 Boss +3 生命奖励仍按上限结算）。</li>
-                            <li><b>血之渴望</b> —— 每个普通敌机的唯一死亡 +1 血槽；每 8 点尝试回复 1 命；每次 Boss 击杀 +16 点血槽；玩家射击频率 ×0.75。</li>
-                            <li><b>连环爆炸</b> —— 直接击杀普通敌机产生半径 200px、1.0 伤害爆炸；普通敌机生成率 ×1.3，爆炸不伤 Boss，爆炸击杀不会再次播种。</li>
-                            <li><b>玻璃大炮</b> —— 玩家伤害 ×2、射击频率 ×1.5；最大生命锁为 1；禁用治疗效果。</li>
-                            <li><b>Boss猎手</b> —— 对 Boss 伤害 ×3，对普通敌机伤害 ×0.5；射击频率不变。</li>
-                            <li><b>荆棘护甲</b> —— 每次实际受伤（护盾或屏障挡下的不算）立即击杀玩家中心 200px 内的普通敌机，并使 Boss 损失最大生命的 10%；敌机与 Boss 发射频率 ×1.5。</li>
-                            <li><b>粮草先行</b> —— 自然道具生成率 ×1.5；普通敌机与 Boss 发射频率 ×1.5。</li>
-                            <li><b>战争迷雾</b> —— 敌弹速度 ×0.80；追踪弹在迷雾规则生效时变为直线下落，换卡后也不会恢复追踪；顶部 35% 为不透明雾区，下方 40px 渐变。</li>
-                            <li><b>增益加强</b> —— 红心 +2 命，伤害道具持续 15s，护盾道具持续 10s；敌弹命中每次扣 2 命（普通碰撞仍扣 1 命）。</li>
-                        </ul>
-                        <div class="introH">本局强化路线</div>
-                        <p class="introP">强化只在本局内保留，换核心卡不会清除；新开局会重置，不写入永久记录。每次 Boss 奖励最多提供 3 个合法候选，路线结构为「入门 → 二选一分支 → 进阶」，同一路线的两个分支互斥。下文的 D 指触发时记录的当前直接命中伤害；基础伤害为 1 时，10D/20D/40D 分别等于 10/20/40 伤害。</p>
-                        <ul class="introList">
-                            <li><b>疾速压制</b> —— 入门「热机运转」：8 个不同开火批次命中后启动 4s 热机，热机内玩家射击频率 ×2；「快速复燃」：热机结束保留 4/8 命中进度；「横向压制」：热机内每第 2 个开火批次让主弹 +1.0 伤害并额外穿透 1 个普通敌机，升级为 2 个；「持续火力」：热机内每次直接击杀普通敌机 +400ms，每 6 个 Boss 命中批次 +400ms，每次最多额外 +2s，热机最长 6s。热机外命中进度 2s 不增长即清零。</li>
-                            <li><b>坚壁续航</b> —— 入门「稳态屏障」：连续 15s 未受到实际伤害获得 1 层，最多 3 层，完整屏障可按 1+2+3 共挡 6 发敌弹；「快速重整」：每层充能时间降至 12s；「防御回响」：每消耗 1 格屏障，对玩家中心 200px 内每个普通敌机造成 2.0 伤害；「安全窗口」：消耗屏障时清除玩家中心 250px 内敌弹，冷却 10s。护盾优先于屏障。</li>
-                            <li><b>绝境反攻</b> —— 入门「背水蓄势」：最大生命至少 3 且当前生命 ≤ 上限的 1/3（通常上限 20 时为 ≤6）才激活；每 10 个不同开火批次的直接命中追加 10D；「破围一击」：清除目标中心 220px 内敌弹；「绝境追击」：追加伤害改为 15D，不要求目标低血；「最后储备」：激活时累计 8 次直接击杀普通敌机，尝试回复 1 命，每个 Boss 奖励周期最多一次，需允许治疗且未满血。玻璃大炮上限为 1 时本路线休眠。</li>
-                            <li><b>连锁清场</b> —— 入门「爆破种子」：直接击杀普通敌机产生半径 200px、1.0 伤害爆炸；「广域爆破」：首代半径提升至 260px；「二次引燃」：首代击杀再产生 1 代传播爆炸，半径 220px、伤害 0.5，最多传播 1 代；「连锁震荡」：同一条路线链击杀 3 个普通敌机后，在第 3 个击杀点清除半径 300px 内敌弹，每条链一次。</li>
-                            <li><b>破甲猎王</b> —— 入门「弱点标记」：同一目标在 10 个不同开火批次中被命中后追加 20D 精准打击；基础锁定断档 1200ms 清除；「稳定锁定」：记忆窗口延长至 5000ms；「处决校准」：精准打击改为 40D，不要求目标低血；「猎王窗口」：Boss 被精准打击后开启 2000ms 窗口，下一次直接命中追加 2D 并关闭窗口；每次精准触发还可在 6000ms 清除冷却就绪时清除目标中心 200px 内敌弹。</li>
-                            <li><b>补给运营</b> —— 入门「物资回路」：收集 3 个自然道具开启 4s 脉冲；脉冲内玩家射击频率 ×1.5，且每一发子弹 +1 伤害，计时可累计至 8s；「远程牵引」：牵引玩家中心 200px 内自然道具，每个模拟 tick 最多移动 0.75px；「延时供给」：每次脉冲改为 6s；「余量转化」：满血红心贡献 2 点（普通进度为 1）向 3 点门槛推进，脉冲累计上限 8s。</li>
-                        </ul>
-                        <p class="introP">本局最多持有 6 项强化。满槽后只能从合法替换中选一项，替换必须保留已有前置与分支合法性；也可以跳过。本局强化 HUD 会在右上角显示最相关的两条路线及进度；普通暂停时，暂停面板会列出全部已获得强化。玻璃大炮将生命上限锁为 1，已获得的绝境反攻路线会进入休眠，暂停详情会提示这一点。</p>
-                        <p class="introP">游戏结束摘要会记录本局核心卡轨迹、已持有强化与强化贡献：屏障阻挡次数、连锁击杀数、精准伤害和补给脉冲覆盖率等；这些是本局结算信息，不代表跨局永久强化。</p>
-                    </section>
-                </div>
-                <button id="introBackButton" class="uiButton">返回</button>
-            </div>
-
-            <div class="bossWarning" id="bossWarning">BOSS来袭!</div>
-            <div class="bossHealthBar" id="bossHealthBar">
-                <div class="bossHealthFill" id="bossHealthFill"></div>
-                <div class="bossHealthText" id="bossHealthText"></div>
-            </div>
-
-            <div class="mobileControls">
-                <div class="controlArea"></div>
-            </div>
-        </div>
-    </div>
-
-    <script type="module" src="js/main.js"></script>
+  <div class="page">
+    <header><span class="name">yao1145</span><a class="github" href="https://github.com/yao1145">GitHub</a></header>
+    <main>
+      <h1>选一款，开始玩。</h1>
+      <p class="intro">一场弹幕挑战，一道连锁谜题。欢迎来到我的小游戏主页。</p>
+      <nav class="games" aria-label="选择游戏">
+        <a class="game" href="/pkufighter/" aria-labelledby="fighter-title">
+          <div class="preview fighter" aria-hidden="true"><span class="shots"></span><img class="badge" src="pkufighter/校徽/北京大学-logo.svg" alt=""></div>
+          <div class="copy"><h2 id="fighter-title">PKUfighter</h2><p class="description">驾驶北大校徽，穿过弹幕、迎战高校 Boss。选择效果卡，搭配你的战斗路线。</p><span class="play">开始战斗</span></div>
+        </a>
+        <a class="game" href="/clocks/" aria-labelledby="clocks-title">
+          <div class="preview clocks" aria-hidden="true"><div class="dial-grid">
+            <span class="dial"></span><span class="dial"></span><span class="dial"></span><span class="dial"></span><span class="dial"></span>
+            <span class="dial"></span><span class="dial"></span><span class="dial"></span><span class="dial"></span><span class="dial"></span>
+            <span class="dial"></span><span class="dial"></span><span class="dial"></span><span class="dial"></span><span class="dial"></span>
+            <span class="dial"></span><span class="dial"></span><span class="dial"></span><span class="dial"></span><span class="dial"></span>
+            <span class="dial"></span><span class="dial"></span><span class="dial"></span><span class="dial"></span><span class="dial"></span>
+          </div></div>
+          <div class="copy"><h2 id="clocks-title">十步万度</h2><p class="description">拨动 25 枚指针，让旋转接力。挑战 1–12 步的最优角度，收集十二颗满分星星。</p><span class="play">拨动指针</span></div>
+        </a>
+      </nav>
+    </main>
+    <footer>在浏览器里，随时开一局。</footer>
+  </div>
 </body>
 </html>
