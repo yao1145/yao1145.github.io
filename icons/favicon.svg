@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-labelledby="title description">
+  <title id="title">yao1145 · 指针 Y</title>
+  <desc id="description">深青色圆角方块中，白色指针组成字母 Y，浅青色轨道围绕，橙金色节点位于右上方。</desc>
+  <rect width="24" height="24" rx="5.2" fill="#153f47"/>
+  <path d="M19.62 7.79A8.7 8.7 0 1 1 9.75 3.6" fill="none" stroke="#86b5ba" stroke-width="1.15" stroke-linecap="round"/>
+  <path d="m8.25 7.55 3.75 4.05 3.75-4.05M12 11.6v6.2" fill="none" stroke="#f8fbfc" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="16.91" cy="4.82" r="1.38" fill="#efbd56"/>
+</svg>
