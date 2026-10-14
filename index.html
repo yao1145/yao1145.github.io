@@ -4,7 +4,21 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="yao1145 的小游戏：PKUfighter、十步万度与 Cube。选一款，开始玩。">
+  <meta name="theme-color" content="#f3f7fc">
   <title>yao1145 的小游戏</title>
+  <script>
+    // Apply saved preferences before the first paint.
+    (() => {
+      let language, theme;
+      try { language = localStorage.getItem('yaozi.home.language'); theme = localStorage.getItem('yaozi.home.theme'); } catch {}
+      const root = document.documentElement;
+      root.dataset.language = ['zh', 'en'].includes(language) ? language : (navigator.language.toLowerCase().startsWith('zh') ? 'zh' : 'en');
+      root.lang = root.dataset.language === 'zh' ? 'zh-CN' : 'en';
+      root.dataset.themePreference = ['light', 'dark'].includes(theme) ? theme : 'system';
+      root.dataset.theme = root.dataset.themePreference === 'system' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme;
+      document.querySelector('meta[name="theme-color"]').content = root.dataset.theme === 'dark' ? '#0d1826' : '#f3f7fc';
+    })();
+  </script>
   <link rel="icon" type="image/svg+xml" sizes="any" href="icons/favicon.svg">
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
@@ -12,56 +26,82 @@
   <link rel="apple-touch-icon" sizes="152x152" href="icons/apple-touch-icon-152.png">
   <meta name="apple-mobile-web-app-title" content="yao1145">
   <style>
-    :root { color-scheme: light; --ink: #183451; --muted: #4d647b; --paper: #f3f7fc; --blue: #244fc7; --line: #cbd7e6; }
+    :root { color-scheme: light; --ink: #183451; --muted: #4d647b; --paper: #f3f7fc; --card: #fff; --blue: #244fc7; --button-ink: #fff; --line: #cbd7e6; --clocks-paper: #e4eef1; --cube-paper: #e4edff; --dial-ink: #183451; --dial-line: #6d8895; --dial-accent: #a73e25; }
+    :root[data-theme="dark"] { color-scheme: dark; --ink: #e6edf8; --muted: #adc0d5; --paper: #0d1826; --card: #152638; --blue: #83a9ff; --button-ink: #0d1826; --line: #334b65; --clocks-paper: #203a49; --cube-paper: #233950; --dial-ink: #b8cedf; --dial-line: #7693a6; --dial-accent: #ffad8e; }
     * { box-sizing: border-box; }
-    body { margin: 0; background: var(--paper); color: var(--ink); font-family: "Microsoft YaHei", "PingFang SC", sans-serif; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font-family: "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif; }
     a { color: inherit; }
-    a:focus-visible { outline: 3px solid var(--blue); outline-offset: 6px; }
+    a:focus-visible, button:focus-visible { outline: 3px solid var(--blue); outline-offset: 4px; }
     .page { width: min(100% - 48px, 1040px); margin: 0 auto; }
     header { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 28px 0; border-bottom: 1px solid var(--line); }
     .name { font-size: 20px; font-weight: 700; letter-spacing: -.5px; }
-    .github { font-size: 14px; text-underline-offset: 5px; }
+    .header-tools { display: flex; align-items: center; gap: 12px; }
+    .github { min-height: 44px; display: inline-flex; align-items: center; font-size: 14px; text-underline-offset: 5px; }
+    .language { display: flex; padding: 3px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+    .language button, .theme-toggle { min-width: 44px; min-height: 44px; border: 0; border-radius: 7px; color: var(--muted); background: transparent; font: inherit; font-size: 14px; cursor: pointer; touch-action: manipulation; }
+    .language button[aria-pressed="true"] { background: var(--blue); color: var(--button-ink); font-weight: 600; }
+    .language button:hover:not([aria-pressed="true"]) { color: var(--ink); }
+    .theme-toggle { display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 12px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+    .theme-toggle:hover { border-color: var(--blue); }
+    .theme-toggle svg { width: 18px; height: 18px; flex-shrink: 0; }
+    .icon-sun, :root[data-theme="dark"] .icon-moon { display: none; }
+    :root[data-theme="dark"] .icon-sun { display: block; }
     main { padding: 64px 0 56px; }
     h1 { margin: 0; font-size: clamp(34px, 5vw, 54px); letter-spacing: -1.5px; line-height: 1.25; }
     .intro { margin: 18px 0 36px; color: var(--muted); font-size: 17px; line-height: 1.8; }
     .games { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
-    .game { display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: #fff; text-decoration: none; }
+    .game { display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: var(--card); text-decoration: none; }
     .game:hover { border-color: var(--blue); }
     .preview { height: 232px; display: grid; place-items: center; overflow: hidden; }
     .fighter { position: relative; background: #122947; background-image: radial-gradient(circle at 15% 20%, #8ea8d1 1px, transparent 2px), radial-gradient(circle at 72% 65%, #8ea8d1 1px, transparent 2px), radial-gradient(circle at 42% 85%, #8ea8d1 1px, transparent 2px); background-size: 90px 100px, 140px 120px, 160px 140px; }
     .badge { width: 82px; height: 82px; padding: 9px; border-radius: 50%; background: #fff; z-index: 1; }
     .shots { position: absolute; width: 5px; height: 24px; top: 26px; background: #86c9ff; border-radius: 4px; box-shadow: -18px 13px #86c9ff, 18px 13px #86c9ff; }
-    .clocks { background: #e4eef1; }
-    .cube { background: #e4edff; }
+    .clocks { background: var(--clocks-paper); }
+    .cube { background: var(--cube-paper); }
     .cube svg { width: 230px; height: 200px; }
     .dial-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
-    .dial { width: 30px; height: 30px; border: 1px solid #6d8895; border-radius: 50%; position: relative; }
-    .dial::before { content: ""; position: absolute; left: 13px; top: 4px; width: 2px; height: 11px; background: #183451; transform-origin: 1px 10px; }
-    .dial::after { content: ""; position: absolute; left: 11px; top: 11px; width: 6px; height: 6px; border-radius: 50%; background: #183451; }
+    .dial { width: 30px; height: 30px; border: 1px solid var(--dial-line); border-radius: 50%; position: relative; }
+    .dial::before { content: ""; position: absolute; left: 13px; top: 4px; width: 2px; height: 11px; background: var(--dial-ink); transform-origin: 1px 10px; }
+    .dial::after { content: ""; position: absolute; left: 11px; top: 11px; width: 6px; height: 6px; border-radius: 50%; background: var(--dial-ink); }
     .dial:nth-child(3n)::before { transform: rotate(90deg); }
     .dial:nth-child(4n)::before { transform: rotate(180deg); }
     .dial:nth-child(7n)::before { transform: rotate(270deg); }
-    .dial:nth-child(13) { border-color: #a73e25; }
-    .dial:nth-child(13)::before, .dial:nth-child(13)::after { background: #a73e25; }
+    .dial:nth-child(13) { border-color: var(--dial-accent); }
+    .dial:nth-child(13)::before, .dial:nth-child(13)::after { background: var(--dial-accent); }
     .copy { padding: 26px 28px 28px; flex: 1; display: flex; flex-direction: column; }
     h2 { font-size: 26px; margin: 0 0 12px; letter-spacing: -.5px; }
     .description { font-size: 15px; line-height: 1.8; color: var(--muted); margin: 0 0 24px; flex: 1; }
-    .play { align-self: flex-start; background: var(--blue); color: #fff; border-radius: 7px; padding: 11px 20px; font-size: 14px; font-weight: 600; }
+    .play { align-self: flex-start; background: var(--blue); color: var(--button-ink); border-radius: 7px; padding: 11px 20px; font-size: 14px; font-weight: 600; }
     footer { border-top: 1px solid var(--line); padding: 22px 0 30px; font-size: 13px; color: var(--muted); }
     @media (min-width: 641px) and (max-width: 900px) { .games { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
     @media (max-width: 640px) { .page { width: calc(100% - 32px); } header { padding: 22px 0; } main { padding: 36px 0; } .intro { font-size: 15px; margin-bottom: 26px; } .games { grid-template-columns: 1fr; gap: 20px; } .preview { height: 200px; } .copy { padding: 22px; } }
+    @media (max-width: 480px) { header { flex-wrap: wrap; gap: 16px; } .header-tools { width: 100%; justify-content: space-between; gap: 8px; } }
   </style>
 </head>
 <body>
   <div class="page">
-    <header><span class="name">yao1145</span><a class="github" href="https://github.com/yao1145">GitHub</a></header>
+    <header>
+      <span class="name">Yaozi</span>
+      <div class="header-tools">
+        <div class="language" role="group" aria-label="语言" data-i18n-aria="language">
+          <button id="language-zh" type="button" lang="zh-CN" aria-label="切换至中文" aria-pressed="true">中文</button>
+          <button id="language-en" type="button" lang="en" aria-label="Switch to English" aria-pressed="false">EN</button>
+        </div>
+        <button id="theme-toggle" class="theme-toggle" type="button" aria-label="切换至深色模式">
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M20.4 14.4A8.8 8.8 0 0 1 9.6 3.6a8.8 8.8 0 1 0 10.8 10.8Z"/></svg>
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg>
+          <span id="theme-label">深色</span>
+        </button>
+        <a class="github" href="https://github.com/yao1145">GitHub</a>
+      </div>
+    </header>
     <main>
-      <h1>选一款，开始玩。</h1>
-      <p class="intro">躲弹幕、拨指针、滚方块。欢迎来到我的小游戏主页。</p>
-      <nav class="games" aria-label="选择游戏">
+      <h1 data-i18n="heading">选一款，开始玩。</h1>
+      <p class="intro" data-i18n="intro">躲弹幕、拨指针、滚方块。欢迎来到我的小游戏主页。</p>
+      <nav class="games" aria-label="选择游戏" data-i18n-aria="games">
         <a class="game" href="/pkufighter/" aria-labelledby="fighter-title">
           <div class="preview fighter" aria-hidden="true"><span class="shots"></span><img class="badge" src="pkufighter/校徽/北京大学-logo.svg" alt=""></div>
-          <div class="copy"><h2 id="fighter-title">PKUfighter</h2><p class="description">驾驶北大校徽，穿过弹幕、迎战高校 Boss。选择效果卡，搭配你的战斗路线。</p><span class="play">开始战斗</span></div>
+          <div class="copy"><h2 id="fighter-title">PKUfighter</h2><p class="description" data-i18n="fighterDescription">驾驶北大校徽，穿过弹幕、迎战高校 Boss。选择效果卡，搭配你的战斗路线。</p><span class="play" data-i18n="fighterPlay">开始战斗</span></div>
         </a>
         <a class="game" href="/clocks/" aria-labelledby="clocks-title">
           <div class="preview clocks" aria-hidden="true"><div class="dial-grid">
@@ -71,7 +111,7 @@
             <span class="dial"></span><span class="dial"></span><span class="dial"></span><span class="dial"></span><span class="dial"></span>
             <span class="dial"></span><span class="dial"></span><span class="dial"></span><span class="dial"></span><span class="dial"></span>
           </div></div>
-          <div class="copy"><h2 id="clocks-title">十步万度</h2><p class="description">拨动 25 枚指针，让旋转接力。挑战 1–12 步的最优角度，收集十二颗满分星星。</p><span class="play">拨动指针</span></div>
+          <div class="copy"><h2 id="clocks-title" data-i18n="clocksTitle">十步万度</h2><p class="description" data-i18n="clocksDescription">拨动 25 枚指针，让旋转接力。挑战 1–12 步的最优角度，收集十二颗满分星星。</p><span class="play" data-i18n="clocksPlay">拨动指针</span></div>
         </a>
         <a class="game" href="/cube/" aria-labelledby="cube-title">
           <div class="preview cube" aria-hidden="true"><svg viewBox="0 0 230 200" fill="none">
@@ -82,12 +122,13 @@
             </g>
             <path d="M102 57h41v41h-41Z" fill="white" stroke="#355981"/><path d="m143 57 13 12v41l-13-12Z" fill="#f7f9fc" stroke="#355981"/><path d="M102 98h41l13 12h-42Z" fill="#eef3f8" stroke="#355981"/>
           </svg></div>
-          <div class="copy"><h2 id="cube-title">Cube</h2><p class="description">在 4×4 棋盘滚动立方体，让六面全蓝。每关只有最少步数，用完还未完成即失败。</p><span class="play">挑战最短路线</span></div>
+          <div class="copy"><h2 id="cube-title">Cube</h2><p class="description" data-i18n="cubeDescription">在 4×4 棋盘滚动立方体，让六面全蓝。每关只有最少步数，用完还未完成即失败。</p><span class="play" data-i18n="cubePlay">挑战最短路线</span></div>
         </a>
       </nav>
     </main>
-    <footer>在浏览器里，随时开一局。</footer>
+    <footer data-i18n="footer">在浏览器里，随时开一局。</footer>
   </div>
+  <script src="home.js"></script>
   <script src="firework/yaozi-intro.js" data-auto></script>
 </body>
 </html>

@@ -15,10 +15,11 @@
     const previousFocus = document.activeElement;
     const previousOverflow = document.documentElement.style.overflow;
     const previousInert = content?.inert;
+    const english = document.documentElement.lang.startsWith('en');
     const layer = document.createElement('div');
     layer.setAttribute('role', 'dialog');
     layer.setAttribute('aria-modal', 'true');
-    layer.setAttribute('aria-label', 'Yaozi 开屏动画');
+    layer.setAttribute('aria-label', english ? 'Yaozi intro animation' : 'Yaozi 开屏动画');
     layer.dataset.yaoziIntro = '';
     layer.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:#000;overflow:hidden;opacity:1;';
     const canvas = document.createElement('canvas');
@@ -26,8 +27,8 @@
     canvas.style.cssText = 'display:block;width:100%;height:100%;';
     const skip = document.createElement('button');
     skip.type = 'button';
-    skip.textContent = '跳过';
-    skip.setAttribute('aria-label', '跳过开屏动画');
+    skip.textContent = english ? 'Skip' : '跳过';
+    skip.setAttribute('aria-label', english ? 'Skip intro animation' : '跳过开屏动画');
     skip.style.cssText = 'all:initial;box-sizing:border-box;position:absolute;right:max(20px,env(safe-area-inset-right));top:max(20px,env(safe-area-inset-top));border:1px solid #ffffff30;border-radius:24px;padding:8px 17px;color:#e4c8c2;background:#0008;font:13px sans-serif;cursor:pointer;';
     skip.addEventListener('focus', () => { skip.style.outline = '2px solid #ffdda0'; });
     skip.addEventListener('blur', () => { skip.style.outline = ''; });
