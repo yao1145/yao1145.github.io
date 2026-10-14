@@ -34,7 +34,7 @@
     <div id="board" class="board" role="group" aria-label="点击立方体的相邻格移动"></div>
     <div class="legend"><span><i class="diamond" aria-hidden="true"></i>蓝格与接触面交换颜色</span><span id="dice-legend" hidden>对面点数之和为 7</span></div>
    </div>
-   <div class="board-help"><span>在棋盘上滑动、点击相邻格，或用方向键 / WASD 移动。Z 撤销，R 重开。</span><label class="roll-speed">翻滚<select id="roll-speed" aria-label="翻滚动画速度"><option value="360" selected>流畅</option><option value="600">慢速</option><option value="0">关闭</option></select></label></div>
+   <div class="board-help"><span>在棋盘上滑动、点击相邻格，或用方向键 / WASD 移动。Z 撤销，R 重开。</span><label class="roll-speed">翻滚<select id="roll-speed" aria-label="翻滚动画速度"><option value="360" selected>流畅</option><option value="180">快速</option><option value="0">关闭</option></select></label></div>
   </section>
   <section class="side" aria-label="步数与控制">
    <div class="stats"><div class="stat"><span>剩余步数</span><b id="remaining">6</b><small>步</small></div><div class="stat"><span>蓝色面</span><b id="collected">0</b><small>/ 6</small></div><div class="budget"><span>最少 / 上限 <strong id="optimal">6</strong> 步</span><span>已走 <strong id="used">0</strong> 步</span></div><div class="track" id="track" aria-hidden="true"></div></div>
