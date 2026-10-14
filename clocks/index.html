@@ -60,6 +60,8 @@ body{min-height:100svh}
 .dial{--dial-inset:7px;-webkit-appearance:none;appearance:none;padding:var(--dial-inset)}
 .dial-face{position:absolute;inset:var(--dial-inset);width:auto;height:auto}
 @media(max-width:600px){.dial{--dial-inset:5px}}
+/* An explicit speed choice opts into the essential chain animation. */
+@media(prefers-reduced-motion:reduce){.board-panel[data-animate="true"]:not(.instant) .needle{transition:transform var(--step-ms) cubic-bezier(.32,.08,.3,1)!important}}
 </style>
 </head>
 <body>
@@ -162,6 +164,7 @@ window.TenStepsEngine = (() => {
  const directionNames = ['上', '右', '下', '左'];
  const cellName = i => 'ABCDE'[i % 5] + (Math.floor(i / 5) + 1);
  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+ let speedChosenByUser = false;
  const STAR_KEY = 'ten-steps-optimal-stars-v1';
  let stars = Array(E.MAX_CLICKS).fill(false);
  try {
@@ -288,7 +291,13 @@ window.TenStepsEngine = (() => {
      if (r.fastForward || r.controller.signal.aborted) finish();
    });
  }
- function stepDuration() { return reducedMotion.matches ? 0 : Number(el('speed').value); }
+ function stepDuration() { return Number(el('speed').value); }
+ function syncMotionPreference() {
+   // Follow the system until the player explicitly chooses a playback speed.
+   if (!speedChosenByUser) el('speed').value = reducedMotion.matches ? '0' : '145';
+   panel.dataset.animate = String(stepDuration() > 0);
+   if (run && stepDuration() === 0) { run.fastForward = true; run.wake?.(); }
+ }
  function finishInstantly(r) {
    panel.classList.add('instant');
    state.turns = r.baseTurns.map((turns, i) => turns + r.plan.visits[i]);
@@ -385,14 +394,14 @@ window.TenStepsEngine = (() => {
  el('return-game').addEventListener('click', () => el('crown-dialog').close());
  el('crown-dialog').addEventListener('close', () => el('view-crown').focus({ preventScroll: true }));
  el('skip').addEventListener('click', () => { if (run) { run.fastForward = true; run.wake?.(); } });
- el('speed').addEventListener('change', () => { if (run && stepDuration() === 0) { run.fastForward = true; run.wake?.(); } });
- reducedMotion.addEventListener('change', () => { if (run && reducedMotion.matches) { run.fastForward = true; run.wake?.(); } });
+ el('speed').addEventListener('change', () => { speedChosenByUser = true; syncMotionPreference(); });
+ reducedMotion.addEventListener('change', syncMotionPreference);
  el('rules-button').addEventListener('click', () => {
    const rules = el('rules'); rules.open = !rules.open;
    if (rules.open) { rules.scrollIntoView({ behavior: reducedMotion.matches ? 'auto' : 'smooth', block: 'start' }); rules.querySelector('summary').focus({ preventScroll: true }); }
  });
  el('rules').addEventListener('toggle', () => el('rules-button').setAttribute('aria-expanded', el('rules').open));
- reset();
+ syncMotionPreference(); reset();
 })();
 </script>
 </body>
