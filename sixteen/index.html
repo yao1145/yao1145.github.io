@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="滑动整行整列，或旋转 2×2 方格。在最少步数内把 4×4 数字棋盘复原。">
+<meta name="theme-color" content="#edf3f9"><title>Sixteen · 最少步数挑战</title>
+<link rel="icon" href="../icons/favicon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<script>
+(() => { let theme; try { theme = localStorage.getItem('yaozi.home.theme'); } catch {} document.documentElement.dataset.theme = theme === 'dark' || (!['light','dark'].includes(theme) && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light'; })();
+</script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip-link" href="#game">跳到游戏</a>
+<main class="app">
+  <header class="masthead"><a href="../">← 游戏主页</a><div><span>最少步数挑战</span><button id="theme" class="theme" aria-label="切换颜色主题">◐</button></div></header>
+  <div class="intro"><h1>Sixteen</h1><p>滑动整行，旋转四格。<br><strong>用最少的步数，让 1—16 各归其位。</strong></p></div>
+  <div class="layout" id="game">
+    <section class="play-area" aria-label="数字棋盘">
+      <div class="board-panel">
+        <div class="board-head"><b id="level-title">第 1 关 · 六步思考</b><span>4 × 4 棋盘</span></div>
+        <div class="mode-bar" role="group" aria-label="操作方式"><button id="slide-mode" aria-pressed="false">↔ 滑动</button><button id="rotate-mode" aria-pressed="false">↻ 旋转</button><button id="mixed-mode" aria-pressed="true">混合模式</button></div>
+        <div id="frame" class="frame" data-mode="mixed" aria-busy="true">
+          <div id="top-arrows" class="arrows horizontal"></div>
+          <div class="middle"><div id="left-arrows" class="arrows vertical"></div><div id="board" class="board" role="group" aria-label="1 到 16 数字棋盘" aria-describedby="board-help"></div><div id="right-arrows" class="arrows vertical"></div></div>
+          <div id="bottom-arrows" class="arrows horizontal"></div>
+          <div id="loading" class="loading" role="status">正在验证最短步数…</div>
+        </div>
+        <div class="legend"><span><i class="correct-mark" aria-hidden="true">✓</i>数字右下角打勾表示已归位</span><span id="position-label">第 1 行 · 第 1 列</span></div>
+        <div class="solver-status" id="solver-status" hidden><p id="solver-progress" role="status" aria-live="polite"></p><button class="btn" id="cancel-solve">取消计算</button></div>
+      </div>
+      <div class="board-help" id="board-help"><p id="mode-help">滑动数字或点击箭头移动行列；点击四格交点旋转。两种操作可直接混用。</p><label>动画<select id="motion" aria-label="移动动画"><option value="220">流畅</option><option value="110">快速</option><option value="0">关闭</option></select></label></div>
+    </section>
+    <section class="side" aria-label="步数与控制">
+      <div class="stats"><div class="stat"><span>剩余步数</span><b id="remaining">—</b><small>步</small></div><div class="stat"><span>数字归位</span><b id="correct">—</b><small>/ 16</small></div><div class="budget"><span>最少 / 上限 <strong id="optimal">—</strong> 步</span><span>已走 <strong id="used">0</strong> 步</span></div><div class="track" id="track" aria-hidden="true"></div></div>
+      <div class="message" id="message" role="status" aria-live="polite" aria-atomic="true"><h2>每一步，都有转机</h2><p>正在准备棋盘与最短步数。</p></div>
+      <div class="tools"><button class="btn" id="undo" disabled>撤销 <kbd>Z</kbd></button><button class="btn" id="restart" disabled>重开 <kbd>R</kbd></button></div>
+      <button class="btn primary next" id="next" hidden>下一关 →</button>
+      <div class="rotation-controls"><h2>旋转 2 × 2</h2><p>选中四格的左上角，再选择方向；也可直接点棋盘上的旋转钮。</p><div class="tools" role="group" aria-label="旋转方向"><button class="btn" id="ccw" aria-pressed="false">↺ 逆时针 <kbd>Q</kbd></button><button class="btn" id="cw" aria-pressed="true">↻ 顺时针 <kbd>E</kbd></button></div><p class="rotation-note">每次点击旋转 90°，计 1 步。</p></div>
+      <div class="sequence"><h2>本次操作</h2><p id="sequence">—</p></div>
+    </section>
+  </div>
+  <section class="challenges" aria-label="选择挑战"><div class="challenge-head"><h2>十二关，步步到位</h2><span id="progress">已通关 0 / 12</span></div><div class="difficulty-bar"><label for="difficulty">步数难度 <select id="difficulty"></select></label><button class="btn primary" id="highest">最高难度 · 17 步</button></div><p class="difficulty-note">最高关的最短解为 17 步，已严格验证。<a href="#proof">查看步数证明</a></p><div id="levels" class="levels"></div><div class="extra"><div><button class="btn" id="daily">每日一局</button><button class="btn" id="random">随机挑战</button></div><p>每日采用所选难度；随机挑战直接洗牌，由浏览器计算最优解。</p></div><p id="storage-note" class="storage-note" hidden></p></section>
+  <details class="rules"><summary>玩法与最少步数规则</summary><div class="rule-body"><div><h3>两种操作，一张棋盘</h3><p>目标是把数字从左上到右下排列为 <strong>1—16</strong>。</p><p><strong>滑动：</strong>任一整行向左 / 右，或任一整列向上 / 下循环移动一格。边缘数字会回到另一端，每次移动计 1 步。</p><p><strong>旋转：</strong>任一相邻 2×2 区域顺时针或逆时针旋转 90°，每次计 1 步。点击四格交点处的旋转钮，右键可反向旋转。</p><p><strong>混合模式：</strong>同时启用行列滑动与四格旋转，无需切换。也可选择单独的滑动或旋转操作界面。</p></div><div><h3>最短解才算通关</h3><p>每关的步数上限等于同时允许两种操作时的<strong>实际最短解</strong>。预算用完还没复原即失败；可以撤销返还一步，或重开。</p><p>关卡从 6 步递增到<strong>已验证的 17 步</strong>。每日一局按北京时间和所选难度生成。随机挑战均匀打乱全部 16 个数字，再由浏览器计算该局面的最优解；步数不受难度菜单限制。求解期间可取消，确定最优步数后即可开始。</p><p><strong>键盘：</strong>点击数字选择行列，方向键执行滑动。旋转模式下方向键选择四格，Q / E 逆 / 顺时针旋转。1 / 2 / 3 分别选择滑动 / 旋转 / 混合模式，Z 撤销，R 重开。</p></div></div></details>
+  <details class="rules" id="proof">
+    <summary>最高难度的步数证明</summary>
+    <p class="proof-result">混合规则的<strong>最大最短步数为 17</strong>：任意局面至多需要 17 步，且确有局面必须走 17 步。上界论证采用 Rokicki 的原规则穷举结果，并以所验证的 32 个最远局面名单完整为前提。</p>
+    <div class="rule-body">
+      <div>
+        <h3>上界：任意局面至多 17 步</h3>
+        <p>仅允许整行、整列每次循环移动一格时，Rokicki 的穷举结果是：所有局面至多需要 <strong>18 步</strong>，其中恰有 <strong>32 个局面</strong>需要 18 步。<a href="https://www.speedsolving.com/threads/loopover-gods-number-upper-bounds-4%C3%974-asymptotics-etc.75180/" target="_blank" rel="noopener">查看原始结果</a></p>
+        <p>加入 2×2 旋转后，我们对这 32 个局面逐个搜索，并用独立的数组代码重放每一步，<strong>32 / 32 全部找到合法的 16 步解</strong>。这给出了它们的解长度上界。<a href="loopover-32-results.md" target="_blank" rel="noopener">查看全部解序列</a></p>
+        <p>其余局面原本就有至多 17 步的滑动解，这些操作在混合规则下依然合法。因此，<strong>所有局面都能在 17 步内复原</strong>。</p>
+      </div>
+      <div>
+        <h3>下界：有局面至少需要 17 步</h3>
+        <table class="proof-board"><caption>一个最短解为 17 步的局面</caption><tbody><tr><td>12</td><td>11</td><td>9</td><td>10</td></tr><tr><td>15</td><td>16</td><td>13</td><td>14</td></tr><tr><td>3</td><td>4</td><td>1</td><td>2</td></tr><tr><td>7</td><td>8</td><td>5</td><td>6</td></tr></tbody></table>
+        <p>按循环棋盘计算，每个数字到目标格的最短横纵距离之和为 <strong>62</strong>。一次滑动或旋转只移动四个数字，每个一格，每步最多把距离总和减少 4，所以至少需要 ⌈62 / 4⌉ = 16 步。</p>
+        <p>该局面是奇排列。每次合法操作都是一个四循环，也会改变排列的奇偶性，因此复原步数必须为奇数，下界提高到 <strong>17 步</strong>。同时，程序已找到并验证了一个 17 步解。</p>
+      </div>
+    </div>
+    <p class="proof-result">上界与下界重合：<strong>最大最短步数 = 17</strong>，因此把 17 步设为最高难度。这里每次行列移动一格、每次 2×2 旋转 90°都计 1 步；旋转区域不跨棋盘边界。</p>
+  </details>
+  <footer><span>灵感：<a href="https://puzzles-game.com/en/game/sixteen/" target="_blank" rel="noopener">Sixteen</a> · <a href="https://puzzles-game.com/en/game/twiddle/" target="_blank" rel="noopener">Twiddle</a></span><span>可离线游玩 · 每关最短解已验证</span></footer>
+</main>
+<script src="engine.js"></script><script src="optimal.js"></script><script src="game.js"></script>
+</body>
+</html>

@@ -6,7 +6,7 @@
   const strings = {
     zh: {
       title: 'yao1145 的小游戏',
-      description: 'yao1145 的小游戏：PKUfighter、十步万度与 Cube。选一款，开始玩。',
+      description: 'yao1145 的小游戏：PKUfighter、十步万度、Cube 与 Sixteen。选一款，开始玩。',
       heading: '选一款，开始玩。',
       intro: '躲弹幕、拨指针、滚方块。欢迎来到我的小游戏主页。',
       language: '语言', games: '选择游戏',
@@ -17,13 +17,15 @@
       clocksPlay: '拨动指针',
       cubeDescription: '在 4×4 棋盘滚动立方体，让六面全蓝。每关只有最少步数，用完还未完成即失败。',
       cubePlay: '挑战最短路线',
+      sixteenDescription: '循环滑动整行整列，旋转 2×2 四格。在最少步数内，让 1—16 各归其位。',
+      sixteenPlay: '挑战数字复原',
       footer: '在浏览器里，随时开一局。',
       light: '浅色', dark: '深色',
       toLight: '切换至浅色模式', toDark: '切换至深色模式'
     },
     en: {
       title: "yao1145's mini games",
-      description: 'Play PKUfighter, Clock Relay and Cube. Pick a game and start playing.',
+      description: 'Play PKUfighter, Clock Relay, Cube and Sixteen. Pick a game and start playing.',
       heading: 'Pick a game. Start playing.',
       intro: 'Dodge bullets, turn clock hands, roll a cube. Welcome to my little arcade.',
       language: 'Language', games: 'Choose a game',
@@ -34,6 +36,8 @@
       clocksPlay: 'Turn the hands',
       cubeDescription: 'Roll across a 4×4 board and turn all six faces blue. Solve each level within its shortest move limit.',
       cubePlay: 'Find the shortest path',
+      sixteenDescription: 'Slide rows and columns, rotate 2×2 blocks, and restore 1–16 in the fewest possible moves.',
+      sixteenPlay: 'Restore the numbers',
       footer: 'A quick game, right in your browser.',
       light: 'Light', dark: 'Dark',
       toLight: 'Switch to light mode', toDark: 'Switch to dark mode'

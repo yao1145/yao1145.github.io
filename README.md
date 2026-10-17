@@ -2,6 +2,8 @@
 
 Personal homepage and browser games, published with GitHub Pages.
 
+- **Sixteen:** `/sixteen/` — restore a 4×4 board numbered 1–16 using cyclic row/column shifts and 90° rotations of any 2×2 block. Mixed mode enables both operations together; separate slide and rotation interfaces are also available. Every operation costs one step. The 12 challenges progress from 6 to 17 moves, with an explicit difficulty selector, daily boards, uniformly random boards solved optimally in the browser, undo, restart, keyboard/touch controls and preserved completion records. Depth 6 uses bidirectional BFS; deeper challenges use matching displacement/parity lower bounds and concrete solution witnesses. The global maximum shortest distance is 17 under Rokicki's slide-only exhaustive result and the completeness of the supplied 32-antipode list: all 32 have independently replayed 16-move mixed solutions, and a 17-move instance supplies the lower bound. The generator and exact IDA* solver run in a Web Worker with an asynchronous fallback. Random boards are sampled before solving, with progress and cancellation; their optimum is independent of the difficulty selector. Daily boards use Asia/Shanghai time and the selected difficulty. Open `sixteen/index.html` directly for offline play, or `/sixteen/?level=12` for the hardest fixed level. Run `node sixteen/verify.cjs` to verify the certificates, and `node sixteen/verify-optimal.cjs` to cross-check the exact solver. See [the proof and scope](sixteen/DIFFICULTY.md).
+
 - **Homepage:** https://yao1145.github.io/
 - **PKUfighter:** https://yao1145.github.io/pkufighter/ — canvas shooter. See [game documentation](pkufighter/README.md).
 - **十步万度:** https://yao1145.github.io/clocks/ — 5×5 pointer-chain puzzle with 1–12 step challenges and star collection.
@@ -15,7 +17,7 @@ Serve the repository root over HTTP (PKUfighter uses ES modules):
 python -m http.server 8000
 ```
 
-Open http://localhost:8000/ and choose a game. The game URLs are `/pkufighter/`, `/clocks/`, and `/cube/`. Cube also runs directly from `cube/index.html` without a server.
+Open http://localhost:8000/ and choose a game. The game URLs are `/pkufighter/`, `/clocks/`, `/cube/`, and `/sixteen/`. Cube and Sixteen also run directly from their `index.html` files without a server.
 
 ## Structure
 

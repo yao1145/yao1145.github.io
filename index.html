@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="yao1145 的小游戏：PKUfighter、十步万度与 Cube。选一款，开始玩。">
+  <meta name="description" content="yao1145 的小游戏：PKUfighter、十步万度、Cube 与 Sixteen。选一款，开始玩。">
   <meta name="theme-color" content="#f3f7fc">
   <title>yao1145 的小游戏</title>
   <script>
@@ -61,6 +61,10 @@
     .clocks { background: var(--clocks-paper); }
     .cube { background: var(--cube-paper); }
     .cube svg { width: 230px; height: 200px; }
+    .sixteen { background: var(--cube-paper); }
+    .number-grid { display: grid; grid-template-columns: repeat(4, 38px); gap: 6px; transform: rotate(-7deg); }
+    .number-grid span { display: grid; place-items: center; height: 38px; border: 1px solid var(--line); border-radius: 5px; background: var(--card); font-size: 17px; font-weight: 650; color: var(--ink); }
+    .number-grid span:nth-child(-n+4) { background: var(--blue); color: var(--button-ink); border-color: var(--blue); }
     .dial-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
     .dial { width: 30px; height: 30px; border: 1px solid var(--dial-line); border-radius: 50%; position: relative; }
     .dial::before { content: ""; position: absolute; left: 13px; top: 4px; width: 2px; height: 11px; background: var(--dial-ink); transform-origin: 1px 10px; }
@@ -127,6 +131,10 @@
             <path d="M102 57h41v41h-41Z" fill="white" stroke="#355981"/><path d="m143 57 13 12v41l-13-12Z" fill="#f7f9fc" stroke="#355981"/><path d="M102 98h41l13 12h-42Z" fill="#eef3f8" stroke="#355981"/>
           </svg></div>
           <div class="copy"><h2 id="cube-title">Cube</h2><p class="description" data-i18n="cubeDescription">在 4×4 棋盘滚动立方体，让六面全蓝。每关只有最少步数，用完还未完成即失败。</p><span class="play" data-i18n="cubePlay">挑战最短路线</span></div>
+        </a>
+        <a class="game" href="/sixteen/" aria-labelledby="sixteen-title">
+          <div class="preview sixteen" aria-hidden="true"><div class="number-grid"><span>4</span><span>1</span><span>2</span><span>3</span><span>5</span><span>10</span><span>6</span><span>8</span><span>9</span><span>11</span><span>7</span><span>12</span><span>13</span><span>14</span><span>15</span><span>16</span></div></div>
+          <div class="copy"><h2 id="sixteen-title">Sixteen</h2><p class="description" data-i18n="sixteenDescription">循环滑动整行整列，旋转 2×2 四格。在最少步数内，让 1—16 各归其位。</p><span class="play" data-i18n="sixteenPlay">挑战数字复原</span></div>
         </a>
       </nav>
     </main>
