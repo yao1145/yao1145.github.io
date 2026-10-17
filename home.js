@@ -6,9 +6,9 @@
   const strings = {
     zh: {
       title: 'yao1145 的小游戏',
-      description: 'yao1145 的小游戏：PKUfighter、十步万度、Cube 与 Sixteen。选一款，开始玩。',
+      description: 'yao1145 的小游戏：PKUfighter、十步万度、Cube、Sixteen 与王冠巡游。选一款，开始玩。',
       heading: '选一款，开始玩。',
-      intro: '躲弹幕、拨指针、滚方块。欢迎来到我的小游戏主页。',
+      intro: '躲弹幕、拨指针、滚方块、走骑士步。欢迎来到我的小游戏主页。',
       language: '语言', games: '选择游戏',
       fighterDescription: '驾驶北大校徽，穿过弹幕、迎战高校 Boss。选择效果卡，搭配你的战斗路线。',
       fighterPlay: '开始战斗',
@@ -19,15 +19,18 @@
       cubePlay: '挑战最短路线',
       sixteenDescription: '循环滑动整行整列，旋转 2×2 四格。在最少步数内，让 1—16 各归其位。',
       sixteenPlay: '挑战数字复原',
+      knightTitle: '王冠巡游',
+      knightDescription: '王冠只走骑士步。踏遍 5×5 到 8×8 的每一格，收集十二颗巡游星星。',
+      knightPlay: '开始巡游',
       footer: '在浏览器里，随时开一局。',
       light: '浅色', dark: '深色',
       toLight: '切换至浅色模式', toDark: '切换至深色模式'
     },
     en: {
       title: "yao1145's mini games",
-      description: 'Play PKUfighter, Clock Relay, Cube and Sixteen. Pick a game and start playing.',
+      description: 'Play PKUfighter, Clock Relay, Cube, Sixteen and Crown Tour. Pick a game and start playing.',
       heading: 'Pick a game. Start playing.',
-      intro: 'Dodge bullets, turn clock hands, roll a cube. Welcome to my little arcade.',
+      intro: 'Dodge bullets, turn clock hands, roll a cube, tour with a crown. Welcome to my little arcade.',
       language: 'Language', games: 'Choose a game',
       fighterDescription: 'Pilot the Peking University emblem through bullet storms and face university bosses. Pick effect cards to shape your run.',
       fighterPlay: 'Start battle',
@@ -38,6 +41,9 @@
       cubePlay: 'Find the shortest path',
       sixteenDescription: 'Slide rows and columns, rotate 2×2 blocks, and restore 1–16 in the fewest possible moves.',
       sixteenPlay: 'Restore the numbers',
+      knightTitle: 'Crown Tour',
+      knightDescription: 'Move the crown like a knight. Visit every square from 5×5 to 8×8 exactly once and collect twelve stars.',
+      knightPlay: 'Begin the tour',
       footer: 'A quick game, right in your browser.',
       light: 'Light', dark: 'Dark',
       toLight: 'Switch to light mode', toDark: 'Switch to dark mode'

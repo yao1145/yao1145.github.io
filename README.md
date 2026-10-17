@@ -8,6 +8,7 @@ Personal homepage and browser games, published with GitHub Pages.
 - **PKUfighter:** https://yao1145.github.io/pkufighter/ — canvas shooter. See [game documentation](pkufighter/README.md).
 - **十步万度:** https://yao1145.github.io/clocks/ — 5×5 pointer-chain puzzle with 1–12 step challenges and star collection. A first-time perfect score in each step tier lights one of twelve stars; collecting all twelve unlocks the crown easter egg.
 - **Cube:** https://yao1145.github.io/cube/ — 4×4 rolling cube puzzle with 12 challenges (6–17 moves), daily and random boards. Every move swaps the landing square with the cube's bottom face. All six faces must turn blue within the exact shortest-path budget; exhausting that budget without finishing loses the game. Each level's first clear lights a star; all twelve unlock the star-cube easter egg.
+- **Crown Tour:** https://yao1145.github.io/knight/ — an open knight's tour puzzle. The crown moves with knight moves and must visit every square exactly once; it never needs to return to the start. Twelve challenges cover every rectangle from 5×5 to 8×8 plus two 8×8 finales (a centre start and a fixed distant throne). Each level's first clear lights a star; all twelve unlock the crown easter egg. Undo/restart and keyboard/touch controls are available, and daily/random boards are generated in the browser with randomized Warnsdorff ordering plus backtracking. Every fixed level stores a verified certificate; `node knight/verify.cjs` checks all twelve and samples generated boards. Open `knight/index.html` directly for offline play.
 
 ## Run locally
 
@@ -17,7 +18,7 @@ Serve the repository root over HTTP (PKUfighter uses ES modules):
 python -m http.server 8000
 ```
 
-Open http://localhost:8000/ and choose a game. The game URLs are `/pkufighter/`, `/clocks/`, `/cube/`, and `/sixteen/`. Cube and Sixteen also run directly from their `index.html` files without a server.
+Open http://localhost:8000/ and choose a game. The game URLs are `/pkufighter/`, `/clocks/`, `/cube/`, `/sixteen/`, and `/knight/`. Cube, Sixteen, and Crown Tour also run directly from their `index.html` files without a server.
 
 ## Structure
 
@@ -28,6 +29,7 @@ firework/           # pure JavaScript Yaozi particle intro and replay preview
 pkufighter/         # original game, scripts, styles, icons and school badges
 clocks/index.html   # self-contained 十步万度 game
 cube/index.html     # self-contained Cube game and exact shortest-path solver
+knight/             # Crown Tour, its tour certificates and generator
 ```
 
 GitHub Pages publishes the root directory of the `main` branch. Each game directory has an `index.html`.
@@ -49,3 +51,5 @@ Rolling uses reusable SVG surfaces with continuous geometry around the contact e
 Exhaustive 4×4 search: all 80,080 initial states with six blue board squares, six white cube faces and a white starting square are solvable. Their shortest solutions range from 6 to 17 moves. Allowing a blue starting square yields 128,128 initial states and the same maximum of 17. Across all 1,193,808 states with six blue elements distributed between the board and cube, the maximum shortest distance to completion is 18 moves. Starting squares do not trigger an initial colour exchange.
 
 Focused checks (test files are locally ignored): `node tests/cube-engine.cjs` and `node tests/cube-browser.cjs`. Engine checks compare rolling with an independent geometric oracle and every level's optimum with a separate forward BFS; browser checks cover the strict budget, controls, persistence, responsive layout and offline play.
+
+Crown Tour keeps its level certificates in `knight/engine.js`; run `node knight/verify.cjs` to check all twelve tours and a sample of generated daily/random boards.

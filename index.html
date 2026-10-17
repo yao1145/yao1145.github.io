@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="yao1145 的小游戏：PKUfighter、十步万度、Cube 与 Sixteen。选一款，开始玩。">
+  <meta name="description" content="yao1145 的小游戏：PKUfighter、十步万度、Cube、Sixteen 与王冠巡游。选一款，开始玩。">
   <meta name="theme-color" content="#f3f7fc">
   <title>yao1145 的小游戏</title>
   <script>
@@ -26,8 +26,8 @@
   <link rel="apple-touch-icon" sizes="152x152" href="icons/apple-touch-icon-152.png">
   <meta name="apple-mobile-web-app-title" content="yao1145">
   <style>
-    :root { color-scheme: light; --ink: #183451; --muted: #4d647b; --paper: #f3f7fc; --card: #fff; --blue: #244fc7; --button-ink: #fff; --line: #cbd7e6; --clocks-paper: #e4eef1; --cube-paper: #e4edff; --dial-ink: #183451; --dial-line: #6d8895; --dial-accent: #a73e25; }
-    :root[data-theme="dark"] { color-scheme: dark; --ink: #e6edf8; --muted: #adc0d5; --paper: #0d1826; --card: #152638; --blue: #83a9ff; --button-ink: #0d1826; --line: #334b65; --clocks-paper: #203a49; --cube-paper: #233950; --dial-ink: #b8cedf; --dial-line: #7693a6; --dial-accent: #ffad8e; }
+    :root { color-scheme: light; --ink: #183451; --muted: #4d647b; --paper: #f3f7fc; --card: #fff; --blue: #244fc7; --button-ink: #fff; --line: #cbd7e6; --clocks-paper: #e4eef1; --cube-paper: #e4edff; --cell: #e4edf5; --gold: #efbd56; --gold-line: #b48a40; --dial-ink: #183451; --dial-line: #6d8895; --dial-accent: #a73e25; }
+    :root[data-theme="dark"] { color-scheme: dark; --ink: #e6edf8; --muted: #adc0d5; --paper: #0d1826; --card: #152638; --blue: #83a9ff; --button-ink: #0d1826; --line: #334b65; --clocks-paper: #203a49; --cube-paper: #233950; --cell: #233950; --gold: #f3cf7a; --gold-line: #8a6a2f; --dial-ink: #b8cedf; --dial-line: #7693a6; --dial-accent: #ffad8e; }
     * { box-sizing: border-box; }
     body { margin: 0; background: var(--paper); color: var(--ink); font-family: "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif; }
     a { color: inherit; }
@@ -51,8 +51,10 @@
     main { padding: 64px 0 56px; }
     h1 { margin: 0; font-size: clamp(34px, 5vw, 54px); letter-spacing: -1.5px; line-height: 1.25; }
     .intro { margin: 18px 0 36px; color: var(--muted); font-size: 17px; line-height: 1.8; }
-    .games { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
-    .game { display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: var(--card); text-decoration: none; }
+    .games { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 24px; }
+    .game { display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: var(--card); text-decoration: none; grid-column: span 2; }
+    .game:nth-child(4) { grid-column: 2 / span 2; }
+    .game:nth-child(5) { grid-column: 4 / span 2; }
     .game:hover { border-color: var(--blue); }
     .preview { height: 232px; display: grid; place-items: center; overflow: hidden; }
     .fighter { position: relative; background: #122947; background-image: radial-gradient(circle at 15% 20%, #8ea8d1 1px, transparent 2px), radial-gradient(circle at 72% 65%, #8ea8d1 1px, transparent 2px), radial-gradient(circle at 42% 85%, #8ea8d1 1px, transparent 2px); background-size: 90px 100px, 140px 120px, 160px 140px; }
@@ -65,6 +67,14 @@
     .number-grid { display: grid; grid-template-columns: repeat(4, 38px); gap: 6px; transform: rotate(-7deg); }
     .number-grid span { display: grid; place-items: center; height: 38px; border: 1px solid var(--line); border-radius: 5px; background: var(--card); font-size: 17px; font-weight: 650; color: var(--ink); }
     .number-grid span:nth-child(-n+4) { background: var(--blue); color: var(--button-ink); border-color: var(--blue); }
+    .knight { background: var(--cube-paper); }
+    .knight svg { width: 230px; height: 200px; transform: rotate(-5deg); }
+    .knight-board rect { fill: var(--card); stroke: var(--line); stroke-width: .8; }
+    .knight-board rect.alt { fill: var(--cell); }
+    .knight-path { fill: none; stroke: var(--blue); stroke-width: 2; stroke-opacity: .55; stroke-linecap: round; stroke-linejoin: round; }
+    .knight-start { fill: var(--blue); }
+    .knight-crown { fill: var(--gold); stroke: var(--gold-line); stroke-width: 1.2; stroke-linejoin: round; }
+    .knight-spark { fill: var(--gold); opacity: .8; }
     .dial-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
     .dial { width: 30px; height: 30px; border: 1px solid var(--dial-line); border-radius: 50%; position: relative; }
     .dial::before { content: ""; position: absolute; left: 13px; top: 4px; width: 2px; height: 11px; background: var(--dial-ink); transform-origin: 1px 10px; }
@@ -79,8 +89,8 @@
     .description { font-size: 15px; line-height: 1.8; color: var(--muted); margin: 0 0 24px; flex: 1; }
     .play { align-self: flex-start; background: var(--blue); color: var(--button-ink); border-radius: 7px; padding: 11px 20px; font-size: 14px; font-weight: 600; }
     footer { border-top: 1px solid var(--line); padding: 22px 0 30px; font-size: 13px; color: var(--muted); }
-    @media (min-width: 641px) and (max-width: 900px) { .games { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-    @media (max-width: 640px) { .page { width: calc(100% - 32px); } header { padding: 22px 0; } main { padding: 36px 0; } .intro { font-size: 15px; margin-bottom: 26px; } .games { grid-template-columns: 1fr; gap: 20px; } .preview { height: 200px; } .copy { padding: 22px; } }
+    @media (min-width: 641px) and (max-width: 900px) { .games { grid-template-columns: repeat(2, minmax(0, 1fr)); } .game, .game:nth-child(4), .game:nth-child(5) { grid-column: auto; } }
+    @media (max-width: 640px) { .page { width: calc(100% - 32px); } header { padding: 22px 0; } main { padding: 36px 0; } .intro { font-size: 15px; margin-bottom: 26px; } .games { grid-template-columns: 1fr; gap: 20px; } .game, .game:nth-child(4), .game:nth-child(5) { grid-column: auto; } .preview { height: 200px; } .copy { padding: 22px; } }
     @media (max-width: 480px) { header { flex-wrap: wrap; gap: 16px; } .header-tools { width: 100%; justify-content: space-between; gap: 8px; } }
   </style>
 </head>
@@ -135,6 +145,24 @@
         <a class="game" href="/sixteen/" aria-labelledby="sixteen-title">
           <div class="preview sixteen" aria-hidden="true"><div class="number-grid"><span>4</span><span>1</span><span>2</span><span>3</span><span>5</span><span>10</span><span>6</span><span>8</span><span>9</span><span>11</span><span>7</span><span>12</span><span>13</span><span>14</span><span>15</span><span>16</span></div></div>
           <div class="copy"><h2 id="sixteen-title">Sixteen</h2><p class="description" data-i18n="sixteenDescription">循环滑动整行整列，旋转 2×2 四格。在最少步数内，让 1—16 各归其位。</p><span class="play" data-i18n="sixteenPlay">挑战数字复原</span></div>
+        </a>
+        <a class="game" href="/knight/" aria-labelledby="knight-title">
+          <div class="preview knight" aria-hidden="true"><svg viewBox="0 0 230 200" fill="none">
+            <g class="knight-board">
+              <rect x="27" y="12" width="32" height="32" rx="4"/><rect class="alt" x="63" y="12" width="32" height="32" rx="4"/><rect x="99" y="12" width="32" height="32" rx="4"/><rect class="alt" x="135" y="12" width="32" height="32" rx="4"/><rect x="171" y="12" width="32" height="32" rx="4"/>
+              <rect class="alt" x="27" y="48" width="32" height="32" rx="4"/><rect x="63" y="48" width="32" height="32" rx="4"/><rect class="alt" x="99" y="48" width="32" height="32" rx="4"/><rect x="135" y="48" width="32" height="32" rx="4"/><rect class="alt" x="171" y="48" width="32" height="32" rx="4"/>
+              <rect x="27" y="84" width="32" height="32" rx="4"/><rect class="alt" x="63" y="84" width="32" height="32" rx="4"/><rect x="99" y="84" width="32" height="32" rx="4"/><rect class="alt" x="135" y="84" width="32" height="32" rx="4"/><rect x="171" y="84" width="32" height="32" rx="4"/>
+              <rect class="alt" x="27" y="120" width="32" height="32" rx="4"/><rect x="63" y="120" width="32" height="32" rx="4"/><rect class="alt" x="99" y="120" width="32" height="32" rx="4"/><rect x="135" y="120" width="32" height="32" rx="4"/><rect class="alt" x="171" y="120" width="32" height="32" rx="4"/>
+              <rect x="27" y="156" width="32" height="32" rx="4"/><rect class="alt" x="63" y="156" width="32" height="32" rx="4"/><rect x="99" y="156" width="32" height="32" rx="4"/><rect class="alt" x="135" y="156" width="32" height="32" rx="4"/><rect x="171" y="156" width="32" height="32" rx="4"/>
+            </g>
+            <path class="knight-path" d="M43 28 L115 64 L187 28 L151 100 L187 172 L115 136 L43 172 L79 100 L115 28 L43 64 L79 136 L151 172 L187 100 L151 28"/>
+            <circle class="knight-start" cx="43" cy="28" r="3.5"/>
+            <g class="knight-crown" transform="translate(151 28)">
+              <path d="M-10 6 -12-5-4 0 0-9 4 0 12-5 10 6Z"/><rect x="-10" y="6" width="20" height="4" rx="1.5"/><circle cx="-12" cy="-6" r="2"/><circle cx="12" cy="-6" r="2"/><circle cx="0" cy="-10" r="2.2"/>
+            </g>
+            <path class="knight-spark" d="m189 151 2 5 5 2-5 2-2 5-2-5-5-2 5-2 2-5Zm-158 19 1.5 4 4 1.5-4 1.5-1.5 4-1.5-4-4-1.5 4-1.5 1.5-4Z"/>
+          </svg></div>
+          <div class="copy"><h2 id="knight-title" data-i18n="knightTitle">王冠巡游</h2><p class="description" data-i18n="knightDescription">王冠只走骑士步。踏遍 5×5 到 8×8 的每一格，收集十二颗巡游星星。</p><span class="play" data-i18n="knightPlay">开始巡游</span></div>
         </a>
       </nav>
     </main>
