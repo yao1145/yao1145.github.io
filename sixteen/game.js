@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const E = SixteenEngine, $ = id => document.getElementById(id), board = $('board');
-  let state = null, challenge = null, selection = 0, mode = 'mixed', direction = 1;
+  let state = null, challenge = null, selection = 0, direction = 1;
   try { if (localStorage.getItem('sixteen.rotation.v1') === 'ccw') direction = -1; } catch {}
   let history = [], route = [], current = { type: 'level', index: 0 }, loading = true, epoch = 0;
   let animating = false, animations = [], queue = [], gesture = null, suppressClick = 0;
@@ -126,20 +126,14 @@
   function renderSelection() {
     const r = Math.floor(selection / 4), c = selection % 4, br = Math.min(r, 2), bc = Math.min(c, 2);
     $('position-label').textContent = `第 ${r + 1} 行 · 第 ${c + 1} 列`;
-    if (state) tiles.forEach((tile, value) => tile.classList.toggle('selected', mode !== 'rotate' && state.board.indexOf(String.fromCharCode(65 + value)) === selection));
-    outline.hidden = mode === 'slide' || loading;
+    if (state) tiles.forEach((tile, value) => tile.classList.toggle('selected', state.board.indexOf(String.fromCharCode(65 + value)) === selection));
+    outline.hidden = loading;
     outline.style.left = `calc(${bc * 25}% + ${bc * 2 - 2}px)`; outline.style.top = `calc(${br * 25}% + ${br * 2 - 2}px)`;
     points.forEach((button, i) => {
-      button.hidden = mode === 'slide'; button.classList.toggle('selected', i === br * 3 + bc);
+      button.classList.toggle('selected', i === br * 3 + bc);
       button.firstElementChild.textContent = direction === 1 ? '↻' : '↺';
       button.setAttribute('aria-label', `旋转第 ${Math.floor(i / 3) + 1} 行第 ${i % 3 + 1} 列起的 2×2 方格，${direction === 1 ? '顺' : '逆'}时针`);
     });
-  }
-  function setMode(value) {
-    mode = value; $('frame').dataset.mode = value;
-    for (const name of ['slide','rotate','mixed']) $(`${name}-mode`).setAttribute('aria-pressed', String(value === name));
-    $('mode-help').textContent = value === 'slide' ? '在数字上滑动，或点击边缘箭头。移出的一格会从另一端回来。' : value === 'rotate' ? '点击四格交点处的旋转钮；右键反向。Q / E 旋转选中的四格。' : '滑动数字或点击箭头移动行列；点击四格交点旋转。两种操作可直接混用。';
-    renderSelection();
   }
   function describe(id) {
     const m = E.MOVES[id];
@@ -227,11 +221,9 @@
     if (state) renderSelection();
   }
   function rotate(value) {
-    setDirection(value); if (mode === 'slide') setMode('rotate'); else renderSelection();
+    setDirection(value);
     const r = Math.min(Math.floor(selection / 4), 2), c = Math.min(selection % 4, 2); act(16 + (r * 3 + c) * 2 + (value === 1 ? 0 : 1));
   }
-  $('slide-mode').onclick = () => setMode('slide'); $('rotate-mode').onclick = () => setMode('rotate');
-  $('mixed-mode').onclick = () => setMode('mixed');
   $('cw').onclick = () => rotate(1); $('ccw').onclick = () => rotate(-1);
   $('default-cw').onclick = () => setDirection(1); $('default-ccw').onclick = () => setDirection(-1);
   setDirection(direction, false);
@@ -252,21 +244,18 @@
     const key = event.key.toLowerCase();
     if (key === 'z') { event.preventDefault(); undo(); return; }
     if (key === 'r') { event.preventDefault(); restart(); return; }
-    if (['1','2','3'].includes(key)) { event.preventDefault(); setMode(key === '1' ? 'slide' : key === '2' ? 'rotate' : 'mixed'); return; }
     const isBoard = board.contains(event.target) || event.target === document.body;
     if (!isBoard) return;
     if (key === 'q' || key === 'e') { event.preventDefault(); rotate(key === 'e' ? 1 : -1); return; }
     if (!['arrowleft','arrowright','arrowup','arrowdown'].includes(key)) return;
     event.preventDefault();
     const r = Math.floor(selection / 4), c = selection % 4;
-    if (mode === 'rotate') {
-      selection = Math.max(0, Math.min(2, Math.min(r, 2) + (key === 'arrowdown' ? 1 : key === 'arrowup' ? -1 : 0))) * 4 + Math.max(0, Math.min(2, Math.min(c, 2) + (key === 'arrowright' ? 1 : key === 'arrowleft' ? -1 : 0))); renderSelection();
-    } else act(key === 'arrowleft' ? r * 2 : key === 'arrowright' ? r * 2 + 1 : key === 'arrowup' ? 8 + c * 2 : 9 + c * 2);
+    act(key === 'arrowleft' ? r * 2 : key === 'arrowright' ? r * 2 + 1 : key === 'arrowup' ? 8 + c * 2 : 9 + c * 2);
   });
   board.addEventListener('pointerdown', event => {
     pointers.add(event.pointerId);
     if (pointers.size > 1) { gesture = null; return; }
-    if (mode === 'rotate' || event.button !== 0 || loading || !state || state.status !== 'playing') return;
+    if (event.button !== 0 || loading || !state || state.status !== 'playing') return;
     const tile = event.target.closest('.tile'); if (!tile) return;
     const pos = state.board.indexOf(String.fromCharCode(64 + Number(tile.dataset.value)));
     gesture = { id: event.pointerId, x: event.clientX, y: event.clientY, pos };
@@ -290,7 +279,7 @@
   const initialDark = document.documentElement.dataset.theme === 'dark';
   $('theme').setAttribute('aria-label', initialDark ? '切换至浅色模式' : '切换至深色模式');
   document.querySelector('meta[name="theme-color"]').content = initialDark ? '#0d1826' : '#edf3f9';
-  window.SixteenGame = Object.freeze({ snapshot: () => ({ state: state && { ...state }, optimal: challenge && challenge.optimal, mode, selection, loading, animating, queued: queue.length, current: { ...current }, route: route.slice() }), ready: () => !loading && !!state && !animating && !queue.length });
+  window.SixteenGame = Object.freeze({ snapshot: () => ({ state: state && { ...state }, optimal: challenge && challenge.optimal, mode: 'mixed', selection, loading, animating, queued: queue.length, current: { ...current }, route: route.slice() }), ready: () => !loading && !!state && !animating && !queue.length });
   const legacyLevel = Number(new URLSearchParams(location.search).get('level'));
   const requestedLevel = legacyLevel === 26 ? E.LEVELS.length : legacyLevel;
   load(Number.isInteger(requestedLevel) && requestedLevel > 0 && requestedLevel <= E.LEVELS.length ? { type: 'level', index: requestedLevel - 1 } : current);

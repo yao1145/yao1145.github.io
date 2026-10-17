@@ -19,8 +19,7 @@
     <section class="play-area" aria-label="数字棋盘">
       <div class="board-panel">
         <div class="board-head"><b id="level-title">第 1 关 · 六步思考</b><span>4 × 4 棋盘</span></div>
-        <div class="mode-bar" role="group" aria-label="操作方式"><button id="slide-mode" aria-pressed="false">↔ 滑动</button><button id="rotate-mode" aria-pressed="false">↻ 旋转</button><button id="mixed-mode" aria-pressed="true">混合模式</button></div>
-        <div id="frame" class="frame" data-mode="mixed" aria-busy="true">
+        <div id="frame" class="frame" aria-busy="true">
           <div id="top-arrows" class="arrows horizontal"></div>
           <div class="middle"><div id="left-arrows" class="arrows vertical"></div><div id="board" class="board" role="group" aria-label="1 到 16 数字棋盘" aria-describedby="board-help"></div><div id="right-arrows" class="arrows vertical"></div></div>
           <div id="bottom-arrows" class="arrows horizontal"></div>
@@ -29,7 +28,7 @@
         <div class="legend"><span><i class="correct-mark" aria-hidden="true">✓</i>数字右下角打勾表示已归位</span><span id="position-label">第 1 行 · 第 1 列</span></div>
         <div class="solver-status" id="solver-status" hidden><p id="solver-progress" role="status" aria-live="polite"></p><button class="btn" id="cancel-solve">取消计算</button></div>
       </div>
-      <div class="board-help" id="board-help"><p id="mode-help">滑动数字或点击箭头移动行列；点击四格交点旋转。两种操作可直接混用。</p><label>动画<select id="motion" aria-label="移动动画"><option value="220">流畅</option><option value="110">快速</option><option value="0">关闭</option></select></label></div>
+      <div class="board-help" id="board-help"><p>滑动数字或点击箭头移动行列；点击四格交点旋转。两种操作可直接混用。</p><label>动画<select id="motion" aria-label="移动动画"><option value="220">流畅</option><option value="110">快速</option><option value="0">关闭</option></select></label></div>
     </section>
     <section class="side" aria-label="步数与控制">
       <div class="stats"><div class="stat"><span>剩余步数</span><b id="remaining">—</b><small>步</small></div><div class="stat"><span>数字归位</span><b id="correct">—</b><small>/ 16</small></div><div class="budget"><span>最少 / 上限 <strong id="optimal">—</strong> 步</span><span>已走 <strong id="used">0</strong> 步</span></div><div class="track" id="track" aria-hidden="true"></div></div>
@@ -41,7 +40,7 @@
     </section>
   </div>
   <section class="challenges" aria-label="选择挑战"><div class="challenge-head"><h2>十二关，步步到位</h2><span id="progress">已通关 0 / 12</span></div><div class="difficulty-bar"><label for="difficulty">步数难度 <select id="difficulty"></select></label><button class="btn primary" id="highest">最高难度 · 17 步</button></div><p class="difficulty-note">最高关的最短解为 17 步，已严格验证。<a href="#proof">查看步数证明</a></p><div id="levels" class="levels"></div><div class="extra"><div><button class="btn" id="daily">每日一局</button><button class="btn" id="random">随机挑战</button></div><p>每日采用所选难度；随机挑战直接洗牌，由浏览器计算最优解。</p></div><p id="storage-note" class="storage-note" hidden></p></section>
-  <details class="rules"><summary>玩法与最少步数规则</summary><div class="rule-body"><div><h3>两种操作，一张棋盘</h3><p>目标是把数字从左上到右下排列为 <strong>1—16</strong>。</p><p><strong>滑动：</strong>任一整行向左 / 右，或任一整列向上 / 下循环移动一格。边缘数字会回到另一端，每次移动计 1 步。</p><p><strong>旋转：</strong>任一相邻 2×2 区域顺时针或逆时针旋转 90°，每次计 1 步。点击四格交点处的旋转钮，右键可反向旋转。</p><p><strong>混合模式：</strong>同时启用行列滑动与四格旋转，无需切换。也可选择单独的滑动或旋转操作界面。</p></div><div><h3>最短解才算通关</h3><p>每关的步数上限等于同时允许两种操作时的<strong>实际最短解</strong>。预算用完还没复原即失败；可以撤销返还一步，或重开。</p><p>关卡从 6 步递增到<strong>已验证的 17 步</strong>。每日一局按北京时间和所选难度生成。随机挑战均匀打乱全部 16 个数字，再由浏览器计算该局面的最优解；步数不受难度菜单限制。求解期间可取消，确定最优步数后即可开始。</p><p><strong>键盘：</strong>点击数字选择行列，方向键执行滑动。旋转模式下方向键选择四格，Q / E 逆 / 顺时针旋转。1 / 2 / 3 分别选择滑动 / 旋转 / 混合模式，Z 撤销，R 重开。</p></div></div></details>
+  <details class="rules"><summary>玩法与最少步数规则</summary><div class="rule-body"><div><h3>两种操作，一张棋盘</h3><p>目标是把数字从左上到右下排列为 <strong>1—16</strong>。</p><p><strong>滑动：</strong>任一整行向左 / 右，或任一整列向上 / 下循环移动一格。边缘数字会回到另一端，每次移动计 1 步。</p><p><strong>旋转：</strong>任一相邻 2×2 区域顺时针或逆时针旋转 90°，每次计 1 步。点击四格交点处的旋转钮，右键可反向旋转。</p><p><strong>混合模式：</strong>同时启用行列滑动与四格旋转，两种操作可直接混用。</p></div><div><h3>最短解才算通关</h3><p>每关的步数上限等于同时允许两种操作时的<strong>实际最短解</strong>。预算用完还没复原即失败；可以撤销返还一步，或重开。</p><p>关卡从 6 步递增到<strong>已验证的 17 步</strong>。每日一局按北京时间和所选难度生成。随机挑战均匀打乱全部 16 个数字，再由浏览器计算该局面的最优解；步数不受难度菜单限制。求解期间可取消，确定最优步数后即可开始。</p><p><strong>键盘：</strong>点击数字选择行列与相邻四格，方向键执行行列滑动，Q / E 逆 / 顺时针旋转选中的四格。Z 撤销，R 重开。</p></div></div></details>
   <details class="rules" id="proof">
     <summary>最高难度的步数证明</summary>
     <p class="proof-result">混合规则的<strong>最大最短步数为 17</strong>：任意局面至多需要 17 步，且确有局面必须走 17 步。上界论证采用 Rokicki 的原规则穷举结果，并以所验证的 32 个最远局面名单完整为前提。</p>
