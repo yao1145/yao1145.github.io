@@ -2,6 +2,7 @@
   'use strict';
   const E = SixteenEngine, $ = id => document.getElementById(id), board = $('board');
   let state = null, challenge = null, selection = 0, mode = 'mixed', direction = 1;
+  try { if (localStorage.getItem('sixteen.rotation.v1') === 'ccw') direction = -1; } catch {}
   let history = [], route = [], current = { type: 'level', index: 0 }, loading = true, epoch = 0;
   let animating = false, animations = [], queue = [], gesture = null, suppressClick = 0;
   const pointers = new Set();
@@ -218,13 +219,22 @@
     if (loading || !challenge) { load(current); return; }
     ++epoch; clearMotion(); state = { board: challenge.board, used: 0, status: 'playing' }; history = []; route = []; render();
   }
+  function setDirection(value, persist = true) {
+    direction = value;
+    $('cw').setAttribute('aria-pressed', String(value === 1)); $('ccw').setAttribute('aria-pressed', String(value === -1));
+    $('default-cw').setAttribute('aria-pressed', String(value === 1)); $('default-ccw').setAttribute('aria-pressed', String(value === -1));
+    if (persist) { try { localStorage.setItem('sixteen.rotation.v1', value === 1 ? 'cw' : 'ccw'); } catch {} }
+    if (state) renderSelection();
+  }
   function rotate(value) {
-    direction = value; if (mode === 'slide') setMode('rotate'); else renderSelection(); $('cw').setAttribute('aria-pressed', String(value === 1)); $('ccw').setAttribute('aria-pressed', String(value === -1));
+    setDirection(value); if (mode === 'slide') setMode('rotate'); else renderSelection();
     const r = Math.min(Math.floor(selection / 4), 2), c = Math.min(selection % 4, 2); act(16 + (r * 3 + c) * 2 + (value === 1 ? 0 : 1));
   }
   $('slide-mode').onclick = () => setMode('slide'); $('rotate-mode').onclick = () => setMode('rotate');
   $('mixed-mode').onclick = () => setMode('mixed');
   $('cw').onclick = () => rotate(1); $('ccw').onclick = () => rotate(-1);
+  $('default-cw').onclick = () => setDirection(1); $('default-ccw').onclick = () => setDirection(-1);
+  setDirection(direction, false);
   for (let depth = 6; depth <= E.MAX_CERTIFIED; depth++) { const option = document.createElement('option'); option.value = depth; option.textContent = `${depth} 步${depth === E.MAX_CERTIFIED ? ' · 最高' : ''}`; $('difficulty').append(option); }
   $('highest').textContent = `最高难度 · ${E.MAX_CERTIFIED} 步`;
   $('highest').onclick = () => load({ type: 'level', index: highestIndex });
