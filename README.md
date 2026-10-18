@@ -4,7 +4,7 @@
 
 ## 中文
 
-八款浏览器小游戏，打开网页就能玩，支持电脑和手机。
+十一款浏览器小游戏，打开网页就能玩，支持电脑和手机。
 
 [进入网站](https://yao1145.github.io/)
 
@@ -18,12 +18,15 @@
 | [Tronix · 解结](https://yao1145.github.io/tronix/) | 拖动节点，解开全部交叉连线，挑战逐渐复杂的平面图。 |
 | [顶点着色](https://yao1145.github.io/coloring/) | 给相连的顶点填上不同颜色，用最少颜色完成整张图。 |
 | [Swap 全清](https://yao1145.github.io/swap/) | 交换相邻方块，消除同色邻块，主动下落，清空全部方块。 |
+| [Flip](https://yao1145.github.io/flip/) | 翻转局部方格，用最少点击点亮全盘。 |
+| [Pegs · 孔明棋](https://yao1145.github.io/pegs/) | 在多种棋盘上跳吃棋子，最终只留一子。 |
+| [Robots · 四机归位](https://yao1145.github.io/robots/) | 机器人遇障碍才停，让四台同时停在各自目标上。 |
 
 主页与 PKUfighter 以外的游戏可切换中英文，并沿用同一语言偏好。这些页面也支持明暗主题。成绩和通关记录保存在当前浏览器，各游戏页面有具体操作说明。
 
 ## English
 
-Eight browser games for desktop and mobile. Open the site and pick one to play.
+Eleven browser games for desktop and mobile. Open the site and pick one to play.
 
 [Visit the site](https://yao1145.github.io/)
 
@@ -37,6 +40,9 @@ Eight browser games for desktop and mobile. Open the site and pick one to play.
 | [Tronix · Untangle](https://yao1145.github.io/tronix/) | Drag nodes to uncross every line in increasingly intricate planar graphs. |
 | [Vertex Coloring](https://yao1145.github.io/coloring/) | Give connected vertices different colors and solve each graph with the minimum number of colors. |
 | [Swap · Clear All](https://yao1145.github.io/swap/) | Swap adjacent tiles, clear matching neighbors, and choose when to drop. Clear every tile to win. |
+| [Flip](https://yao1145.github.io/flip/) | Flip local patterns and light every tile in the fewest clicks. |
+| [Pegs · Solitaire](https://yao1145.github.io/pegs/) | Jump and remove pegs on different boards, leaving just one. |
+| [Robots · Chain](https://yao1145.github.io/robots/) | Slide four robots and park them on all four matching targets at once. |
 
 The homepage and all games except PKUfighter support Chinese and English, sharing your language preference. These pages also have light and dark themes. Scores and completed levels are saved in your browser. Each game has its own controls and instructions.
 

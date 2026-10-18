@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="翻转全亮：按下一格，翻转它自己与作用范围内的邻格，在最优预算内点亮全部方格。十二关、每日与随机棋盘。">
+<meta name="theme-color" content="#edf3f9">
+<title>翻转全亮 · 用最少步数点亮棋盘</title>
+<link rel="icon" href="../icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<script>(()=>{let t;try{t=localStorage.getItem('yaozi.home.theme')}catch{}document.documentElement.dataset.theme=['light','dark'].includes(t)?t:matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'})();</script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip-link" href="#game">跳到游戏</a>
+<main class="app">
+  <header class="masthead"><a href="../">← 游戏主页</a><div><span>翻面 · 全亮</span><button id="language-toggle" class="language-toggle" type="button" aria-label="切换语言" title="切换语言">EN</button><button class="theme" id="theme" type="button" aria-label="切换颜色主题">◐</button></div></header>
+  <div class="intro"><h1>翻转全亮</h1><p>按下一格，<br><strong>点亮的不只是它自己。</strong></p></div>
+  <div class="layout" id="game">
+    <section class="play-area" aria-label="翻转棋盘">
+      <div class="board-panel">
+        <div class="board-head"><b id="level-title">第 1 关 · 初见翻转</b><span id="board-meta"></span></div>
+        <div class="board-wrap" id="board-wrap"><div class="flip-board" id="board" role="group" aria-label="翻转棋盘" aria-describedby="board-help"></div></div>
+        <p id="selection-note" class="selection-note" aria-live="polite">格子里的小图，就是这一格的作用范围。</p>
+        <div class="tools board-tools"><button class="btn" id="undo" disabled>撤销 <kbd>Z</kbd></button><button class="btn" id="restart">重开 <kbd>R</kbd></button><button class="btn primary" id="hint">提示 <kbd>H</kbd></button></div>
+        <div class="board-help"><span id="board-help">点击方格，翻转它自己与作用范围内的邻格。全部亮起即通关。</span><label class="motion">动画<select id="motion" aria-label="翻转动画速度"><option value="180">流畅</option><option value="80">快速</option><option value="0">关闭</option></select></label></div>
+      </div>
+    </section>
+    <section class="side" aria-label="全亮进度与预算">
+      <div class="stats">
+        <div class="stat"><span>已亮方格</span><b id="lit-count">0</b><small id="total">/ 9</small></div>
+        <div class="stat"><span>剩余预算</span><b id="remaining">0</b><small>步</small></div>
+        <div class="record-row"><span id="budget-row">最优步数 —</span><span id="press-row">已按 0 次</span></div>
+        <div class="record-row"><span id="solutions-row">解的数量 —</span><span id="best-row">本关最佳 —</span></div>
+      </div>
+      <div id="message" class="message" role="status" aria-live="polite" aria-atomic="true"><h2 id="message-title">每一格都有自己的作用范围</h2><p id="message-text">按下之前，先看清格子里的小图。</p></div>
+      <button id="next" class="btn primary next" hidden>下一关 →</button>
+      <div class="busy-panel" id="busy" hidden role="status" aria-live="polite"><p id="busy-text">正在构造并验证可解的棋盘…</p><button id="cancel" class="btn">取消生成</button></div>
+      <div class="key-hint"><h2>两次翻转互相抵消</h2><p>同一格按两次会恢复原局面，但仍消耗两步预算。最终局面取决于每格点击次数的奇偶性，点击顺序不影响结果。</p><p>方向键移动焦点，Enter 或空格按下。Z 撤销，R 重开，H 显示还需要几步。</p></div>
+    </section>
+  </div>
+  <section class="challenges" aria-label="全亮挑战">
+    <div class="collection" id="collection"><div class="collection-heading"><div><h2>十二星全亮 <span id="star-count">0 / 12</span></h2><p id="collection-note">每关首次全亮，点亮一颗星。</p></div></div><div id="star-shelf" class="star-shelf" role="list" aria-label="十二关通关星星"></div></div>
+    <div class="challenge-head"><h2>十二关，从 3×3 到 5×5</h2><span id="progress-label">已通关 0 / 12</span></div>
+    <div class="levels" id="levels"></div>
+    <div class="extra"><div><button class="btn" id="daily">每日一局</button><button class="btn" id="random">随机挑战</button></div><p>每日按北京时间生成；每日与随机不计入固定关卡星星。</p></div>
+    <p id="storage-note" class="storage-note" hidden>浏览器无法保存记录；本次打开期间仍可收集星星。</p>
+  </section>
+  <details class="rules"><summary>玩法与全亮规则</summary><div class="rule-body"><div>
+    <h3>点击方格，翻转一片</h3>
+    <p>每个格子里都有一张 3×3 的小图。中间那点代表这一格本身，其余位置是它的邻格。</p>
+    <p><strong>按下一格，会翻转小图上标出的所有格子，包括它自己。</strong></p>
+    <p>小图逐格不同：有的格子只影响上下左右，有的还带上斜角，范围大小也不一样。熄着按下去就亮，亮着按下去就熄。</p>
+    <p>全部方格亮起即通关。斜向是否受影响，只按小图判断，不按格子的位置猜。</p>
+  </div><div>
+    <h3>预算、撤销与重开</h3>
+    <p>每关的最优步数由程序精确算出，作为本次的预算。必须在预算内点亮全部方格；预算耗尽而仍有暗格，本局失败。</p>
+    <p>预算耗尽而棋盘还没全亮，本局失败。撤销最近几步仍然有效，重开回到本题初始局面，星星不会被清除。</p>
+    <p>最佳成绩记录本关用掉的按键次数，撤销与重开都不会清除它。</p>
+    <p>操作：点击方格，或用方向键移动焦点后按 Enter / 空格。Z 撤销，R 重开，H 提示还需要几步。提示只报数量，不代你按。</p>
+  </div></div></details>
+  <details class="rules" id="math"><summary>数学与算法：模 2 线性方程组</summary><div class="rule-body"><div>
+    <h3>每个局面都是一个模 2 方程组</h3>
+    <p>把“这一格是否亮着”记作 0 或 1。按下某格，等于给一组格子各加上 1。同一个格子被按两次就抵消回原状，按下顺序也不影响结果。</p>
+    <p>于是一次游戏真正决定的东西只有按了哪些格，每格按 0 次或 1 次。设 A 记录“按下第 j 格会动到哪些格”，x 记录“按了哪些格”，b 记录“哪些格还需要被翻转”。全亮等价于求解 A x = b，加减都在模 2 下进行，也就是异或。</p>
+    <p>A 的第 j 列由第 j 格的小图决定。3×3 的局部作用限定了这一列中哪些位置可以为 1。</p>
+  </div><div>
+    <h3>高斯消元给特解，零空间给全部解</h3>
+    <p>对增广矩阵做模 2 高斯消元，可以判断方程是否有解，给出一个特解 x0，并得到零空间维数 d。全部解是 x0 + ker A，一共 2 的 d 次方个。A 奇异时同一盘棋确有多个解，界面上的解数量就来自这里。</p>
+    <p>高斯消元给出的解不一定最短。要最少步数，就得枚举零空间的全部向量，取按格数最少的一个，这个最小重量就是本关预算。</p>
+    <p>经典 5×5 十字模式的矩阵秩为 23，零空间维数为 2。因此 2²⁵ 种亮暗布局中，有 2²³ 种可解，占四分之一；每个可解布局有四个奇偶点击方案。随机邻域模式的秩随作用图变化，应逐题计算。</p>
+    <p>固定关的零空间维数限制在 4 以内，最多枚举 16 个向量，实时计算可以精确完成。</p>
+    <p>生成器反过来用这套代数：先随机生成每格的作用范围，再挑一组按键方案，用 b = A x 反推初始棋盘。题目在出题时已经有解，随后枚举零空间求出精确最优值，并回放这条最优路线作为证书。</p>
+    <p><a href="https://www.chiark.greenend.org.uk/~sgtatham/puzzles/js/flip.html" target="_blank" rel="noopener">Flip · Simon Tatham</a> · <a href="https://www.chiark.greenend.org.uk/~sgtatham/puzzles/doc/flip.html" target="_blank" rel="noopener">Flip 官方说明</a></p>
+  </div></div></details>
+  <footer><span>灵感：<a href="https://www.chiark.greenend.org.uk/~sgtatham/puzzles/js/flip.html" target="_blank" rel="noopener">Flip · Simon Tatham</a></span><span>离线可玩 · 每关最优步数精确计算</span></footer>
+</main>
+<script src="engine.js"></script><script src="locale.js"></script><script src="game.js"></script>
+</body>
+</html>

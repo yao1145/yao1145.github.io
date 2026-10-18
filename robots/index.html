@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Robots 滑行：四台机器人只能滑到撞墙、撞内墙或被另一台挡住为止，四台同时停在自己的目标上才算完成。16×16 棋盘，十二关，每日与随机挑战。">
+<meta name="theme-color" content="#edf3f9">
+<title>Robots 滑行 · 四台同时归位</title>
+<link rel="icon" href="../icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<script>(()=>{let t;try{t=localStorage.getItem('yaozi.home.theme')}catch{}document.documentElement.dataset.theme=['light','dark'].includes(t)?t:matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'})();</script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip-link" href="#game" data-t="skip">跳到游戏</a>
+<main class="app">
+  <header class="masthead"><a href="../" data-t="back">← 游戏主页</a><div><span data-t="kicker">滑动 · 挡停 · 四台归位</span><button id="language-toggle" class="language-toggle" type="button" aria-label="切换语言" title="切换语言">EN</button><button id="theme" class="theme" type="button" aria-label="切换颜色主题">◐</button></div></header>
+  <div class="intro">
+    <div><h1 data-t="title">Robots 滑行</h1></div>
+    <p><span data-t="tagline1">机器人一滑到底，中途停不下来。</span><br><strong data-t="tagline2">四台同时归位，本关完成。</strong></p>
+  </div>
+  <div class="layout" id="game">
+    <section class="play-area" aria-label="机器人棋盘" data-ta="board-section">
+      <div class="board-panel">
+        <div class="board-head"><b id="level-title">第 1 关 · 初次滑行</b><span id="board-meta">16 × 16</span></div>
+        <div class="board" id="board" role="group" aria-label="16 × 16 机器人棋盘" aria-describedby="board-help">
+          <div class="cell-grid" id="cell-grid" aria-hidden="true"></div>
+          <div class="wall-layer" id="wall-layer" aria-hidden="true"></div>
+          <div class="target-layer" id="target-layer" aria-hidden="true"></div>
+          <div class="hint-layer" id="hint-layer" aria-hidden="true"></div>
+          <div class="robot-layer" id="robot-layer"></div>
+        </div>
+        <p class="selection-note" id="selection-note" aria-live="polite" data-t="ready-hint">点机器人选中它，再选一个方向。</p>
+        <div class="controls">
+          <div class="robot-pad" id="robot-pad" role="group" aria-label="选择机器人" data-ta="pad-robots"></div>
+          <div class="dir-pad" id="dir-pad" role="group" aria-label="滑动方向" data-ta="pad-dirs">
+            <button class="btn dir dir-up" id="dir-up" type="button" data-dir="up" aria-label="向上滑行" data-ta="dir-up">↑</button>
+            <button class="btn dir dir-left" id="dir-left" type="button" data-dir="left" aria-label="向左滑行" data-ta="dir-left">←</button>
+            <span class="dir-center" id="dir-center" aria-hidden="true">1</span>
+            <button class="btn dir dir-right" id="dir-right" type="button" data-dir="right" aria-label="向右滑行" data-ta="dir-right">→</button>
+            <button class="btn dir dir-down" id="dir-down" type="button" data-dir="down" aria-label="向下滑行" data-ta="dir-down">↓</button>
+          </div>
+        </div>
+        <div class="legend">
+          <span><i class="legend-chip robot-chip" aria-hidden="true"></i><span data-t="legend-robot">机器人</span></span>
+          <span><i class="legend-chip target-chip" aria-hidden="true"></i><span data-t="legend-target">同色同符号目标</span></span>
+          <span><i class="legend-chip wall-chip" aria-hidden="true"></i><span data-t="legend-wall">内墙</span></span>
+          <span><i class="legend-chip done-chip" aria-hidden="true">✓</i><span data-t="legend-done">已归位</span></span>
+        </div>
+        <div class="board-help"><span id="board-help" data-t="board-help">点机器人选中，再选方向；也可以直接在棋盘上朝一个方向划动。方向键或 WASD 移动，1–4 换机器人，Z 撤销，R 重开。</span><label class="motion"><span data-t="motion">动画</span><select id="motion" aria-label="滑动动画速度"><option value="180" data-t="smooth">流畅</option><option value="80" data-t="fast">快速</option><option value="0" data-t="off">关闭</option></select></label></div>
+      </div>
+    </section>
+    <section class="side" aria-label="进度与记录" data-ta="side-section">
+      <div class="stats">
+        <div class="stat"><span data-t="stat-done">已归位</span><b id="stat-done">0</b><small>/ 4</small></div>
+        <div class="stat"><span data-t="stat-moves">滑行步数</span><b id="stat-moves">0</b><small data-t="unit-moves">步</small></div>
+        <div class="row-note"><span data-t="stat-best">本关最少</span><strong id="stat-best">—</strong></div>
+      </div>
+      <div class="message" id="message" role="status" aria-live="polite" aria-atomic="true"><h2 id="message-title">四台机器人同时归位</h2><p id="message-text">同色同符号的目标格是终点。先想想哪台机器人能给别的机器人当挡板。</p></div>
+      <button class="btn primary next" id="next" type="button" hidden data-t="next">下一关 →</button>
+      <div class="tools"><button class="btn" id="undo" type="button" disabled>撤销 <kbd>Z</kbd></button><button class="btn" id="restart" type="button">重开 <kbd>R</kbd></button></div>
+      <div class="busy-panel" id="busy" hidden role="status" aria-live="polite"><p id="busy-text" data-t="busy-build">正在构造可回放的归位路线…</p><button class="btn" id="cancel" type="button" data-t="cancel">取消生成</button></div>
+      <div class="sequence"><h2 data-t="sequence-title">本次滑行</h2><p id="sequence">—</p></div>
+    </section>
+  </div>
+  <section class="challenges" aria-label="十二关挑战" data-ta="challenges-section">
+    <div class="collection" id="collection">
+      <div class="collection-heading"><div><h2><span data-t="collection-title">十二星归位</span> <span id="star-count">0 / 12</span></h2><p id="collection-note" data-t="collection-note">每关首次通关，点亮一颗星。</p></div></div>
+      <div class="star-shelf" id="star-shelf" role="list" aria-label="十二关通关星星" data-ta="star-shelf"></div>
+    </div>
+    <div class="challenge-head"><h2 data-t="challenge-title">十二关，从滑一次到互为挡板</h2><span id="progress-label">已通关 0 / 12</span></div>
+    <div class="levels" id="levels"></div>
+    <div class="extra"><div><button class="btn" id="daily" type="button" data-t="daily">每日一局</button><button class="btn" id="random" type="button" data-t="random">随机挑战</button></div><p data-t="extra-note">每日按北京时间生成，当天所有人拿到同一道题；每日与随机不点亮星星。</p></div>
+    <p id="storage-note" class="storage-note" hidden data-t="storage-note">浏览器无法保存记录；本次打开期间仍可收集星星。</p>
+  </section>
+  <details class="rules" id="rules">
+    <summary data-t="rules-title">玩法：机器人不会提前停下</summary>
+    <div class="rule-body">
+      <div>
+        <h3 data-t="rules-h1">一滑到底</h3>
+        <p data-t="rules-p1">点机器人选中它，再选方向：上、右、下、左。机器人会一直滑，直到撞上棋盘外墙、撞上内墙，或者被另一台机器人挡住，停在它前面一格。中途不能主动停下。</p>
+        <p data-t="rules-p2">机器人不能被推动。滑行方向上如果紧挨着另一台机器人，这一步不合法，也不会计入步数。</p>
+        <p data-t="rules-p3">内墙在格子边上，两侧一致：这条边对两边的格子都算墙。</p>
+      </div>
+      <div>
+        <h3 data-t="rules-h2">四台同时到位才算完成</h3>
+        <p data-t="rules-p4">每台机器人有自己的颜色和符号，棋盘上有同色同符号的目标格。四台同时停在各自的目标上，本关完成。已经到位的机器人仍然可以移动，你可以把它滑开再滑回来，它不会被锁住。</p>
+        <p data-t="rules-p5">每关首次通关点亮一颗星，并记录你用的最少步数。撤销可以连续回退，重开回到本关初始局面，两者都不清除已得到的星星。</p>
+        <p data-t="rules-p6">键盘：1–4 选中机器人，方向键或 WASD 滑行，Z 撤销，R 重开。手机上可以点机器人，也可以直接在棋盘上朝一个方向划动。</p>
+      </div>
+    </div>
+  </details>
+  <details class="rules" id="math">
+    <summary data-t="math-title">数学与算法：配置图、下界与有解构造</summary>
+    <div class="rule-body">
+      <div>
+        <h3 data-t="math-h1">完整状态要四台一起看</h3>
+        <p data-t="math-p1">四台有标号机器人的位置四元组构成完整状态。中央四格被障碍占据，四台机器人互不重叠，因此 252 个可进入格上的状态数不超过 252 × 251 × 250 × 249 = 3 937 437 000，约 3.94 × 10⁹。</p>
+        <p data-t="math-p2">一次滑行只动一台机器人，但四元组整体改变：机器人互为挡板，移动一台就改变了其他机器人接下来能滑到哪里。目标因此是联合条件，先到目标的机器人不算完成，它随时可能被再次移动。</p>
+        <p data-t="math-p3">在这张配置图上做广度优先搜索可以得到最少滑动次数。3.94 × 10⁹ 量级的图不适合逐点展开，本游戏也不要求最少步数，所以实现走相反的路线：先滑出一条合法路线，用它证明这道题有解。</p>
+      </div>
+      <div>
+        <h3 data-t="math-h2">先走出路线，再定下目标</h3>
+        <p data-t="math-p4">棋盘由分散的 L 形短墙、边缘挡板和中央障碍组成。生成器随机滑出一条合法路线，把终局里四台机器人的位置作为各自目标，并保存路线以证明有解。四个目标都在内部，至少一个目标四边没有固定墙，必须借助另一台机器人挡停；后六关至少有两个这样的目标。固定十二关保存已核验的题目，随机与每日题也须通过下界和借位条件筛选。</p>
+        <p data-t="math-p5">难度用下界衡量。把其他机器人拿掉、并且允许滑到任意一格停下，这时每台机器人的最少滑动次数是它在原问题里所需步数的下界（原问题的每一步在松弛模型里都合法），四台相加就是总步数的下界。只把其他机器人拿掉、仍要求滑到挡板前才停的距离不能当界：挡板有时正好把机器人停在你想要的位置，去掉挡板反而更难。</p>
+        <p data-t="math-p6">松弛模型里每台机器人在 252 个可进入格上做广度优先搜索，四台距离相加得到总下界。新版十二关的下界为 10–15 步。页面同时给出证书步数与下界：证书是一条 N 步的合法解，下界说明任何解法至少需要 M 步；证书长度不等于最少步数。</p>
+      </div>
+    </div>
+    <div class="math-metrics">
+        <div class="row-note"><span data-t="stat-cert">本题证书</span><strong id="stat-cert">—</strong></div>
+        <div class="row-note"><span data-t="stat-bound">松弛下界</span><strong id="stat-bound">—</strong></div>
+    </div>
+    <p class="solution-note" id="solution-note">—</p>
+    <p class="source-note" data-t="source-note">玩法来源：ricocheto.com 的 chain 与规则说明。</p>
+    <p class="source-note"><a href="https://ricocheto.com/en/game/chain" target="_blank" rel="noopener">ricocheto.com/en/game/chain</a> · <a href="https://ricocheto.com/en/guide" target="_blank" rel="noopener">ricocheto.com/en/guide</a></p>
+  </details>
+  <footer><span data-t="footer-left">灵感：ricocheto.com · 机器人滑行</span><span data-t="footer-right">离线可玩 · 每道题附可回放证书</span></footer>
+  <div class="sr-only" id="announcement" role="status" aria-live="polite" aria-atomic="true"></div>
+</main>
+<script src="engine.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
