@@ -268,21 +268,13 @@
     return controller;
   }
 
-  // Do not replay the opening when the visitor returns to the homepage from
-  // another page of this site, or arrives through browser back / forward.
-  function returningFromPage() {
-    try {
-      if (performance.getEntriesByType?.('navigation')[0]?.type === 'back_forward') return true;
-      if (!document.referrer) return false;
-      const source = new URL(document.referrer);
-      if (source.origin !== location.origin) return false;
-      const normalize = path => path.replace(/\/index\.html$/, '/');
-      return normalize(source.pathname) !== normalize(location.pathname);
-    } catch { return false; }
-  }
-
   window.YaoziIntro = Object.freeze({ play });
-  if (document.currentScript?.hasAttribute('data-auto') && !returningFromPage()) {
-    play({ content: document.querySelector('.page') });
+  if (document.currentScript?.hasAttribute('data-auto') && document.documentElement.dataset.introState !== 'skipped') {
+    try {
+      play({ content: document.querySelector('.page') });
+    } finally {
+      // The animation layer now covers the page; release the loading cover.
+      document.documentElement.removeAttribute('data-intro-state');
+    }
   }
 })();

@@ -17,6 +17,27 @@
       root.dataset.themePreference = ['light', 'dark'].includes(theme) ? theme : 'system';
       root.dataset.theme = root.dataset.themePreference === 'system' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme;
       document.querySelector('meta[name="theme-color"]').content = root.dataset.theme === 'dark' ? '#0d1826' : '#f3f7fc';
+      // Do not replay the opening when the visitor returns to the homepage from
+      // another page of this site, or arrives through browser back / forward.
+      function returningFromPage() {
+        try {
+          if (performance.getEntriesByType?.('navigation')[0]?.type === 'back_forward') return true;
+          if (!document.referrer) return false;
+          const source = new URL(document.referrer);
+          if (source.origin !== location.origin) return false;
+          const normalize = path => path.replace(/\/index\.html$/, '/');
+          return normalize(source.pathname) !== normalize(location.pathname);
+        } catch { return false; }
+      }
+
+      root.dataset.introState = returningFromPage() ? 'skipped' : 'pending';
+      // A stalled download must not leave the homepage covered indefinitely.
+      setTimeout(() => {
+        if (root.dataset.introState === 'pending') root.dataset.introState = 'skipped';
+      }, 4000);
+      window.addEventListener('pageshow', event => {
+        if (event.persisted && root.dataset.introState === 'pending') root.dataset.introState = 'skipped';
+      });
     })();
   </script>
   <link rel="icon" type="image/svg+xml" sizes="any" href="icons/favicon.svg">
@@ -28,6 +49,9 @@
   <style>
     :root { color-scheme: light; --ink: #183451; --muted: #4d647b; --paper: #f3f7fc; --card: #fff; --blue: #244fc7; --button-ink: #fff; --line: #cbd7e6; --clocks-paper: #e4eef1; --cube-paper: #e4edff; --cell: #e4edf5; --gold: #efbd56; --gold-line: #b48a40; --dial-ink: #183451; --dial-line: #6d8895; --dial-accent: #a73e25; }
     :root[data-theme="dark"] { color-scheme: dark; --ink: #e6edf8; --muted: #adc0d5; --paper: #0d1826; --card: #152638; --blue: #83a9ff; --button-ink: #0d1826; --line: #334b65; --clocks-paper: #203a49; --cube-paper: #233950; --cell: #233950; --gold: #f3cf7a; --gold-line: #8a6a2f; --dial-ink: #b8cedf; --dial-line: #7693a6; --dial-accent: #ffad8e; }
+    :root[data-intro-state="pending"] { overflow: hidden; }
+    :root[data-intro-state="pending"]::before { content: ""; position: fixed; inset: 0; z-index: 2147483647; background: #000; }
+    :root[data-intro-state="pending"] .page { visibility: hidden; }
     * { box-sizing: border-box; }
     body { margin: 0; background: var(--paper); color: var(--ink); font-family: "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif; }
     a { color: inherit; }
@@ -64,11 +88,11 @@
     .cube { background: var(--cube-paper); }
     .cube svg { width: 230px; height: 200px; }
     .sixteen { background: var(--cube-paper); }
-    .number-grid { display: grid; grid-template-columns: repeat(4, 38px); gap: 6px; transform: rotate(-7deg); }
+    .number-grid { display: grid; grid-template-columns: repeat(4, 38px); gap: 6px; }
     .number-grid span { display: grid; place-items: center; height: 38px; border: 1px solid var(--line); border-radius: 5px; background: var(--card); font-size: 17px; font-weight: 650; color: var(--ink); }
     .number-grid span:nth-child(-n+4) { background: var(--blue); color: var(--button-ink); border-color: var(--blue); }
     .knight { background: var(--cube-paper); }
-    .knight svg { width: 230px; height: 200px; transform: rotate(-5deg); }
+    .knight svg { width: 230px; height: 200px; }
     .knight-board rect { fill: var(--card); stroke: var(--line); stroke-width: .8; }
     .knight-board rect.alt { fill: var(--cell); }
     .knight-path { fill: none; stroke: var(--blue); stroke-width: 2; stroke-opacity: .55; stroke-linecap: round; stroke-linejoin: round; }
@@ -85,7 +109,7 @@
     .color-node.c { fill: #19776a; } .color-node.d { fill: #7650b4; }
     .color-symbol { fill: #fff; font-size: 15px; font-weight: 700; text-anchor: middle; dominant-baseline: central; }
     .swap { background: var(--cube-paper); }
-    .swap-mini { display: grid; grid-template-columns: repeat(4, 36px); gap: 5px; transform: rotate(-5deg); }
+    .swap-mini { display: grid; grid-template-columns: repeat(4, 36px); gap: 5px; }
     .swap-block { height: 36px; display: grid; place-items: center; border-radius: 5px; color: #fff; box-shadow: inset 0 2px 0 #ffffff55, inset 0 -3px 0 #00000020; font-size: 19px; }
     .swap-block.a { background: #b82f70; } .swap-block.b { background: #23714e; } .swap-block.c { background: #b84b23; }
     .swap-block.empty { border: 1px dashed var(--line); box-shadow: none; }
@@ -228,6 +252,6 @@
     <footer data-i18n="footer">在浏览器里，随时开一局。</footer>
   </div>
   <script src="home.js"></script>
-  <script src="firework/yaozi-intro.js" data-auto></script>
+  <script src="firework/yaozi-intro.js" data-auto onerror="document.documentElement.dataset.introState = 'skipped'"></script>
 </body>
 </html>
