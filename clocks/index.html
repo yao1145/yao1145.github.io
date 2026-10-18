@@ -41,12 +41,13 @@
 /* An explicit speed choice opts into the essential chain animation. */
 @media(prefers-reduced-motion:reduce){.board-panel[data-animate="true"]:not(.instant) .needle{transition:transform var(--step-ms) cubic-bezier(.32,.08,.3,1)!important}}
 .rule-body h3{color:var(--ink);font-size:15px;margin:12px 0}.rule-body a{color:var(--blue)}
+.masthead>a{white-space:nowrap;flex-shrink:0}#language-toggle{font-size:14px;white-space:nowrap}.theme{flex:0 0 44px}@media(max-width:360px){.masthead>div{gap:8px}.masthead>div>span{display:none}}
 </style>
 </head>
 <body>
 <a class="skip-link" href="#game">跳到游戏</a>
 <main class="app">
- <header class="masthead"><a href="../">← 游戏主页</a><div><span>连锁满分挑战</span><button id="theme" class="theme" aria-label="切换颜色主题">◐</button></div></header>
+ <header class="masthead"><a href="../">← 游戏主页</a><div><span>连锁满分挑战</span><button id="language-toggle" class="theme" type="button">EN</button><button id="theme" class="theme" aria-label="切换颜色主题">◐</button></div></header>
  <div class="intro" aria-labelledby="title"><h1 id="title">十步万度</h1><p>拨动一枚指针，让连锁反应接力。<br>在 <strong id="intro-limit">10 步</strong>内，向本局最优值挑战。</p></div>
  <div class="layout" id="game">
   <section class="play-area" aria-label="游戏表盘">
@@ -159,8 +160,23 @@ window.TenStepsEngine = (() => {
 (() => {
  const E = window.TenStepsEngine;
  const el = id => document.getElementById(id);
+ const copy={
+  '十步万度 · 指针连锁小游戏':'Clock Relay · Pointer Chain Puzzle','十步万度':'Clock Relay','游戏主页':'Games','连锁满分挑战':'Perfect-score chain challenge','切换颜色主题':'Toggle color theme','切换至浅色模式':'Switch to light theme','切换至深色模式':'Switch to dark theme','跳到游戏':'Skip to game','在 ':'Use ','等待拨动':'Ready for a move','本次旋转角度':'Rotation this move','5 行 5 列，共 25 个表盘':'5 rows, 5 columns, 25 clocks','第 ':'Move ',
+  '拨动一枚指针，让连锁反应接力。':'Turn a clock hand to start a chain reaction.','内，向本局最优值挑战。':' to aim for this challenge’s best score.','游戏表盘':'Clock board','5 × 5 连锁阵列':'5 × 5 relay grid','正在旋转':'Rotating','本轮经过':'Visited this round','顺时针 +90°':'Clockwise +90°','点按表盘开始。':'Tap a clock to begin.','键盘：方向键移动，Enter / 空格拨动。':'Keyboard: arrows to move; Enter / Space to turn.','动画':'Animation','标准':'Standard','快速':'Fast','即时':'Instant','游戏统计':'Game stats','累计旋转':'Total rotation','本局完成度':'Progress','本局最优':'Best for this game','满分即通关':'Perfect score wins','本局最优值完成度':'Progress toward this game’s best','次旋转，还差':' turns; ','已达成本局最优':'best score reached','万度里程碑：':'10,000° milestone: ','万度里程碑已达成':'10,000° milestone reached','10–12 步可挑战':'available in 10–12 move games','第一步，从哪里开始？':'Where will you begin?','每枚指针转动后，会把接力交给它指向的邻居。':'After a hand turns, it passes the relay to the neighbor it points to.','立即结算本轮':'Finish this chain now','重开':'Restart','已用点击':'Moves used','还可以点击':'Moves left: ','上次旋转角度':'Last move rotation','本轮旋转角度':'This move rotation','连锁旋转次数':'Turns in chain','点击记录':'Move history','每一次连锁的起点与角度，会记录在这里。':'Each chain’s starting clock and rotation are recorded here.',
+  '十二星冠，步步为营':'Twelve stars, one move at a time','本局步数':'Moves this game','集齐星星解锁':'Collect all stars to unlock','每个步数档首次满分，点亮一颗星。100% = 本局最优值；更改步数会重开。':'Earn a star the first time you score 100% at each move limit. Changing the limit restarts the game.','1 到 12 步的满分星星':'Perfect-score stars for 1 to 12 moves','当前浏览器无法保存收藏；星星将在本次打开期间保留。':'This browser cannot save stars. They will remain available for this session.','游戏规则与操作说明':'Rules and controls','数学背景：转子路由与交换性':'Math: rotor-router and the Abelian property','算法视角：从点击序列到点击组合':'Algorithms: from click sequences to combinations','把一次点击看成一枚筹码':'Treat a click as a chip','点击次序不改变总分':'Click order does not change the total score','从生成树到有限交换群':'From spanning trees to a finite Abelian group','利用交换性缩小搜索':'Use the Abelian property to reduce the search','页面如何计算连锁':'How the page computes a chain','方向接力':'Direction relay','各步数的 100% 基准':'100% targets for each move limit','方向接力':'Direction relay',
+  '25 枚指针，一场关于选择与连锁的实验。':'25 clock hands, an experiment in choice and chain reactions.','离线可玩 · 无需安装':'Playable offline · no installation needed','十二颗星，终于汇成一顶冠。':'Twelve stars finally form a crown.','12 / 12 全档满分':'Perfect score at all 12 move limits','万度之王':'Master of Ten Thousand Degrees','从一步到十二步，你点亮了每一种可能。':'From one move to twelve, you explored every possibility.','这顶星冠，属于将每一度做到极致的你。':'This star crown belongs to you, for making every degree count.','戴上星冠，回到表盘':'Wear the crown and return to the clocks','关闭皇冠彩蛋':'Close the crown celebration',
+  '25 枚指针初始向上。点击任一表盘，它先':'All 25 hands start facing up. Click any clock. It first','顺时针旋转 90°':'turns clockwise by 90°','旋转后的方向':'the direction it now points','，让相邻表盘也转动 90°，继续接力；指针朝网格外时，本轮结束。':'the neighboring clock also turns 90° and continues the relay. The chain ends when a hand points outside the grid.','每次转动都计入角度，包括同一表盘在连锁中被反复经过。一次完整连锁只消耗':'Every turn adds to the total angle, including repeat visits to the same clock. A complete chain uses only','在本局步数内尽可能多地旋转。':'moves and rotate as far as possible. ','完成度 = 累计旋转角度 ÷ 本局步数的最优角度':'Progress = total rotation ÷ the best angle for this move limit','；达到 100% 即满分通关，步数用完后显示最终成绩。':'; reach 100% for a perfect score. Your final score appears when you use all moves.','每个步数档':'At each move limit,','首次满分可获得一颗星':'earn one star for your first perfect score','，重复通关不重复计星。集齐 12 颗星，解锁皇冠彩蛋；收藏保存在当前浏览器中。':'. Collect all 12 stars to unlock the crown celebration. Stars are saved in this browser.','累计达到':'Reach','时达成万度里程碑，可以继续使用剩余步数冲击满分。更改步数会重开；“重开”保留所选步数和星星。':' to reach the 10,000° milestone. Keep using your remaining moves to aim for a perfect score. Restart keeps the selected move limit and stars.','向上、向右、向下、向左依次顺时针旋转':'Turns clockwise: up, right, down, left','连锁期间可调整动画速度，或点击“立即结算本轮”。结果在本轮完整连锁结束后结算。':'Change the animation speed during a chain, or choose “Finish this chain now.” The score is applied after the full chain ends.','1–6 步：':'1–6 moves: ','7–12 步：':'7–12 moves: ','系统会核对完整状态，并设有每轮 20,000 次旋转的保护上限；触发保护时，本轮不计入，棋盘与点击次数保持原状。':'The game checks the full state and caps each chain at 20,000 turns. If the cap is reached, the chain is cancelled and the board and move count stay unchanged.',
+  '正在准备本轮连锁…':'Preparing this chain…','准备连锁':'Preparing chain','连锁进行中':'Chain in progress','挑战成功':'Challenge complete','挑战结束':'Challenge over','等待下一步':'Ready for the next move','本轮未计入':'Chain not counted','开始接力':' starts the relay','正在旋转':'Rotating','次接力 / 共':' relay / ','次。连锁结束后结算。':' total. Score is applied when the chain ends.','次点击，从':' click, starting at ','开始连锁。':' starts a chain.','100%！最优达成，满分通关':'100%! Best score reached — perfect game','步，累积':' moves, total rotation ','点亮了':'Star earned for ','步星星！':' moves!','本档星星已收藏。':'This move limit’s star is already saved.','十二星冠已解锁！':'The 12-star crown is unlocked!','切换步数，继续收集星星。':'Change the move limit and keep collecting stars.','步已用完，完成度':' moves used. Progress: ','，距最优还差':'°; ','已达成万度里程碑。':'10,000° milestone reached.','点击“重开”再挑战一次。':'Choose Restart to play again.','本轮 +':'This chain: +','次旋转，连锁结束。':' turns; chain complete.','已达万度，继续冲击 100%！':'10,000° reached. Keep going for 100%!','选择下一枚表盘。':'Choose the next clock.','检测到重复的完整连锁状态。本轮已取消，请换一个表盘或重开。':'A repeated chain state was detected. This chain was cancelled; choose another clock or restart.','连锁超过每轮 20,000 次旋转的保护上限。本轮已取消，请换一个表盘或重开。':'The chain exceeded the 20,000-turn limit and was cancelled. Choose another clock or restart.','本轮执行中断，已恢复本轮开始前的状态。可再次点击或重开。':'The chain was interrupted and the starting state was restored. Try another click or restart.','新一局已开始。25 枚指针全部向上，剩余':'New game started. All 25 hands face up. Moves left: ','次点击，本局最优':' moves. Best score: ','度。':' degrees.','星冠已解锁':'Star crown unlocked','查看皇冠彩蛋':'View the crown celebration','每个步数档首次满分，点亮一颗星。100% = 本局最优值。':'Earn one star the first time you reach 100% at each move limit.','还差':'Still need ','颗星':' stars','已收藏':'Saved',
+  '把每个表盘看成图的顶点，把棋盘外合并为一个吸收筹码的汇点。每个顶点都有上、右、下、左四条出边，越界的边通向汇点。点击一个表盘，相当于在那里放入一枚筹码：指针先顺时针转动，再把筹码送到新的方向，直到它离开棋盘。这就是':'Treat each clock as a graph vertex and combine the area outside the board into a sink that absorbs chips. Each vertex has four outgoing edges: up, right, down, and left. Edges that leave the board lead to the sink. Clicking a clock places a chip there: the hand turns clockwise, then sends the chip in its new direction until it leaves the board. This is the ','转子路由模型':'rotor-router model','给定初始棋盘，只要每个位置的点击次数相同，并让每次连锁完整结束，无论按什么次序点击，各表盘的累计旋转次数和最终朝向都相同。这称为':'From the same initial board, if each position is clicked the same number of times and every chain completes, each clock has the same total number of turns and final direction, regardless of click order. This is the ','阿贝尔性质':'Abelian property','。次序会改变每一轮连锁的长度，却不改变整组点击的总得分。':'Click order changes each chain’s length but not the total score from the full set of clicks.','可以把筹码同时放在各个起点，再任选一枚继续移动。每个表盘依次使用固定的方向循环；阿贝尔性质保证，所有筹码进入汇点后，每个表盘转动的次数与调度次序无关。':'Imagine placing chips at all starting points and moving any chip at each step. Every clock follows a fixed cycle of directions. The Abelian property guarantees that, after all chips reach the sink, each clock’s number of turns is independent of the move schedule.','从全向上的起局出发，每轮结束时，沿指针都能走到棋盘外；这些箭头组成以汇点为根的有向生成树。点击在这些状态上的作用构成转子路由群，与沙堆群同构。':'Starting with every hand pointing up, each round ends in a state where following the arrows leads outside the board. These arrows form a directed spanning tree rooted at the sink. Clicks act on these states through a rotor-router group, isomorphic to the sandpile group.','令约化拉普拉斯矩阵 L = 4I − A，其中 A 记录 25 个表盘之间的相邻关系。群可写成 ℤ':'Let the reduced Laplacian be L = 4I − A, where A records adjacency among the 25 clocks. The group is ℤ','，其阶为 det L =':' and has order det L =','，也等于这些有向生成树的数量。':' , which is also the number of these directed spanning trees.','群描述了点击对终态的作用。同一个终态可以由不同总分的点击组合产生：例如连续点击中心 104 次会回到全向上，却累计旋转 1,080 次。':'The group describes how clicks affect the final state. Different click combinations can produce the same final state with different scores: for example, clicking the center 104 times returns all hands to up while making 1,080 total turns.','若逐个枚举 n 次点击的次序，需要考虑 25':'Enumerating the order of n clicks requires considering 25','条序列。利用阿贝尔性质，只需枚举 25 个位置各点多少次，即非负整数向量 a，满足 a₁ + … + a₂₅ = n。组合数为 C(n + 24, 24)；十步时是':' sequences. The Abelian property reduces this to counting clicks at each of the 25 positions: a nonnegative integer vector a where a₁ + … + a₂₅ = n. The number of combinations is C(n + 24, 24); for ten moves, that is','种。':' combinations.','对每种组合按一个固定次序模拟，统计全部旋转次数，就能比较总分。最优方案随总步数变化；眼前得分最高的一次点击，未必属于最终的最优组合。':'Simulate each combination in a fixed order and count all turns to compare scores. The best combination changes with the move limit, so the click with the highest immediate score may not be part of the best overall combination.','程序用 0、1、2、3 保存指针方向，每次以模 4 加一更新朝向，再转移到相邻格。重复经过同一格是合法的；判断状态是否重复，要同时记录全部朝向和当前接力位置。':'The program stores directions as 0, 1, 2, and 3. Each turn advances the direction modulo 4, then moves to the adjacent square. Revisiting a square is valid; a repeated state requires the same direction at every clock and the same current relay position.','游玩时逐轮模拟连锁，评分读取预先给定的 1–12 步基准表。枚举组合用于研究最优玩法，页面无需在每次点击后重新搜索。':'During play, the page simulates each chain and scores against the preset targets for 1–12 moves. Combination enumeration studies optimal play; the page does not need to search again after each click.','数学背景参考：':'Math background: ','大老李的十步万度分析':'Daolili’s Clock Relay analysis','；理论依据：Holroyd 等，':'; theory: Holroyd et al., ','，引理 3.9、3.19。':', Lemmas 3.9 and 3.19.'
+ };
+ const reverseCopy=new Map(Object.entries(copy).map(([zh,en])=>[en,zh]));
+ let language='zh';try{const saved=localStorage.getItem('yaozi.home.language');language=saved==='zh'||saved==='en'?saved:(navigator.language.toLowerCase().startsWith('zh')?'zh':'en');}catch{language=navigator.language.toLowerCase().startsWith('zh')?'zh':'en';}
+ function tx(value,target=language){if(target==='zh'){for(const [en,zh] of [...reverseCopy].sort((a,b)=>b[0].length-a[0].length))value=value.replaceAll(en,zh);return value;}const leading=value.match(/^\s*/)?.[0]||'',trailing=value.match(/\s*$/)?.[0]||'',core=value.slice(leading.length,value.length-trailing.length||undefined);if(core==='步')return leading+'moves'+trailing;if(core==='次')return leading+'times'+trailing;if(core==='按')return leading+'Use the'+trailing;if(core==='选择')return leading+'Choose'+trailing;if(core==='一步')return leading+'one move'+trailing;if(/^\d+ 步$/.test(core))return leading+core.replace(' 步',' moves')+trailing;if(/^\d+–\d+ 步$/.test(core))return leading+core.replace(' 步',' moves')+trailing;for(const [zh,en]of Object.entries(copy).sort((a,b)=>b[0].length-a[0].length))value=value.replaceAll(zh,en);return value;}
+ const originalText=new WeakMap(),originalAttrs=new WeakMap();
+ function setUIText(id,source){const node=el(id);node.textContent=source;if(node.firstChild&&node.firstChild.nodeType===Node.TEXT_NODE){originalText.set(node.firstChild,source);node.firstChild.nodeValue=language==='en'?tx(source,'en'):source;}}
+ function localizePage(){document.documentElement.dataset.language=language;document.documentElement.lang=language==='zh'?'zh-CN':'en';document.title=language==='zh'?'十步万度 · 指针连锁小游戏':'Clock Relay · Pointer Chain Puzzle';const w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);while(w.nextNode()){const n=w.currentNode;if(n.parentElement.closest('script,style'))continue;if(!originalText.has(n))originalText.set(n,n.nodeValue);const source=originalText.get(n);n.nodeValue=language==='zh'?source:tx(source,'en');}for(const node of document.querySelectorAll('[aria-label],[title]')){let cache=originalAttrs.get(node);if(!cache){cache={};originalAttrs.set(node,cache);}for(const attr of ['aria-label','title'])if(node.hasAttribute(attr)){if(!(attr in cache))cache[attr]=node.getAttribute(attr);node.setAttribute(attr,language==='zh'?cache[attr]:tx(cache[attr],'en'));}}el('language-toggle').textContent=language==='zh'?'EN':'中文';el('language-toggle').setAttribute('aria-label',language==='zh'?'Switch to English':'Switch to Chinese');el('language-toggle').title=language==='zh'?'Switch to English':'Switch to Chinese';}
  const board = el('board'), panel = el('board-panel');
- const fmt = number => number.toLocaleString('zh-CN');
+ const fmt = number => number.toLocaleString(language==='zh'?'zh-CN':'en-US');
  const directionNames = ['上', '右', '下', '左'];
  const cellName = i => 'ABCDE'[i % 5] + (Math.floor(i / 5) + 1);
  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -189,14 +205,14 @@ window.TenStepsEngine = (() => {
  function renderStars() {
    const count = stars.filter(Boolean).length;
    el('star-count').textContent = `${count} / ${E.MAX_CLICKS}`;
-   el('collection-note').textContent = count === E.MAX_CLICKS ? '十二档满分达成，你的星冠已解锁。' : '每个步数档首次满分，点亮一颗星。100% = 本局最优值。';
+   el('collection-note').textContent = language==='en'?(count===E.MAX_CLICKS?'Perfect scores at all 12 move limits. The star crown is unlocked.':'Earn a star the first time you reach 100% at each move limit.'):count === E.MAX_CLICKS ? '十二档满分达成，你的星冠已解锁。' : '每个步数档首次满分，点亮一颗星。100% = 本局最优值。';
    el('view-crown').disabled = count < E.MAX_CLICKS;
-   el('view-crown').textContent = count === E.MAX_CLICKS ? '查看我的星冠' : `还差 ${E.MAX_CLICKS - count} 颗星`;
+   el('view-crown').textContent = language==='en'?(count===E.MAX_CLICKS?'View my star crown':`${E.MAX_CLICKS-count} ${E.MAX_CLICKS-count===1?'star':'stars'} to go`):count === E.MAX_CLICKS ? '查看我的星冠' : `还差 ${E.MAX_CLICKS - count} 颗星`;
    el('collection').classList.toggle('complete', count === E.MAX_CLICKS);
    starSlots.forEach((slot, i) => {
      slot.classList.toggle('earned', stars[i]);
      slot.classList.toggle('selected', state?.limit === i + 1);
-     slot.setAttribute('aria-label', `${i + 1} 步，${stars[i] ? '已获满分星星' : '尚未满分'}`);
+     slot.setAttribute('aria-label', language==='en'?`${i+1} moves, ${stars[i]?'perfect-score star earned':'not yet a perfect score'}`:`${i + 1} 步，${stars[i] ? '已获满分星星' : '尚未满分'}`);
    });
  }
  function showCrown() {
@@ -231,9 +247,9 @@ window.TenStepsEngine = (() => {
    const slot = document.createElement('span'); slot.className = 'step'; slot.textContent = i + 1;
    slots.push(slot); el('steps').appendChild(slot);
  }
- function announce(message) { el('announcement').textContent = message; }
+ function announce(message) { setUIText('announcement',message); }
  function feedback(title, detail, style = '') {
-   el('status-title').textContent = title; el('status-detail').textContent = detail;
+   setUIText('status-title',title);setUIText('status-detail',detail);
    el('feedback').className = 'feedback' + (style ? ' ' + style : '');
  }
  function renderCounters() {
@@ -247,19 +263,23 @@ window.TenStepsEngine = (() => {
    el('progress-fill').style.transform = `scaleX(${fraction})`;
    el('progress').setAttribute('aria-valuemax', best);
    el('progress').setAttribute('aria-valuenow', Math.min(state.total, best));
-   el('progress').setAttribute('aria-valuetext', `${state.limit} 步最优完成度 ${el('percent').textContent}，累计 ${fmt(state.total)} 度，最优 ${fmt(best)} 度`);
+   el('progress').setAttribute('aria-valuetext', language==='en'?tx(`${state.limit} 步最优完成度 ${el('percent').textContent}，累计 ${fmt(state.total)} 度，最优 ${fmt(best)} 度`,'en'):`${state.limit} 步最优完成度 ${el('percent').textContent}，累计 ${fmt(state.total)} 度，最优 ${fmt(best)} 度`);
    el('optimal-angle').textContent = fmt(best) + '°';
-   el('remaining').textContent = `最优 ${E.OPTIMAL_ROTATIONS[state.limit]} 次旋转，` + (state.total >= best ? '已达成本局最优' : `还差 ${fmt(best - state.total)}°`);
-   el('milestone').textContent = state.total >= E.TARGET ? '万度里程碑已达成' : best < E.TARGET ? '万度里程碑：10–12 步可挑战' : `万度里程碑：还差 ${fmt(E.TARGET - state.total)}°`;
+   const remaining=`最优 ${E.OPTIMAL_ROTATIONS[state.limit]} 次旋转，` + (state.total >= best ? '已达成本局最优' : `还差 ${fmt(best - state.total)}°`);
+   el('remaining').textContent = language==='en'?`${E.OPTIMAL_ROTATIONS[state.limit]} rotations maximum; ${state.total>=best?'best score reached':`${fmt(best-state.total)}° to go`}`:remaining;
+   const milestone=state.total >= E.TARGET ? '万度里程碑已达成' : best < E.TARGET ? '万度里程碑：10–12 步可挑战' : `万度里程碑：还差 ${fmt(E.TARGET - state.total)}°`;
+   el('milestone').textContent = language==='en'?(state.total>=E.TARGET?'10,000° milestone reached':best<E.TARGET?'Available in 10–12 move games':`${fmt(E.TARGET-state.total)}° to the 10,000° milestone`):milestone;
    el('milestone').classList.toggle('achieved', state.total >= E.TARGET);
    el('limit-count').textContent = state.limit;
-   el('intro-limit').textContent = `${state.limit} 步`;
-   el('click-note').textContent = state.outcome === 'won' ? '满分通关' : state.outcome === 'lost' ? '本局步数已用完' : `还可以点击 ${state.limit - state.clicks} 次`;
+   el('intro-limit').textContent = language==='en'?`${state.limit} moves`:`${state.limit} 步`;
+   el('click-note').textContent = language==='en'?(state.outcome==='won'?'Perfect score!':state.outcome==='lost'?'No moves left':`${state.limit-state.clicks} moves left`):state.outcome === 'won' ? '满分通关' : state.outcome === 'lost' ? '本局步数已用完' : `还可以点击 ${state.limit - state.clicks} 次`;
    slots.forEach((slot, i) => { slot.hidden = i >= state.limit; slot.className = 'step' + (i < state.clicks ? ' used' : '') + (run && i === state.clicks - 1 ? ' current' : ''); });
+   if(!run)localizePage();
  }
  function renderCell(i) {
    needles[i].style.transform = `rotate(${state.turns[i] * 90}deg)`;
-   cells[i].setAttribute('aria-label', `${cellName(i)}，第 ${Math.floor(i / 5) + 1} 行第 ${i % 5 + 1} 列，指针向${directionNames[state.turns[i] % 4]}`);
+   const row=Math.floor(i/5)+1,col=i%5+1,label=`${cellName(i)}，第 ${row} 行第 ${col} 列，指针向${directionNames[state.turns[i] % 4]}`;
+   cells[i].setAttribute('aria-label',language==='en'?`${cellName(i)}, row ${row}, column ${col}, hand points ${['up','right','down','left'][state.turns[i]%4]}`:label);
  }
  function lockBoard(locked) {
    cells.forEach(cell => { cell.disabled = locked; });
@@ -276,6 +296,7 @@ window.TenStepsEngine = (() => {
      value.textContent = `+${fmt(record.angle)}°`;
      li.append(label, value); el('history').appendChild(li);
    });
+   localizePage();
  }
  function current(r) { return run === r && r.id === epoch && !r.controller.signal.aborted; }
  function waitStep(ms, r) {
@@ -322,6 +343,7 @@ window.TenStepsEngine = (() => {
      el('skip').disabled = false; el('board-state').textContent = '连锁进行中';
      announce(`第 ${state.clicks} 次点击，从 ${cellName(start)} 开始连锁。`);
      renderCounters();
+     localizePage();
      for (let cursor = 0; cursor < r.plan.trace.length; cursor++) {
        if (!current(r)) return;
        const duration = stepDuration();
@@ -347,11 +369,13 @@ window.TenStepsEngine = (() => {
        feedback('100%！最优达成，满分通关', `${state.clicks} / ${state.limit} 步，累积 ${fmt(state.total)}°。${newStar ? `点亮了 ${state.limit} 步星星！` : '本档星星已收藏。'}${stars.every(Boolean) ? '十二星冠已解锁！' : '切换步数，继续收集星星。'}`, 'won');
      } else if (state.outcome === 'lost') {
        el('board-state').textContent = '挑战结束';
-       feedback(`${state.limit} 步已用完，完成度 ${el('percent').textContent}`, `累计 ${fmt(state.total)}°，距最优还差 ${fmt(E.optimalAngle(state.limit) - state.total)}°。${state.total >= E.TARGET ? '已达成万度里程碑。' : ''}点击“重开”再挑战一次。`, 'lost');
+       const detail=`累计 ${fmt(state.total)}°，距最优还差 ${fmt(E.optimalAngle(state.limit) - state.total)}°。${state.total >= E.TARGET ? '已达成万度里程碑。' : ''}点击“重开”再挑战一次。`;
+       feedback(language==='en'?`${state.limit} ${state.limit===1?'move':'moves'} used. Progress: ${el('percent').textContent}`:`${state.limit} 步已用完，完成度 ${el('percent').textContent}`,language==='en'?`Total rotation: ${fmt(state.total)}°. ${fmt(E.optimalAngle(state.limit)-state.total)}° short of the best score. ${state.total>=E.TARGET?'The 10,000° milestone is reached. ':''}Choose Restart to play again.`:detail, 'lost');
      } else {
        el('board-state').textContent = '等待下一步';
        feedback(`本轮 +${fmt(r.plan.angle)}°`, `${r.plan.trace.length} 次旋转，连锁结束。${state.total >= E.TARGET ? '已达万度，继续冲击 100%！' : '选择下一枚表盘。'}`);
      }
+     localizePage();
      announce(`${el('status-title').textContent}。${el('status-detail').textContent}`);
      // Preserve board keyboard navigation without taking focus from other controls.
      if (r.restoreFocus && (document.activeElement === document.body || document.activeElement === el('skip'))) {
@@ -386,8 +410,10 @@ window.TenStepsEngine = (() => {
    el('board-state').textContent = '等待拨动';
    feedback('第一步，从哪里开始？', '每枚指针转动后，会把接力交给它指向的邻居。');
    announce(`新一局已开始。25 枚指针全部向上，剩余 ${state.limit} 次点击，本局最优 ${fmt(E.optimalAngle(state.limit))} 度。`);
+   localizePage();
  }
  el('restart').addEventListener('click', reset);
+ el('language-toggle').addEventListener('click', () => { language=language==='zh'?'en':'zh';try{localStorage.setItem('yaozi.home.language',language);}catch{}localizePage();renderCounters();renderHistory();renderStars();cells.forEach((_,i)=>renderCell(i));if(run){feedback('连锁进行中',`第 ${state.clicks} 次点击，链条仍在继续。`);}else if(state.outcome==='playing'&&!state.clicks)feedback('第一步，从哪里开始？','每枚指针转动后，会把接力交给它指向的邻居。'); });
  el('step-limit').addEventListener('change', reset);
  el('view-crown').addEventListener('click', showCrown);
  el('close-crown').addEventListener('click', () => el('crown-dialog').close());
@@ -401,9 +427,11 @@ window.TenStepsEngine = (() => {
    document.documentElement.dataset.theme = value;
    try { localStorage.setItem('yaozi.home.theme', value); } catch (_) {}
    el('theme').setAttribute('aria-label', value === 'dark' ? '切换至浅色模式' : '切换至深色模式');
+   localizePage();
    document.querySelector('meta[name="theme-color"]').content = value === 'dark' ? '#0d1826' : '#edf3f9';
  });
  const initialDark = document.documentElement.dataset.theme === 'dark';
+ localizePage();
  el('theme').setAttribute('aria-label', initialDark ? '切换至浅色模式' : '切换至深色模式');
  document.querySelector('meta[name="theme-color"]').content = initialDark ? '#0d1826' : '#edf3f9';
  syncMotionPreference(); reset();

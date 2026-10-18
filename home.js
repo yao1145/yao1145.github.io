@@ -6,8 +6,8 @@
   const strings = {
     zh: {
       title: 'yao1145 的小游戏',
-      description: 'yao1145 的小游戏：PKUfighter、十步万度、Cube、Sixteen、王冠巡游、Tronix、顶点着色与 Swap 全清。选一款，开始玩。',
-      heading: '选一款，开始玩。',
+      description: 'yao1145 的小游戏：PKUfighter、十步万度、Cube、Sixteen、王冠巡游、Tronix、顶点着色与 Swap 全清。简单规则，意想不到的世界。',
+      heading: '简单规则，意想不到的世界。',
       intro: '从弹幕到棋盘，从路线到点线。欢迎来到我的小游戏主页。',
       language: '语言', games: '选择游戏',
       fighterDescription: '驾驶北大校徽，穿过弹幕、迎战高校 Boss。选择效果卡，搭配你的战斗路线。',
@@ -37,8 +37,8 @@
     },
     en: {
       title: "yao1145's mini games",
-      description: 'Play PKUfighter, Clock Relay, Cube, Sixteen, Crown Tour, Tronix, Vertex Coloring and Swap. Pick a game and start playing.',
-      heading: 'Pick a game. Start playing.',
+      description: 'Play PKUfighter, Clock Relay, Cube, Sixteen, Crown Tour, Tronix, Vertex Coloring and Swap. Simple rules. Unexpected worlds.',
+      heading: 'Simple rules. Unexpected worlds.',
       intro: 'From bullet storms to boards, paths to networks. Welcome to my little arcade.',
       language: 'Language', games: 'Choose a game',
       fighterDescription: 'Pilot the Peking University emblem through bullet storms and face university bosses. Pick effect cards to shape your run.',

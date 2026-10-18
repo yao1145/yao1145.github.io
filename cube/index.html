@@ -32,11 +32,12 @@
 @media(max-width:540px){.app{padding:16px max(16px,env(safe-area-inset-right)) 28px max(16px,env(safe-area-inset-left))}.masthead{padding-bottom:12px}.intro{display:block;margin:28px 0 22px}.intro p{margin-top:18px;font-size:15px}.board-panel{padding:16px 22px 16px}.board-head{font-size:13px;margin:0 8px 14px}.board{margin-top:24px}.board-head>span{font-size:12px}.view-bar{margin:0 8px 10px;font-size:12px}.view-bar label{font-size:12px}.tile .coord{font-size:10px;left:5px;bottom:4px}.legend{font-size:11px;margin:14px 8px 0}.legend>span:last-child{display:none}.board-help{align-items:start;gap:10px}.side{display:block}.side .message{margin-top:18px}.levels{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.level{padding:10px;min-height:62px}.challenge-head{align-items:start}.challenge-head h2{font-size:17px}.challenge-head>span{font-size:12px;white-space:nowrap}.collection-heading{flex-wrap:wrap}.collection p{font-size:13px}.collection h2{font-size:16px}.star-shelf{grid-template-columns:repeat(6,minmax(0,1fr))}.star-slot{font-size:12px;min-height:32px}.crown-button{min-height:44px;margin-left:auto}.extra{display:block}.extra p{margin:12px 0 0}.rule-body{grid-template-columns:1fr;gap:10px}footer{flex-direction:column;gap:8px}.net{grid-template-columns:repeat(4,32px);grid-template-rows:repeat(3,32px);gap:3px}.net-controls{gap:14px}.net-controls.with-net{flex-direction:column;align-items:center}.crown-stage{padding:34px 20px 27px}.crown-orbit{top:191px;height:274px}.crown-kicker{margin-top:30px;font-size:12px}.crown-copy h2{font-size:39px}.crown-copy>p:last-of-type{font-size:13px}.crown-return{padding:12px 16px}}
 @media(max-width:360px){.app{padding-left:12px;padding-right:12px}.view-bar label{gap:5px}.levels{gap:6px}.level{padding:8px}.level b{font-size:15px}.level span{font-size:11px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+#language-toggle{font-size:14px;white-space:nowrap}.theme{flex:0 0 44px}@media(max-width:360px){.masthead>div{gap:8px}.masthead>div>span{display:none}}
 </style></head>
 <body>
 <a class="skip-link" href="#game">跳到游戏</a>
 <main class="app">
- <header class="masthead"><a href="../">← 游戏主页</a><div><span>最少步数挑战</span><button id="theme" class="theme" aria-label="切换颜色主题">◐</button></div></header>
+ <header class="masthead"><a href="../">← 游戏主页</a><div><span>最少步数挑战</span><button id="language-toggle" class="theme" type="button">EN</button><button id="theme" class="theme" aria-label="切换颜色主题">◐</button></div></header>
  <div class="intro"><h1>Cube</h1><p>滚动方块，把六个面都变蓝。<br><strong>只有最少步数，用完还未完成即失败。</strong></p></div>
  <div class="layout" id="game">
   <section class="play-area" aria-label="游戏棋盘">
@@ -175,6 +176,26 @@ var CubeEngine = (() => {
 (() => {
  'use strict';
  const E=CubeEngine,$=id=>document.getElementById(id),arrows=['↑','→','↓','←'],directions=['上','右','下','左'];
+ const copy={
+  '游戏主页':'Games','最少步数挑战':'Minimum-move challenge','跳到游戏':'Skip to game','切换颜色主题':'Toggle color theme','切换至浅色模式':'Switch to light theme','切换至深色模式':'Switch to dark theme',
+  '滚动方块，把六个面都变蓝。':'Roll the cube and turn all six faces blue.','只有最少步数，用完还未完成即失败。':'Solve it in the fewest moves. The challenge ends when you run out of moves.',
+  '游戏棋盘':'Game board','显示选项':'Display options','六面展开图':'Cube net','骰子点数':'Die pips','点击立方体的相邻格移动':'Click an adjacent square to roll the cube','蓝格与接触面交换颜色':'Blue squares swap color with the touching face','对面点数之和为 7':'Opposite sides add up to 7',
+  '在棋盘上滑动、点击相邻格，或用方向键 / WASD 移动。Z 撤销，R 重开。':'Swipe the board, click an adjacent square, or use the arrow keys / WASD. Z undo; R restart.','翻滚':'Roll animation','流畅':'Smooth','快速':'Fast','关闭':'Off','步数与控制':'Moves and controls','剩余步数':'Moves left','步数':'Moves',' 步':' moves','步内':' moves within','蓝色面':'Blue faces','最少 / 上限':'Minimum / limit','已走':'Used','每一步都算数':'Every move counts','把棋盘上的六块蓝色，收进立方体。':'Collect all six blue squares on the cube.','撤销':'Undo','重开':'Restart','下一关 →':'Next level →','正在计算当前局面的最短路线…':'Finding the shortest route for this position…',
+  '方向与六面':'Orientation and faces','随滚动实时更新':'Updates as the cube rolls','方向控制':'Direction controls','向上滚动':'Roll up','向右滚动':'Roll right','向下滚动':'Roll down','向左滚动':'Roll left','移动':'Move','本次路线':'Move sequence','尚未移动':'No moves yet',
+  '选择挑战':'Choose a challenge','十二星收藏':'12-star collection','每关首次通关，点亮一颗星。':'Earn one star the first time you clear each level.','集齐星星解锁':'Collect all stars to unlock','第 1 到 12 关的通关星星':'Clear stars for levels 1 to 12','十二关，步步到位':'Twelve levels, one move at a time','已通关':'Cleared','每日一局':'Daily challenge','随机挑战':'Random challenge','所有关卡可直接挑战。通关记录保存在此浏览器。':'All levels are open. Progress is saved in this browser.',
+  '玩法与最少步数规则':'How to play and the move limit','颜色会交换':'Colors swap','每次滚动一格，先翻转立方体，再交换':'Each roll moves one square. The cube turns first, then swaps colors between','与棋盘接触的一面和落点':'the touching face and the landing square','的颜色。':' .','白面落到蓝格会拾取蓝色；蓝面落到白格会放下蓝色。两者同色时保持原色。起点不会触发交换。':'A white face landing on blue collects that color; a blue face landing on white leaves it behind. Matching colors stay the same. The starting square does not trigger a swap.','棋盘始终为':'The board is always','。六个面同时变蓝即完成。每局初始都有六个蓝格，立方体六面为白色。':'. Turn all six faces blue to win. Every game starts with six blue squares and a white cube.',
+  '最短路线才通关':'Only the shortest route wins','每关上限等于从初始局面出发的':'Each move limit equals the','理论最少步数':'theoretical minimum number of moves','。用完仍未完成即失败，之后不能继续移动。':'. Run out of moves before completing the goal and the challenge ends.','此规则下，任意初始蓝格布局和白格起点都有解，最短解最多':'Every starting layout of six blue squares and a white starting face is solvable. The shortest solution is at most','步；每局仍使用自身的最少步数作为上限。':' moves; each game uses its own minimum as the limit.','；每局仍使用自身的最少步数作为上限。':' Each game uses its own minimum as the limit.','越界不计步。撤销会退回上一步并返还一步，也可从失败局面撤销。重开恢复本局初始棋盘。':'Moves beyond the board do not count. Undo restores the previous move and returns one move, even after a loss. Restart restores the starting board.','每关首次通关点亮一颗星，集齐十二颗解锁星之立方。每日棋盘以北京时间的日期生成。':'Clear each level for its first star. Collect all 12 to unlock the Star Cube. Daily boards use the date in China Standard Time.',
+  '数学与算法：颜色守恒与最短路径':'Math and algorithms: color conservation and shortest paths','蓝色只会搬家':'Blue only changes location','滚动改变立方体的朝向，接触交换把蓝色在棋盘与立方体之间搬运。因此，棋盘 16 格与立方体 6 面上的蓝色总数始终为 6。目标是把这六份蓝色全部收进立方体。':'Rolling changes the cube orientation. Color swaps move blue between the board and cube, so the total number of blue squares and faces stays at six. The goal is to collect all six blue squares on the cube.','一个局面由立方体的位置、棋盘颜色和六个空间方向上的面色决定。只要这些信息相同，后续操作与结果就相同；求解时可以合并这些等价局面，无需额外区分同色面的身份。':'A position is defined by the cube location, board colors, and colors on its six spatial faces. Positions with the same information have identical future moves, so the solver can merge them without tracking identical face identities.','从终点反向广度优先搜索':'Reverse breadth-first search from the goal','把每个局面看成一个顶点，每次合法滚动看成一条有向边，最少步数就是到目标局面的最短路径长度。程序从所有“六面全蓝”的目标局面同时出发，逐层搜索前驱。':'Treat each position as a node and each legal roll as a directed edge. The minimum move count is the shortest path to a goal. The solver searches backward in layers from every position with all six faces blue.','正向操作是先滚动、再交换；反向必须先撤销交换、再滚回上一格。广度优先搜索（BFS）首次到达一个状态时，经过的层数就是它到目标的精确距离。':'A forward move rolls first, then swaps colors. Reversing it requires undoing the swap before rolling back. When breadth-first search (BFS) first reaches a position, its layer gives the exact distance to the goal.','棋盘与面色用位掩码编码，距离表复用到各关。页面据此设置步数预算，所以玩家需要在自己的起局最短距离内完成。':'Board and face colors use bitmasks, and the distance table is shared across levels. The page sets the move limit from that table, so each challenge must be solved within its starting position’s shortest distance.',
+  '灵感与规则：':'Inspired by the rules of ','Simon Tatham 的 Cube':'Simon Tatham’s Cube','可离线游玩 · 每关最短解已验证':'Playable offline · shortest solutions verified','十二颗星，落成一方立方。':'Twelve stars become one cube.','12 / 12 关全部通关':'All 12 levels cleared','星之立方':'Star Cube','从六步到十七步，你让每一面都迎向光。':'From six moves to seventeen, you turned every face toward the light.','这方星立方，属于每一步都算数的你。':'This Star Cube belongs to a player who made every move count.','收下星立方，回到棋盘':'Claim the Star Cube and return to the board','翻滚动画速度':'Roll animation speed','还差':'Still need ','颗星':' stars',
+  '初识':'First steps','转个弯':'Around the corner','换一面':'Another side','绕行':'The long way','留住蓝色':'Keep the blue','六面协作':'All six together','小棋盘':'Small board','迂回':'Detour','空间记忆':'Spatial memory','一步不多':'Not a move to spare','收官之前':'Near the finish','恰到好处':'Just enough',
+  '使用提示':'hint used','独立完成':'solved without hints','蓝格':'blue square','白格':'white square','立方体当前位置':'cube location','可向':'can roll ','展开图第':'net face ','面：':' : ','蓝色':'blue','白色':'white','尚未完成':'not cleared',
+  '正在准备棋盘':'Preparing the board','正在确定本局的最少步数…':'Finding the minimum move count…','十二关全部完成！':'All 12 levels complete!','最少步数通关！':'Solved in the minimum number of moves!','恰好':'Exactly ','步，六面全蓝。':' moves; all six faces are blue.','本局使用了提示。':'A hint was used this game.','本局独立完成。':'Solved without hints.','步数用完，挑战失败':'Out of moves — challenge over','步内未能集齐六面。撤销一步调整路线，或重开再试。':' moves were not enough to collect all six faces. Undo to adjust your route, or restart and try again.','保持蓝色在正确的面上，继续滚动。':'Keep the blue on the right faces as you roll.','记录已计入通关进度。':'Progress saved.','当前局面无法完成，请撤销或重开。':'This position cannot be solved. Undo a move or restart.','当前局面还需':'This position needs ','步。':' more moves.','当前最少还需':'At least ','步，比剩余多':' moves are needed, ','步。可撤销调整。':' more than you have left. Undo to adjust.','路线计算失败。可继续游玩，重开后重新计算。':'Route calculation failed. You can keep playing or restart to try again.','棋盘生成失败':'Could not generate the board','点击每日一局或随机挑战重试。':'Try the daily or random challenge again.','查看我的星之立方':'View my Star Cube','十二关全部通关，你的星之立方已解锁。':'All 12 levels cleared. Your Star Cube is unlocked.','此浏览器暂不能保存记录。本次通关仍可正常计入。':'This browser cannot save progress. Clears will count for this session.','骰子六面的点数和当前颜色':'The pips and colors on all six faces','骰子六面的当前颜色':'The current colors of all six faces'
+ };
+ const enToZh=new Map(Object.entries(copy).map(([zh,en])=>[en,zh]));
+ let language='zh';try{const saved=localStorage.getItem('yaozi.home.language');language=saved==='zh'||saved==='en'?saved:(navigator.language.toLowerCase().startsWith('zh')?'zh':'en');}catch{language=navigator.language.toLowerCase().startsWith('zh')?'zh':'en';}
+ const originalText=new WeakMap(),originalAttrs=new WeakMap();
+ function translateText(value){if(value==='步')return 'moves';for(const [zh,en]of Object.entries(copy).sort((a,b)=>b[0].length-a[0].length))value=value.replaceAll(zh,en);return value;}
+ function localizePage(){document.documentElement.dataset.language=language;document.documentElement.lang=language==='zh'?'zh-CN':'en';document.title=language==='zh'?'Cube · 最少步数挑战':'Cube · Minimum-Move Challenge';document.querySelector('meta[name="description"]').content=language==='zh'?'在 4×4 棋盘滚动立方体，把六个面都变蓝。每关只有理论最少步数，用完还未完成即失败。':'Roll a cube across a 4×4 board and turn all six faces blue. Solve each level in the theoretical minimum number of moves.';const w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);while(w.nextNode()){const n=w.currentNode;if(n.parentElement.closest('script,style'))continue;if(!originalText.has(n))originalText.set(n,n.nodeValue);const source=originalText.get(n);n.nodeValue=language==='zh'?source:translateText(source);}for(const node of document.querySelectorAll('[aria-label],[title]')){let cache=originalAttrs.get(node);if(!cache){cache={};originalAttrs.set(node,cache);}for(const attr of ['aria-label','title'])if(node.hasAttribute(attr)){if(!(attr in cache))cache[attr]=node.getAttribute(attr);node.setAttribute(attr,language==='zh'?cache[attr]:translateText(cache[attr]));}}$('language-toggle').textContent=language==='zh'?'EN':'中文';$('language-toggle').setAttribute('aria-label',language==='zh'?'Switch to English':'Switch to Chinese');$('language-toggle').title=language==='zh'?'Switch to English':'Switch to Chinese';}
  const diceValues=[1,6,2,5,3,4];
  const pipLayouts=[[],[[.5,.5]],[[.26,.26],[.74,.74]],[[.26,.26],[.5,.5],[.74,.74]],[[.26,.26],[.74,.26],[.26,.74],[.74,.74]],[[.26,.26],[.74,.26],[.5,.5],[.26,.74],[.74,.74]],[[.26,.26],[.74,.26],[.26,.5],[.74,.5],[.26,.74],[.74,.74]]];
  const names=['初识','转个弯','换一面','绕行','留住蓝色','六面协作','小棋盘','迂回','空间记忆','一步不多','收官之前','恰到好处'];
@@ -206,14 +227,15 @@ var CubeEngine = (() => {
   $('star-count').textContent=`${count} / 12`;
   $('collection-note').textContent=count===12?'十二关全部通关，你的星之立方已解锁。':'每关首次通关，点亮一颗星。';
   $('view-crown').disabled=count<12;
-  $('view-crown').textContent=count===12?'查看我的星之立方':`还差 ${12-count} 颗星`;
+  $('view-crown').textContent=language==='en'?(count===12?'View my Star Cube':`${12-count} ${12-count===1?'star':'stars'} to go`):count===12?'查看我的星之立方':`还差 ${12-count} 颗星`;
   $('collection').classList.toggle('complete',count===12);
   starSlots.forEach((slot,i)=>{
    slot.classList.toggle('earned',Boolean(cleared[i]));
    slot.classList.toggle('selected',mode==='levels'&&index===i);
    slot.classList.toggle('new-star',i===fresh);
-   slot.setAttribute('aria-label',`第 ${i+1} 关，${cleared[i]?'已通关':'尚未通关'}`);
+   slot.setAttribute('aria-label',language==='en'?`Level ${i+1}, ${cleared[i]?'cleared':'not cleared'}`:`第 ${i+1} 关，${cleared[i]?'已通关':'尚未通关'}`);
   });
+  localizePage();
  }
  function showCubeEgg(){if(starTotal()<12||$('cube-dialog').open)return;$('cube-dialog').showModal();}
  function storageNotice(){if(!storageAvailable){$('storage-note').hidden=false;$('storage-note').textContent='此浏览器暂不能保存记录。本次通关仍可正常计入。';}}
@@ -313,11 +335,12 @@ var CubeEngine = (() => {
   $('levels').replaceChildren();E.LEVELS.forEach((l,i)=>{
    const btn=document.createElement('button');btn.className='level';btn.classList.toggle('cleared',!!cleared[i]);btn.setAttribute('aria-pressed',String(mode==='levels'&&index===i));btn.dataset.level=i;
    const b=document.createElement('b');b.textContent=i+1;const detail=document.createElement('span');detail.textContent=`${l.optimal} 步`;btn.append(b,detail);
-   btn.setAttribute('aria-label',`第 ${i+1} 关，最少 ${l.optimal} 步${cleared[i]?'，已通关'+(cleared[i].assisted?'，使用提示':'，独立完成'):''}`);
+   btn.setAttribute('aria-label',language==='en'?`Level ${i+1}, minimum ${l.optimal} moves${cleared[i]?`, cleared${cleared[i].assisted?', hint used':', solved without hints'}`:''}`:`第 ${i+1} 关，最少 ${l.optimal} 步${cleared[i]?'，已通关'+(cleared[i].assisted?'，使用提示':'，独立完成'):''}`);
    btn.onclick=()=>load(l,i,'levels');$('levels').append(btn);
   });
-  $('progress').textContent=`已通关 ${Object.keys(cleared).length} / 12`;
+  $('progress').textContent=language==='en'?`Cleared ${Object.keys(cleared).length} / 12`:`已通关 ${Object.keys(cleared).length} / 12`;
   renderStars();
+  localizePage();
  }
  function showMessage(title,text,type=''){ $('message').className=`message ${type}`;$('message').replaceChildren();const h=document.createElement('h2');h.textContent=title;const p=document.createElement('p');p.textContent=text;$('message').append(h,p);}
  function render(){
@@ -325,14 +348,14 @@ var CubeEngine = (() => {
   const showNet=$('show-net').checked,showPips=$('show-pips').checked;
   $('net-view').hidden=!showNet;$('dice-legend').hidden=!showPips;$('net-controls').classList.toggle('with-net',showNet);
   $('net').setAttribute('aria-label',showPips?'骰子六面的点数和当前颜色':'骰子六面的当前颜色');
-  $('level-title').textContent=mode==='levels'?`第 ${index+1} 关 · ${names[index]}`:mode==='daily'?`每日一局 · ${dailyDate}`:'随机挑战';
-  $('board-size').textContent=`${level.w} × ${level.h} 棋盘`;$('remaining').textContent=remaining;$('optimal').textContent=level.optimal;$('used').textContent=state.used;$('collected').textContent=E.popcount(state.faces);
+  $('level-title').textContent=language==='en'?(mode==='levels'?`Level ${index+1} · ${translateText(names[index])}`:mode==='daily'?`Daily challenge · ${dailyDate}`:'Random challenge'):(mode==='levels'?`第 ${index+1} 关 · ${names[index]}`:mode==='daily'?`每日一局 · ${dailyDate}`:'随机挑战');
+  $('board-size').textContent=language==='en'?`${level.w} × ${level.h} board`:`${level.w} × ${level.h} 棋盘`;$('remaining').textContent=remaining;$('optimal').textContent=level.optimal;$('used').textContent=state.used;$('collected').textContent=E.popcount(state.faces);
   $('track').replaceChildren();for(let i=0;i<level.optimal;i++){const tick=document.createElement('i');if(i<state.used)tick.className=state.status==='lost'?'used exhausted':'used';$('track').append(tick);}
   const available=new Map();for(let d=0;d<4;d++){const t=E.move(state,d,level.w,level.h);if(t)available.set(t.pos,d);}
   tiles.forEach((tile,i)=>{
    const blue=Boolean((animation?animation.board:state.board)>>i&1),near=active&&available.has(i);
    tile.classList.toggle('blue',blue);tile.classList.toggle('near',near);tile.disabled=!near;
-   tile.setAttribute('aria-label',`${String.fromCharCode(65+i%level.w)}${Math.floor(i/level.w)+1}，${blue?'蓝格':'白格'}${i===state.pos?'，立方体当前位置':near?'，可向'+directions[available.get(i)]+'移动':''}`);
+   tile.setAttribute('aria-label',language==='en'?`${String.fromCharCode(65+i%level.w)}${Math.floor(i/level.w)+1}, ${blue?'blue square':'white square'}${i===state.pos?', cube location':near?`, can roll ${['up','right','down','left'][available.get(i)]}`:''}`:`${String.fromCharCode(65+i%level.w)}${Math.floor(i/level.w)+1}，${blue?'蓝格':'白格'}${i===state.pos?'，立方体当前位置':near?'，可向'+directions[available.get(i)]+'移动':''}`);
   });
   if(!animation){paintCube(state.faces,state.pose);positionCube();}
   $('net').replaceChildren();geometry.forEach((worldFace,i)=>{
@@ -354,6 +377,7 @@ var CubeEngine = (() => {
   if(analysing)$('analysis').textContent='正在计算当前局面的最短路线…';
   else if(answer?.distance<0)$('analysis').textContent='当前局面无法完成，请撤销或重开。';
   else if(answer){const lack=answer.distance-remaining;$('analysis').textContent=state.status==='won'?'记录已计入通关进度。':state.status==='lost'?`当前局面还需 ${answer.distance} 步。`:lack>0?`当前最少还需 ${answer.distance} 步，比剩余多 ${lack} 步。可撤销调整。`:`当前最少还需 ${answer.distance} 步。`;}
+  localizePage();
  }
  async function analyse(){
   const token=revision;analysing=true;answer=null;$('analysis').textContent='正在计算当前局面的最短路线…';
@@ -390,6 +414,7 @@ var CubeEngine = (() => {
  }
  function undo(){if(generating||!history.length)return;stopAnimation();state=history.pop().state;revision++;answer=null;analysing=true;render();analyse();}
  $('undo').onclick=undo;$('restart').onclick=()=>load(level,index,mode,dailyDate);$('next').onclick=()=>load(E.LEVELS[index+1],index+1,'levels');
+ $('language-toggle').onclick=()=>{language=language==='zh'?'en':'zh';try{localStorage.setItem('yaozi.home.language',language);}catch{}localizePage();renderLevels();render();};
  $('show-net').onchange=render;$('show-pips').onchange=render;
  $('view-crown').onclick=showCubeEgg;
  $('close-cube').onclick=()=>$('cube-dialog').close();
@@ -439,9 +464,11 @@ var CubeEngine = (() => {
   const value=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=value;
   try{localStorage.setItem('yaozi.home.theme',value);}catch{}
   $('theme').setAttribute('aria-label',value==='dark'?'切换至浅色模式':'切换至深色模式');
+  localizePage();
   document.querySelector('meta[name="theme-color"]').content=value==='dark'?'#0d1826':'#edf3f9';
  };
  const initialDark=document.documentElement.dataset.theme==='dark';
+ localizePage();
  $('theme').setAttribute('aria-label',initialDark?'切换至浅色模式':'切换至深色模式');
  document.querySelector('meta[name="theme-color"]').content=initialDark?'#0d1826':'#edf3f9';
  new ResizeObserver(()=>positionCube(animation?.pos??state.pos)).observe($('board'));

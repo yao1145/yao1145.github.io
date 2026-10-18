@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const E=window.SwapEngine,LEVELS=window.SwapLevels,$=id=>document.getElementById(id);
+  const E=window.SwapEngine,LEVELS=window.SwapLevels,$=id=>document.getElementById(id),tr=window.GameLocale?.t||(value=>value);
   if(!E||!LEVELS){$('level-title').textContent='游戏未能加载，请重新打开页面。';return;}
   const KEY='yaozi.swap.progress.v1',MOTION_KEY='yaozi.swap.motion';
   const shapes=['●','▲','◆','✚'],names=['玫红圆形','绿色三角','橙色菱形','蓝色十字'];
@@ -16,14 +16,15 @@
   const cells=[],levelButtons=[],starSlots=[];
   function save(){try{localStorage.setItem(KEY,JSON.stringify({version:1,levels:records}));}catch{storageAvailable=false;$('storage-note').hidden=false;}}
   const coordinate=i=>String.fromCharCode(65+i%state.w)+(Math.floor(i/state.w)+1);
-  function message(title,text,tone){$('message-title').textContent=title;$('message-text').textContent=text;$('message').classList.toggle('won',tone==='won');$('message').classList.toggle('error',tone==='stuck');}
+  let currentMessage=['为残局留一手','每种颜色都要清空。先观察，再决定交换和下落的顺序。',null];
+  function message(title,text,tone){currentMessage=[title,text,tone];$('message-title').textContent=tr(title);$('message-text').textContent=tr(text);$('message').classList.toggle('won',tone==='won');$('message').classList.toggle('error',tone==='stuck');}
   function cancelAnimation(){animationEpoch++;animating=false;for(const animation of $('animation-layer').getAnimations({subtree:true}))animation.cancel();$('animation-layer').replaceChildren();}
   function stopGeneration(){generationEpoch++;generating=false;if(workerCancel)workerCancel();workerCancel=null;if(worker)worker.terminate();worker=null;$('busy').hidden=true;}
-  function collection(){const count=records.filter(r=>r.won).length;$('star-count').textContent=count+' / 12';$('progress-label').textContent='已通关 '+count+' / 12';$('collection').classList.toggle('complete',count===12);$('collection-note').textContent=count===12?'十二张棋盘全部清空。十二颗星，属于你。':'每关首次清空，点亮一颗星。';records.forEach((r,i)=>{starSlots[i].classList.toggle('earned',r.won);starSlots[i].setAttribute('aria-label',`第 ${i+1} 关${r.won?'已通关':'未通关'}`);levelButtons[i].classList.toggle('done',r.won);levelButtons[i].setAttribute('aria-pressed',String(mode==='level'&&levelIndex===i));});}
+  function collection(){const count=records.filter(r=>r.won).length;$('star-count').textContent=count+' / 12';$('progress-label').textContent=tr('已通关 ')+count+' / 12';$('collection').classList.toggle('complete',count===12);$('collection-note').textContent=tr(count===12?'十二张棋盘全部清空。十二颗星，属于你。':'每关首次清空，点亮一颗星。');records.forEach((r,i)=>{starSlots[i].classList.toggle('earned',r.won);starSlots[i].setAttribute('aria-label',tr(`第 ${i+1} 关${r.won?'已通关':'未通关'}`));levelButtons[i].classList.toggle('done',r.won);levelButtons[i].setAttribute('aria-pressed',String(mode==='level'&&levelIndex===i));});}
   function award(){if(status!=='won'||mode!=='level')return;const record=records[levelIndex],best=record.best;record.won=true;if(!best||swaps+drops<best.swaps+best.drops||(swaps+drops===best.swaps+best.drops&&drops<best.drops))record.best={swaps,drops};save();collection();}
   function loadPuzzle(next,nextMode,index=null,date=null){
     stopGeneration();cancelAnimation();puzzle=JSON.parse(JSON.stringify(next));state=E.clone(next);initial=E.clone(state);mode=nextMode;levelIndex=index;dailyDate=date;selected=null;focusIndex=0;swaps=0;drops=0;history=[];status=E.analyze(state).status;
-    $('level-title').textContent=mode==='level'?`第 ${index+1} 关 · ${puzzle.name}`:mode==='daily'?`每日一局 · ${date}`:'随机挑战';$('board-meta').textContent=`${state.w} × ${state.h} · ${puzzle.palette} 色`;
+    $('level-title').textContent=tr(mode==='level'?`第 ${index+1} 关 · ${puzzle.name}`:mode==='daily'?`每日一局 · ${date}`:'随机挑战');$('board-meta').textContent=tr(`${state.w} × ${state.h} · ${puzzle.palette} 色`);
     buildBoard();render();collection();
   }
   function loadLevel(index){if(!Number.isInteger(index)||!LEVELS[index])return false;generationPath=null;loadPuzzle(LEVELS[index],'level',index);return true;}
@@ -39,14 +40,14 @@
   function roving(){cells.forEach((cell,i)=>{cell.tabIndex=i===focusIndex?0:-1;});}
   function draw(boardCells){
     const adjacent=selected===null?[]:E.neighbors(state,selected);
-    cells.forEach((cell,i)=>{const c=boardCells[i];cell.replaceChildren();cell.classList.toggle('empty',c<0);cell.classList.toggle('adjacent',c>=0&&adjacent.includes(i)&&!animating);cell.setAttribute('aria-pressed',String(selected===i));cell.setAttribute('aria-label',`${coordinate(i)}，${c<0?'空格':names[c]}`);if(c>=0){const tile=document.createElement('span');tile.className='tile tile-'+c;tile.textContent=shapes[c];tile.setAttribute('aria-hidden','true');cell.append(tile);}});roving();
+    cells.forEach((cell,i)=>{const c=boardCells[i];cell.replaceChildren();cell.classList.toggle('empty',c<0);cell.classList.toggle('adjacent',c>=0&&adjacent.includes(i)&&!animating);cell.setAttribute('aria-pressed',String(selected===i));cell.setAttribute('aria-label',tr(`${coordinate(i)}，${c<0?'空格':names[c]}`));if(c>=0){const tile=document.createElement('span');tile.className='tile tile-'+c;tile.textContent=shapes[c];tile.setAttribute('aria-hidden','true');cell.append(tile);}});roving();
   }
   function render(){
     if(!state)return;const info=E.analyze(state);status=info.status;draw(state.cells);$('remaining').textContent=info.remaining;$('total').textContent='/ '+initial.cells.filter(c=>c>=0).length;$('operations').textContent=swaps+drops;$('swaps').textContent=swaps;$('drops').textContent=drops;
     $('board').classList.toggle('won',status==='won');$('board').setAttribute('aria-busy',String(animating||generating));$('drop').disabled=animating||generating||status!=='playing'||!E.apply(state,{type:'drop'}).ok;$('undo').disabled=history.length===0&&!generating;
-    $('next').hidden=!(status==='won'&&mode==='level'&&levelIndex<11);$('selection-note').textContent=selected===null?'点选两块相邻方块，交换位置。':`已选 ${coordinate(selected)} · 再点相邻方块交换；点一次已选方块可取消。`;
-    $('color-counts').replaceChildren();for(let c=0;c<puzzle.palette;c++){const counter=document.createElement('span');counter.className='color-counter'+(info.counts[c]===1?' single':info.counts[c]===0?' zero':'');counter.innerHTML=`<i class="tile-${c}" aria-hidden="true">${shapes[c]}</i><span>${info.counts[c]}</span>`;counter.setAttribute('aria-label',`${names[c]}剩余 ${info.counts[c]} 块`);$('color-counts').append(counter);}
-    const best=mode==='level'?records[levelIndex].best:null;$('best').textContent=best?`${best.swaps+best.drops} 次（${best.swaps} 换 · ${best.drops} 落）`:'—';
+    $('next').hidden=!(status==='won'&&mode==='level'&&levelIndex<11);$('selection-note').textContent=tr(selected===null?'点选两块相邻方块，交换位置。':`已选 ${coordinate(selected)} · 再点相邻方块交换；点一次已选方块可取消。`);
+    $('color-counts').replaceChildren();for(let c=0;c<puzzle.palette;c++){const counter=document.createElement('span');counter.className='color-counter'+(info.counts[c]===1?' single':info.counts[c]===0?' zero':'');counter.innerHTML=`<i class="tile-${c}" aria-hidden="true">${shapes[c]}</i><span>${info.counts[c]}</span>`;counter.setAttribute('aria-label',tr(`${names[c]}剩余 ${info.counts[c]} 块`));$('color-counts').append(counter);}
+    const best=mode==='level'?records[levelIndex].best:null;$('best').textContent=best?tr(`${best.swaps+best.drops} 次（${best.swaps} 换 · ${best.drops} 落）`):'—';
     if(generating)return;
     if(status==='won')message('全部清空！',mode==='level'?`第 ${levelIndex+1} 关完成，共 ${swaps} 次交换、${drops} 次下落。`:`本局完成，共 ${swaps} 次交换、${drops} 次下落。每日与随机不计入十二星。`,'won');
     else if(status==='stuck')message('这个残局无法清空',info.singletons.length?`${info.singletons.map(c=>names[c]).join('、')}只剩一块。撤销最近的操作，给它留一位同伴。`:'剩余方块已经无法交换或下落。可以撤销，换一种安排。','stuck');
@@ -82,7 +83,7 @@
   function fromWorker(seed,difficulty,id){return new Promise(resolve=>{let w;try{w=new Worker('worker.js');}catch{resolve(null);return;}worker=w;const finish=value=>{w.terminate();if(worker===w)worker=null;if(workerCancel===cancel)workerCancel=null;resolve(value);},cancel=()=>finish(null);workerCancel=cancel;w.onerror=event=>{event.preventDefault();finish(null);};w.onmessage=event=>{const data=event.data;if(data.id!==id||id!==generationEpoch)return;if(data.type==='result')finish(data.puzzle);else if(data.type==='error')finish(null);};w.postMessage({id,seed,difficulty});});}
   async function fallback(seed,difficulty,id){const iterator=E.generateSteps(seed,difficulty);while(id===generationEpoch){const step=iterator.next();if(step.done)return step.value;await new Promise(resolve=>setTimeout(resolve,0));}return null;}
   async function generate(nextMode){
-    stopGeneration();cancelAnimation();const id=generationEpoch;generating=true;selected=null;$('busy').hidden=false;$('busy-text').textContent='正在构造并验证可清空的棋盘…';render();
+    stopGeneration();cancelAnimation();const id=generationEpoch;generating=true;selected=null;$('busy').hidden=false;$('busy-text').textContent=tr('正在构造并验证可清空的棋盘…');render();
     const date=E.shanghaiDateString(),seed=nextMode==='daily'?'swap-daily:'+date:'swap-random:'+Date.now()+':'+(++randomCount)+':'+Math.random();
     const difficulty=nextMode==='daily'?(Number(date.slice(-2))%2?'hard':'expert'):(randomCount%2?'hard':'expert');
     try{let next=await fromWorker(seed,difficulty,id);if(id!==generationEpoch)return;let path='worker';if(!next){path='fallback';next=await fallback(seed,difficulty,id);}if(id!==generationEpoch)return;if(!next||!E.replay(next,next.solution).valid)throw new Error('Invalid generated certificate');loadPuzzle(next,nextMode,null,nextMode==='daily'?date:null);generationPath=path;}
@@ -94,8 +95,10 @@
   window.addEventListener('resize',()=>{if(animating){cancelAnimation();render();}});document.addEventListener('visibilitychange',()=>{if(document.hidden&&animating){cancelAnimation();render();}});
   document.addEventListener('keydown',event=>{if(event.defaultPrevented||event.ctrlKey||event.metaKey||event.altKey||/^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName))return;const key=event.key.toLowerCase();if(key==='z'){event.preventDefault();undo();}else if(key==='r'){event.preventDefault();restart();}else if(key==='g'){event.preventDefault();play({type:'drop'});}});
   let themePreference=null;try{themePreference=localStorage.getItem('yaozi.home.theme');}catch{}
-  function theme(value){document.documentElement.dataset.theme=value;document.querySelector('meta[name="theme-color"]').content=value==='dark'?'#0d1826':'#edf3f9';$('theme').setAttribute('aria-label',value==='dark'?'切换至浅色模式':'切换至深色模式');}
+  function theme(value){document.documentElement.dataset.theme=value;document.querySelector('meta[name="theme-color"]').content=value==='dark'?'#0d1826':'#edf3f9';$('theme').setAttribute('aria-label',tr(value==='dark'?'切换至浅色模式':'切换至深色模式'));}
   theme(document.documentElement.dataset.theme);$('theme').addEventListener('click',()=>{themePreference=document.documentElement.dataset.theme==='dark'?'light':'dark';theme(themePreference);try{localStorage.setItem('yaozi.home.theme',themePreference);}catch{}});matchMedia('(prefers-color-scheme:dark)').addEventListener('change',event=>{if(!['light','dark'].includes(themePreference))theme(event.matches?'dark':'light');});
+  window.GameLocale?.setRerender(()=>{const savedMessage=currentMessage;render();collection();$('level-title').textContent=tr(mode==='level'?`第 ${levelIndex+1} 关 · ${puzzle.name}`:mode==='daily'?`每日一局 · ${dailyDate}`:'随机挑战');$('board-meta').textContent=tr(`${state.w} × ${state.h} · ${puzzle.palette} 色`);levelButtons.forEach((button,index)=>{const level=LEVELS[index];button.querySelector('.level-main b').textContent=tr(level.name);button.querySelector('.level-main small').textContent=tr(`${level.w} × ${level.h} · ${level.meta.tiles} 块`);});if(savedMessage)message(...savedMessage);});
   window.SwapGame=Object.freeze({loadLevel,ready:()=>!!state&&!animating&&!generating,snapshot:()=>JSON.parse(JSON.stringify({state,initial,mode,levelIndex,selected,swaps,drops,historyLength:history.length,status,animating,generating,stars:records.map(r=>r.won),records,seed:puzzle?.seed,difficulty:puzzle?.difficulty,dailyDate,generationPath,storageAvailable}))});
   loadLevel(0);
+  window.GameLocale?.apply();
 })();

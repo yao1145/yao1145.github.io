@@ -48,13 +48,14 @@
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   let explicitMotion = false;
   if (reducedMotion.matches) motionSelect.value = '0';
-  function announce(text) { $('announcement').textContent = text; }
+  function announce(text) { $('announcement').textContent = window.GameLocale?.t(text) || text; }
   function motionDuration() { return Number(motionSelect.value); }
   function revealBoard() {
     boardPanel.scrollIntoView({ behavior: reducedMotion.matches ? 'auto' : 'smooth', block: 'start' });
   }
   function dailyLabel(date) {
     const key = date || E.dailyKey(), parts = key.split('-');
+    if (window.GameLocale?.language === 'en') return `${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][Number(parts[1]) - 1]} ${Number(parts[2])}`;
     return `${Number(parts[1])} 月 ${Number(parts[2])} 日`;
   }
   function visitMap() {
@@ -328,6 +329,7 @@
     renderRecords();
     renderTrail();
     if (!animating) positionCrown(state.path[state.path.length - 1]);
+    window.GameLocale?.apply();
   }
   function handleWin() {
     state.newStar = false;
@@ -521,11 +523,14 @@
     document.documentElement.dataset.theme = value;
     try { localStorage.setItem('yaozi.home.theme', value); } catch {}
     $('theme').setAttribute('aria-label', value === 'dark' ? '切换至浅色模式' : '切换至深色模式');
+    window.GameLocale?.apply();
     document.querySelector('meta[name="theme-color"]').content = value === 'dark' ? '#0d1826' : '#edf3f9';
   });
   const initialDark = document.documentElement.dataset.theme === 'dark';
   $('theme').setAttribute('aria-label', initialDark ? '切换至浅色模式' : '切换至深色模式');
+  window.GameLocale?.apply();
   document.querySelector('meta[name="theme-color"]').content = initialDark ? '#0d1826' : '#edf3f9';
+  window.refreshGameLanguage = () => render();
   storageNotice();
   window.KnightGame = Object.freeze({
     engine: E,

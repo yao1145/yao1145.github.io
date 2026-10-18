@@ -90,6 +90,7 @@
       $('solver-progress').textContent = '计算中断。可重开重新计算，或取消后选择其他关卡。';
       $('message').innerHTML = '<h2>再试一次</h2><p>点击重开，或选择下方其他关卡。</p>';
       $('restart').disabled = false;
+      window.GameLocale?.apply();
     }
   }
   const tiles = Array.from({ length: 16 }, (_, value) => {
@@ -125,18 +126,25 @@
   });
   function renderSelection() {
     const r = Math.floor(selection / 4), c = selection % 4, br = Math.min(r, 2), bc = Math.min(c, 2);
-    $('position-label').textContent = `第 ${r + 1} 行 · 第 ${c + 1} 列`;
+    const positionLabel = `第 ${r + 1} 行 · 第 ${c + 1} 列`;
+    $('position-label').textContent = window.GameLocale?.t(positionLabel) || positionLabel;
     if (state) tiles.forEach((tile, value) => tile.classList.toggle('selected', state.board.indexOf(String.fromCharCode(65 + value)) === selection));
     outline.hidden = loading;
     outline.style.left = `calc(${bc * 25}% + ${bc * 2 - 2}px)`; outline.style.top = `calc(${br * 25}% + ${br * 2 - 2}px)`;
     points.forEach((button, i) => {
       button.classList.toggle('selected', i === br * 3 + bc);
       button.firstElementChild.textContent = direction === 1 ? '↻' : '↺';
-      button.setAttribute('aria-label', `旋转第 ${Math.floor(i / 3) + 1} 行第 ${i % 3 + 1} 列起的 2×2 方格，${direction === 1 ? '顺' : '逆'}时针`);
+      const label = `旋转第 ${Math.floor(i / 3) + 1} 行第 ${i % 3 + 1} 列起的 2×2 方格，${direction === 1 ? '顺' : '逆'}时针`;
+      button.setAttribute('aria-label', window.GameLocale?.t(label) || label);
     });
   }
   function describe(id) {
     const m = E.MOVES[id];
+    if (window.GameLocale?.language === 'en') {
+      if (m.kind === 'row') return `Row ${m.row + 1} ${m.direction === 1 ? '→' : '←'}`;
+      if (m.kind === 'column') return `Column ${m.col + 1} ${m.direction === 1 ? '↓' : '↑'}`;
+      return `Block ${m.row + 1},${m.col + 1} ${m.direction === 1 ? '↻' : '↺'}`;
+    }
     if (m.kind === 'row') return `行 ${m.row + 1} ${m.direction === 1 ? '→' : '←'}`;
     if (m.kind === 'column') return `列 ${m.col + 1} ${m.direction === 1 ? '↓' : '↑'}`;
     return `四格 ${m.row + 1},${m.col + 1} ${m.direction === 1 ? '↻' : '↺'}`;
@@ -174,6 +182,7 @@
     $('sequence').textContent = route.length ? route.map((id, i) => `${i + 1}. ${describe(id)}`).join('  ·  ') : '—';
     levelButtons.forEach((button, i) => { button.setAttribute('aria-pressed', String(current.type === 'level' && current.index === i)); button.classList.toggle('done', records[E.LEVELS[i].recordId] === true); });
     $('progress').textContent = `已通关 ${E.LEVELS.filter(level => records[level.recordId]).length} / ${E.LEVELS.length}`;
+    window.GameLocale?.apply();
   }
   async function act(id) {
     if (loading || !state || state.status !== 'playing') return;
@@ -274,11 +283,14 @@
     const value = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = value;
     try { localStorage.setItem('yaozi.home.theme', value); } catch {}
     $('theme').setAttribute('aria-label', value === 'dark' ? '切换至浅色模式' : '切换至深色模式');
+    window.GameLocale?.apply();
     document.querySelector('meta[name="theme-color"]').content = value === 'dark' ? '#0d1826' : '#edf3f9';
   };
   const initialDark = document.documentElement.dataset.theme === 'dark';
   $('theme').setAttribute('aria-label', initialDark ? '切换至浅色模式' : '切换至深色模式');
+  window.GameLocale?.apply();
   document.querySelector('meta[name="theme-color"]').content = initialDark ? '#0d1826' : '#edf3f9';
+  window.refreshGameLanguage = () => render();
   window.SixteenGame = Object.freeze({ snapshot: () => ({ state: state && { ...state }, optimal: challenge && challenge.optimal, mode: 'mixed', selection, loading, animating, queued: queue.length, current: { ...current }, route: route.slice() }), ready: () => !loading && !!state && !animating && !queue.length });
   const legacyLevel = Number(new URLSearchParams(location.search).get('level'));
   const requestedLevel = legacyLevel === 26 ? E.LEVELS.length : legacyLevel;

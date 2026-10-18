@@ -13,7 +13,7 @@
 <body>
 <a class="skip-link" href="#game">跳到游戏</a>
 <main class="app">
-  <header class="masthead"><a href="../">← 游戏主页</a><div><span>最少步数挑战</span><button id="theme" class="theme" aria-label="切换颜色主题">◐</button></div></header>
+  <header class="masthead"><a href="../">← 游戏主页</a><div><span>最少步数挑战</span><button id="language-toggle" class="language-toggle" type="button" aria-label="Switch language" title="Switch language">EN</button><button id="theme" class="theme" aria-label="切换颜色主题">◐</button></div></header>
   <div class="intro"><h1>Sixteen</h1><p>滑动整行，旋转四格。<br><strong>用最少的步数，让 1—16 各归其位。</strong></p></div>
   <div class="layout" id="game">
     <section class="play-area" aria-label="数字棋盘">
@@ -68,6 +68,6 @@
   <div class="rotate-switch" role="group" aria-label="默认旋转方向"><span>默认旋转</span><button type="button" id="default-cw" aria-pressed="true">↻ 顺时针</button><button type="button" id="default-ccw" aria-pressed="false">↺ 逆时针</button></div>
   <footer><span>灵感：<a href="https://puzzles-game.com/en/game/sixteen/" target="_blank" rel="noopener">Sixteen</a> · <a href="https://puzzles-game.com/en/game/twiddle/" target="_blank" rel="noopener">Twiddle</a></span><span>可离线游玩 · 每关最短解已验证</span></footer>
 </main>
-<script src="engine.js"></script><script src="optimal.js"></script><script src="game.js"></script>
+<script src="engine.js"></script><script src="optimal.js"></script><script src="locale.js"></script><script src="game.js"></script>
 </body>
 </html>

@@ -19,7 +19,7 @@
 | [顶点着色](https://yao1145.github.io/coloring/) | 给相连的顶点填上不同颜色，用最少颜色完成整张图。 |
 | [Swap 全清](https://yao1145.github.io/swap/) | 交换相邻方块，消除同色邻块，主动下落，清空全部方块。 |
 
-主页可切换中英文与明暗主题。成绩和通关记录保存在当前浏览器，各游戏页面有具体操作说明。
+主页与 PKUfighter 以外的游戏可切换中英文，并沿用同一语言偏好。这些页面也支持明暗主题。成绩和通关记录保存在当前浏览器，各游戏页面有具体操作说明。
 
 ## English
 
@@ -38,6 +38,6 @@ Eight browser games for desktop and mobile. Open the site and pick one to play.
 | [Vertex Coloring](https://yao1145.github.io/coloring/) | Give connected vertices different colors and solve each graph with the minimum number of colors. |
 | [Swap · Clear All](https://yao1145.github.io/swap/) | Swap adjacent tiles, clear matching neighbors, and choose when to drop. Clear every tile to win. |
 
-The homepage has Chinese and English text, with light and dark themes. Scores and completed levels are saved in your browser. Each game has its own controls and instructions.
+The homepage and all games except PKUfighter support Chinese and English, sharing your language preference. These pages also have light and dark themes. Scores and completed levels are saved in your browser. Each game has its own controls and instructions.
 
 [MIT License](LICENSE)

@@ -27,3 +27,5 @@
 .node.selected{z-index:5}
 .node-layer,.board[data-density] .node-layer{--node-hit:44px}
 @media(max-width:540px){.board{aspect-ratio:3/4}.node-layer,.board[data-density] .node-layer{--node-hit:44px;--node-dot:24px;--node-font:11px}}
+
+.language-toggle{min-width:48px;height:44px;padding:0 8px;border:1px solid var(--line);border-radius:7px;background:var(--white);color:var(--ink);font-weight:700;font-size:13px;cursor:pointer}.language-toggle:focus-visible{outline:3px solid var(--blue);outline-offset:2px}@media(max-width:380px){.masthead>div{gap:6px}.masthead>div>span{display:none}.language-toggle{min-width:44px}}

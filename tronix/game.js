@@ -3,6 +3,7 @@
 
   const E = window.TronixEngine;
   const $ = id => document.getElementById(id);
+  const tr = window.GameLocale?.t || (value => value);
   if (!E) {
     const message = $('message-title');
     if (message) message.textContent = '引擎未能加载';
@@ -35,6 +36,7 @@
   const restartButton = $('restart');
   const themeButton = $('theme');
   const announcement = $('announcement');
+  let announcementSource = '';
 
   let storageAvailable = true;
   const records = loadRecords();
@@ -103,15 +105,18 @@
     }
   }
 
+  let messageState = ['拖动节点开始', '把交叉的线拉开，让整张线网舒展开。', null];
   function announce(text) {
     if (!announcement) return;
-    announcement.textContent = text;
+    announcementSource = text;
+    announcement.textContent = tr(text);
   }
 
   function setMessage(title, detail, tone) {
+    messageState = [title, detail, tone];
     message.className = 'message' + (tone ? ' ' + tone : '');
-    messageTitle.textContent = title;
-    messageText.textContent = detail;
+    messageTitle.textContent = tr(title);
+    messageText.textContent = tr(detail);
   }
 
   function loadFixedLevel(index) {
@@ -184,7 +189,7 @@
       node.id = 'node-' + index;
       node.className = 'node';
       node.dataset.index = String(index);
-      node.setAttribute('aria-label', '节点 ' + label);
+      node.setAttribute('aria-label', tr('节点 ' + label));
       const dot = document.createElement('span');
       dot.className = 'node-dot';
       const text = document.createElement('span');
@@ -209,7 +214,7 @@
     });
     const density = graph.nodes.length <= 10 ? 'sparse' : graph.nodes.length <= 16 ? 'medium' : 'dense';
     board.dataset.density = density;
-    board.setAttribute('aria-label', `解结棋盘 · ${graph.name}`);
+    board.setAttribute('aria-label', tr(`解结棋盘 · ${graph.name}`));
     if (nodeElements.length) {
       // Keep the first node out of the tab order until the player enters the board.
       nodeElements.forEach(node => { node.tabIndex = 0; });
@@ -227,52 +232,60 @@
 
   function updateSelectionNote() {
     if (selected === null) {
-      selectionNote.textContent = '尚未选中节点';
+      selectionNote.textContent = tr('尚未选中节点');
       return;
     }
     const moving = drag && drag.index === selected ? '正在移动' : '已选';
-    selectionNote.textContent = `${moving}节点 ${graph.nodes[selected]}。拖动它，或点击棋盘空白处移动。`;
+    selectionNote.textContent = tr(`${moving}节点 ${graph.nodes[selected]}。拖动它，或点击棋盘空白处移动。`);
   }
 
   function updateHeader() {
+    const english = window.GameLocale?.language === 'en';
     if (mode === 'level') {
-      $('level-title').textContent = `第 ${levelIndex + 1} 关 · ${graph.name}`;
-      $('board-meta').textContent = `${graph.n} 节点 · ${graph.m} 条线 · ${graph.tier}`;
+      $('level-title').textContent = english ? `Level ${levelIndex + 1} · ${tr(graph.name)}` : `第 ${levelIndex + 1} 关 · ${graph.name}`;
+      $('board-meta').textContent = english ? `${graph.n} nodes · ${graph.m} edges · ${tr(graph.tier)}` : `${graph.n} 节点 · ${graph.m} 条线 · ${graph.tier}`;
     } else if (mode === 'daily') {
-      $('level-title').textContent = `每日一局 · ${E.formatDateCN(dailyDate)}`;
-      $('board-meta').textContent = `${graph.n} 节点 · ${graph.m} 条线 · 北京时间`;
+      $('level-title').textContent = english ? `Daily challenge · ${formatDateEN(dailyDate)}` : `每日一局 · ${E.formatDateCN(dailyDate)}`;
+      $('board-meta').textContent = english ? `${graph.n} nodes · ${graph.m} edges · China Standard Time` : `${graph.n} 节点 · ${graph.m} 条线 · 北京时间`;
     } else {
-      $('level-title').textContent = '随机挑战';
-      $('board-meta').textContent = `${graph.n} 节点 · ${graph.m} 条线 · ${graph.tier}`;
+      $('level-title').textContent = tr('随机挑战');
+      $('board-meta').textContent = english ? `${graph.n} nodes · ${graph.m} edges · ${tr(graph.tier)}` : `${graph.n} 节点 · ${graph.m} 条线 · ${graph.tier}`;
     }
     document.title = mode === 'level'
-      ? `第 ${levelIndex + 1} 关 · ${graph.name} · Tronix 解结`
-      : `${graph.name} · Tronix 解结`;
+      ? (english ? `Level ${levelIndex + 1} · ${tr(graph.name)} · Tronix · Untangle` : `第 ${levelIndex + 1} 关 · ${graph.name} · Tronix 解结`)
+      : (english ? `${tr(graph.name)} · Tronix · Untangle` : `${graph.name} · Tronix 解结`);
+  }
+
+  function formatDateEN(date) {
+    const [year, month, day] = String(date).split('-').map(Number);
+    return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(new Date(Date.UTC(year, month - 1, day, 12)));
   }
 
   function updateRecordDisplay() {
     if (mode === 'level') {
-      recordLabel.textContent = '本关最佳';
-      bestValue.textContent = records.best[levelIndex] === null ? '—' : `${records.best[levelIndex]} 次`;
-      levelTier.textContent = E.LEVELS[levelIndex].tier;
+      recordLabel.textContent = tr('本关最佳');
+      bestValue.textContent = records.best[levelIndex] === null ? '—' : tr(`${records.best[levelIndex]} 次`);
+      levelTier.textContent = tr(E.LEVELS[levelIndex].tier);
     } else {
-      recordLabel.textContent = '固定关卡最佳';
-      bestValue.textContent = '不计记录';
-      levelTier.textContent = mode === 'daily' ? '每日' : '随机';
+      recordLabel.textContent = tr('固定关卡最佳');
+      bestValue.textContent = tr('不计记录');
+      levelTier.textContent = tr(mode === 'daily' ? '每日' : '随机');
     }
   }
 
   function updateCollection(newStar) {
     const done = records.stars.filter(Boolean).length;
     $('star-count').textContent = `${done} / ${LEVEL_COUNT}`;
-    $('progress-label').textContent = `已通关 ${done} / ${LEVEL_COUNT}`;
+    $('progress-label').textContent = tr(`已通关 ${done} / ${LEVEL_COUNT}`);
     $('collection').classList.toggle('complete', done === LEVEL_COUNT);
     $('collection-note').textContent = done === LEVEL_COUNT
-      ? '十二颗星已集齐。重开或更换关卡不会清除记录。'
-      : '每张固定线网首次解开，点亮一颗星。';
+      ? tr('十二颗星已集齐。重开或更换关卡不会清除记录。')
+      : tr('每张固定线网首次解开，点亮一颗星。');
     starSlots.forEach((slot, index) => {
       slot.classList.toggle('earned', records.stars[index]);
-      slot.setAttribute('aria-label', `第 ${index + 1} 关，${records.stars[index] ? '已通关' : '未通关'}`);
+      slot.setAttribute('aria-label', window.GameLocale?.language === 'en'
+        ? `Level ${index + 1} · ${records.stars[index] ? 'Completed' : 'Not completed'}`
+        : `第 ${index + 1} 关，${records.stars[index] ? '已通关' : '未通关'}`);
     });
     levelButtons.forEach((button, index) => {
       const level = E.LEVELS[index];
@@ -280,10 +293,12 @@
       const best = records.best[index];
       button.classList.toggle('done', completed);
       button.setAttribute('aria-pressed', String(mode === 'level' && levelIndex === index));
-      button.setAttribute('aria-label',
-        `第 ${index + 1} 关，${level.name}，${level.n} 个节点，${level.m} 条线` +
-        `${completed ? '，已通关' : ''}${best !== null ? `，最佳 ${best} 次` : ''}`);
-      button.title = completed ? `已通关${best !== null ? `，最佳 ${best} 次` : ''}` : '尚未通关';
+      button.setAttribute('aria-label', window.GameLocale?.language === 'en'
+        ? `Level ${index + 1} · ${tr(level.name)} · ${level.n} nodes · ${level.m} edges${completed ? ' · Completed' : ''}${best !== null ? ` · Best: ${best} moves` : ''}`
+        : `第 ${index + 1} 关，${level.name}，${level.n} 个节点，${level.m} 条线${completed ? '，已通关' : ''}${best !== null ? `，最佳 ${best} 次` : ''}`);
+      button.title = window.GameLocale?.language === 'en'
+        ? (completed ? `Completed${best !== null ? ` · Best: ${best} moves` : ''}` : 'Not completed')
+        : (completed ? `已通关${best !== null ? `，最佳 ${best} 次` : ''}` : '尚未通关');
     });
     if (newStar !== undefined && newStar !== null) {
       const slot = starSlots[newStar];
@@ -297,9 +312,9 @@
 
   function updateGoal(report) {
     if (report.count === 0) {
-      goalNote.textContent = '所有边都已合法相接，线网解开。';
+      goalNote.textContent = tr('所有边都已合法相接，线网解开。');
     } else {
-      goalNote.textContent = `${report.count} 处冲突。拖动红色节点或相关连线。`;
+      goalNote.textContent = tr(`${report.count} 处冲突。拖动红色节点或相关连线。`);
     }
   }
 
@@ -326,10 +341,10 @@
       node.classList.toggle('selected', selected === index);
       node.classList.toggle('dragging', !!drag && drag.index === index);
       node.setAttribute('aria-pressed', String(selected === index));
-      node.setAttribute('aria-label',
+      node.setAttribute('aria-label', tr(
         `节点 ${graph.nodes[index]}` +
         (report.nodeFlags[index] ? '，存在冲突' : '') +
-        (selected === index ? '，已选中' : ''));
+        (selected === index ? '，已选中' : '')));
       node.tabIndex = 0;
     });
     conflictCount.textContent = String(report.count);
@@ -659,8 +674,8 @@
     function apply(theme) {
       root.dataset.theme = theme;
       if (meta) meta.content = theme === 'dark' ? '#0d1826' : '#edf3f9';
-      themeButton.setAttribute('aria-label', theme === 'dark' ? '切换至浅色模式' : '切换至深色模式');
-      themeButton.title = theme === 'dark' ? '切换至浅色模式' : '切换至深色模式';
+      themeButton.setAttribute('aria-label', tr(theme === 'dark' ? '切换至浅色模式' : '切换至深色模式'));
+      themeButton.title = tr(theme === 'dark' ? '切换至浅色模式' : '切换至深色模式');
     }
     apply(root.dataset.theme === 'dark' ? 'dark' : 'light');
     themeButton.addEventListener('click', () => {
@@ -695,9 +710,9 @@
       button.dataset.level = String(i);
       button.innerHTML =
         `<span class="level-number">${String(i + 1).padStart(2, '0')}</span>` +
-        `<span class="level-main"><b></b><small>${level.n} 点 · ${level.m} 线 · ${level.tier}</small></span>` +
+        `<span class="level-main"><b></b><small>${tr(`${level.n} 点 · ${level.m} 线 · ${level.tier}`)}</small></span>` +
         `<span class="level-star" aria-hidden="true">${starIcon}</span>`;
-      button.querySelector('b').textContent = level.name;
+      button.querySelector('b').textContent = tr(level.name);
       button.addEventListener('click', () => loadFixedLevel(i));
       levelButtons.push(button);
       levelsHost.append(button);
@@ -791,10 +806,24 @@
     ready: () => readyPromise
   });
 
+  window.GameLocale?.setRerender(() => {
+    updateHeader(); updateRecordDisplay(); updateCollection(); updateSelectionNote();
+    const report = renderScene();
+    setMessage(...messageState);
+    if (announcementSource) announce(announcementSource);
+    if (report?.count === 0 && mode === 'level') nextButton.hidden = levelIndex >= LEVEL_COUNT - 1;
+    levelButtons.forEach((button, index) => {
+      const level = E.LEVELS[index];
+      button.querySelector('.level-main b').textContent = tr(level.name);
+      button.querySelector('.level-main small').textContent = tr(`${level.n} 点 · ${level.m} 线 · ${level.tier}`);
+    });
+  });
+
   initTheme();
   buildCollection();
   bindGlobalEvents();
   loadFixedLevel(0);
   updateBestIfNeeded();
   resolveReady(snapshot());
+  window.GameLocale?.apply();
 })();
