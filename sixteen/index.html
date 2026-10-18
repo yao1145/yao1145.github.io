@@ -41,6 +41,11 @@
   </div>
   <section class="challenges" aria-label="选择挑战"><div class="challenge-head"><h2>十二关，步步到位</h2><span id="progress">已通关 0 / 12</span></div><div class="difficulty-bar"><label for="difficulty">步数难度 <select id="difficulty"></select></label><button class="btn primary" id="highest">最高难度 · 17 步</button></div><p class="difficulty-note">最高关的最短解为 17 步，已严格验证。<a href="#proof">查看步数证明</a></p><div id="levels" class="levels"></div><div class="extra"><div><button class="btn" id="daily">每日一局</button><button class="btn" id="random">随机挑战</button></div><p>每日采用所选难度；随机挑战直接洗牌，由浏览器计算最优解。</p></div><p id="storage-note" class="storage-note" hidden></p></section>
   <details class="rules"><summary>玩法与最少步数规则</summary><div class="rule-body"><div><h3>两种操作，一张棋盘</h3><p>目标是把数字从左上到右下排列为 <strong>1—16</strong>。</p><p><strong>滑动：</strong>任一整行向左 / 右，或任一整列向上 / 下循环移动一格。边缘数字会回到另一端，每次移动计 1 步。</p><p><strong>旋转：</strong>任一相邻 2×2 区域顺时针或逆时针旋转 90°，每次计 1 步。点击四格交点处的旋转钮，右键可反向旋转。</p><p><strong>混合模式：</strong>同时启用行列滑动与四格旋转，两种操作可直接混用。</p></div><div><h3>最短解才算通关</h3><p>每关的步数上限等于同时允许两种操作时的<strong>实际最短解</strong>。预算用完还没复原即失败；可以撤销返还一步，或重开。</p><p>关卡从 6 步递增到<strong>已验证的 17 步</strong>。每日一局按北京时间和所选难度生成。随机挑战均匀打乱全部 16 个数字，再由浏览器计算该局面的最优解；步数不受难度菜单限制。求解期间可取消，确定最优步数后即可开始。</p><p><strong>键盘：</strong>点击数字选择行列与相邻四格，方向键执行行列滑动，Q / E 逆 / 顺时针旋转选中的四格。Z 撤销，R 重开。</p></div></div></details>
+  <details class="rules" id="math"><summary>数学与算法：排列、下界与最优搜索</summary><div class="rule-body"><div>
+    <h3>每次操作都是一个四循环</h3><p>棋盘是 16 个数字的排列。整行、整列循环移动一格，以及 2×2 区域旋转 90°，都让四个数字依次换位。每次操作都是奇排列，因此会翻转棋盘排列的奇偶性，解的步数也必须符合相应的奇偶性。</p><p>按循环棋盘计算所有数字到目标格的横纵距离之和 D。每步只让四个数字各走一格，最多把 D 减少 4，所以任何解都至少需要 ⌈D / 4⌉ 步。再结合奇偶性，可以把下界提高到正确奇偶的步数。</p>
+  </div><div>
+    <h3>IDA* 如何确定最少步数</h3><p>程序用迭代加深 A*（IDA*）搜索：从下界开始设置步数阈值，完整排除该阈值内的解后再增加预算。搜索中，如果“已走步数 + 剩余步数下界”超过阈值，就剪去整个分支。</p><p>加权模式数据库预先计算若干组数字的移动代价，提供更强的下界；状态缓存和撤销操作剪枝减少重复搜索。用于剪枝的下界不会高估实际距离，完整排除所有更短路径后找到的解才确定为最优。</p><p>一条合法操作序列给出步数上界，下界或完整搜索排除更短解。下面的 17 步证明正是把两者结合起来。</p>
+  </div></div></details>
   <details class="rules" id="proof">
     <summary>最高难度的步数证明</summary>
     <p class="proof-result">混合规则的<strong>最大最短步数为 17</strong>：任意局面至多需要 17 步，且确有局面必须走 17 步。上界论证采用 Rokicki 的原规则穷举结果，并以所验证的 32 个最远局面名单完整为前提。</p>

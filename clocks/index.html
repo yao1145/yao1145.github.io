@@ -40,6 +40,7 @@
 @media(max-width:540px){.dial{--dial-inset:5px}}
 /* An explicit speed choice opts into the essential chain animation. */
 @media(prefers-reduced-motion:reduce){.board-panel[data-animate="true"]:not(.instant) .needle{transition:transform var(--step-ms) cubic-bezier(.32,.08,.3,1)!important}}
+.rule-body h3{color:var(--ink);font-size:15px;margin:12px 0}.rule-body a{color:var(--blue)}
 </style>
 </head>
 <body>
@@ -81,6 +82,17 @@
   <p class="storage-note" id="storage-note" hidden>当前浏览器无法保存收藏；星星将在本次打开期间保留。</p>
  </section>
  <details class="rules" id="rules"><summary>游戏规则与操作说明</summary><div class="rule-body"><ol><li>25 枚指针初始向上。点击任一表盘，它先<strong>顺时针旋转 90°</strong>。</li><li>按<strong>旋转后的方向</strong>，让相邻表盘也转动 90°，继续接力；指针朝网格外时，本轮结束。</li><li>每次转动都计入角度，包括同一表盘在连锁中被反复经过。一次完整连锁只消耗<strong>一步</strong>。</li><li>选择 <strong>1–12 步</strong>，在本局步数内尽可能多地旋转。<strong>完成度 = 累计旋转角度 ÷ 本局步数的最优角度</strong>；达到 100% 即满分通关，步数用完后显示最终成绩。</li><li>每个步数档<strong>首次满分可获得一颗星</strong>，重复通关不重复计星。集齐 12 颗星，解锁皇冠彩蛋；收藏保存在当前浏览器中。</li><li>累计达到 <strong>10,000°</strong> 时达成万度里程碑，可以继续使用剩余步数冲击满分。更改步数会重开；“重开”保留所选步数和星星。</li></ol><div><p><strong>方向接力</strong></p><div class="example" aria-label="向上、向右、向下、向左依次顺时针旋转"><span>↑</span>→<span>→</span>→<span>↓</span>→<span>←</span></div><p>连锁期间可调整动画速度，或点击“立即结算本轮”。结果在本轮完整连锁结束后结算。</p><p><strong>各步数的 100% 基准</strong></p><p>1–6 步：450°、990°、1,620°、2,430°、3,420°、4,410°。<br>7–12 步：5,670°、7,020°、8,910°、10,800°、11,880°、12,600°。</p><p>系统会核对完整状态，并设有每轮 20,000 次旋转的保护上限；触发保护时，本轮不计入，棋盘与点击次数保持原状。</p></div></div></details>
+ <details class="rules" id="math"><summary>数学背景：转子路由与交换性</summary><div class="rule-body"><div>
+  <h3>把一次点击看成一枚筹码</h3><p>把每个表盘看成图的顶点，把棋盘外合并为一个吸收筹码的汇点。每个顶点都有上、右、下、左四条出边，越界的边通向汇点。点击一个表盘，相当于在那里放入一枚筹码：指针先顺时针转动，再把筹码送到新的方向，直到它离开棋盘。这就是<strong>转子路由模型</strong>。</p>
+  <h3>点击次序不改变总分</h3><p>给定初始棋盘，只要每个位置的点击次数相同，并让每次连锁完整结束，无论按什么次序点击，各表盘的累计旋转次数和最终朝向都相同。这称为<strong>阿贝尔性质</strong>。次序会改变每一轮连锁的长度，却不改变整组点击的总得分。</p><p>可以把筹码同时放在各个起点，再任选一枚继续移动。每个表盘依次使用固定的方向循环；阿贝尔性质保证，所有筹码进入汇点后，每个表盘转动的次数与调度次序无关。</p>
+ </div><div>
+  <h3>从生成树到有限交换群</h3><p>从全向上的起局出发，每轮结束时，沿指针都能走到棋盘外；这些箭头组成以汇点为根的有向生成树。点击在这些状态上的作用构成转子路由群，与沙堆群同构。</p><p>令约化拉普拉斯矩阵 L = 4I − A，其中 A 记录 25 个表盘之间的相邻关系。群可写成 ℤ<sup>25</sup> / Lℤ<sup>25</sup>，其阶为 det L = <strong>32,565,539,635,200</strong>，也等于这些有向生成树的数量。</p><p>群描述了点击对终态的作用。同一个终态可以由不同总分的点击组合产生：例如连续点击中心 104 次会回到全向上，却累计旋转 1,080 次。</p>
+ </div></div></details>
+ <details class="rules" id="algorithms"><summary>算法视角：从点击序列到点击组合</summary><div class="rule-body"><div>
+  <h3>利用交换性缩小搜索</h3><p>若逐个枚举 n 次点击的次序，需要考虑 25<sup>n</sup> 条序列。利用阿贝尔性质，只需枚举 25 个位置各点多少次，即非负整数向量 a，满足 a₁ + … + a₂₅ = n。组合数为 C(n + 24, 24)；十步时是 <strong>131,128,140</strong> 种。</p><p>对每种组合按一个固定次序模拟，统计全部旋转次数，就能比较总分。最优方案随总步数变化；眼前得分最高的一次点击，未必属于最终的最优组合。</p>
+ </div><div>
+  <h3>页面如何计算连锁</h3><p>程序用 0、1、2、3 保存指针方向，每次以模 4 加一更新朝向，再转移到相邻格。重复经过同一格是合法的；判断状态是否重复，要同时记录全部朝向和当前接力位置。</p><p>游玩时逐轮模拟连锁，评分读取预先给定的 1–12 步基准表。枚举组合用于研究最优玩法，页面无需在每次点击后重新搜索。</p><p>数学背景参考：<a href="https://www.zhihu.com/question/335097875/answer/2092893039203193213" target="_blank" rel="noopener">大老李的十步万度分析</a>；理论依据：Holroyd 等，<a href="https://arxiv.org/abs/0801.3306" target="_blank" rel="noopener">Chip-Firing and Rotor-Routing on Directed Graphs</a>，引理 3.9、3.19。</p>
+ </div></div></details>
  <footer class="foot"><span>25 枚指针，一场关于选择与连锁的实验。</span><span>离线可玩 · 无需安装</span></footer>
  <div class="sr-only" id="announcement" role="status" aria-live="polite" aria-atomic="true"></div>
 </main>
