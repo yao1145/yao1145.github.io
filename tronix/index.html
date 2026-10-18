@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Tronix 解结：拖动节点，让直线边不再交叉、贴合或重叠。十二张固定线网，另有每日与随机挑战。">
+<meta name="theme-color" content="#edf3f9">
+<title>Tronix 解结 · 拖动节点解开线网</title>
+<link rel="icon" href="../icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<script>
+(() => {
+  let saved;
+  try { saved = localStorage.getItem('yaozi.home.theme'); } catch {}
+  const dark = saved === 'dark' || (!['light', 'dark'].includes(saved) && matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+})();
+</script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip-link" href="#game">跳到游戏</a>
+<main class="app">
+  <header class="masthead"><a href="../">← 游戏主页</a><div><span>拖动节点 · 解开线网</span><button type="button" id="theme" class="theme" aria-label="切换颜色主题">◐</button></div></header>
+
+  <div class="intro">
+    <div><p class="eyebrow">Tronix · Untangle</p><h1>Tronix 解结</h1></div>
+    <p>线可以穿过空白，<br><strong>不能穿过另一条线。</strong></p>
+  </div>
+
+  <div class="layout" id="game">
+    <section class="play-area" aria-label="解结棋盘">
+      <div class="board-panel" id="board-panel">
+        <div class="board-head"><b id="level-title">第 1 关 · 同心方环</b><span id="board-meta">8 节点 · 12 条线</span></div>
+        <div class="board" id="board" data-density="sparse" role="group" aria-label="解结棋盘" aria-describedby="board-help">
+          <div class="board-surface" id="board-surface" aria-hidden="true"></div>
+          <svg class="links" id="links" viewBox="0 0 1000 750" preserveAspectRatio="none" aria-hidden="true" focusable="false"><g id="edge-layer"></g></svg>
+          <div class="node-layer" id="node-layer"></div>
+        </div>
+        <div class="legend">
+          <span><i class="legend-node" aria-hidden="true"></i>节点</span>
+          <span><i class="legend-edge" aria-hidden="true"></i>连线</span>
+          <span><i class="legend-conflict" aria-hidden="true"></i>冲突</span>
+        </div>
+        <p class="board-help" id="board-help">拖动节点；也可以先点选节点，再点棋盘空白处移动。Tab 选点，方向键移动，Shift 加方向键加速。Z 撤销，R 重开。</p>
+        <p class="selection-note" id="selection-note" aria-live="polite">尚未选中节点</p>
+      </div>
+    </section>
+
+    <section class="side" aria-label="解结进度与操作">
+      <div class="stats">
+        <div class="stat"><span>冲突</span><b id="conflicts">0</b><small>处</small></div>
+        <div class="stat"><span>移动</span><b id="moves">0</b><small>次</small></div>
+        <div class="record-row"><span id="record-label">本关最佳</span><strong id="best">—</strong><span id="level-tier">入门</span></div>
+        <p class="goal-note" id="goal-note">红色线段表示仍有非法接触。</p>
+      </div>
+      <div class="message" id="message" role="status" aria-live="polite" aria-atomic="true">
+        <h2 id="message-title">拖动节点开始</h2>
+        <p id="message-text">把交叉的线拉开，让整张线网舒展开。</p>
+      </div>
+      <div class="tools"><button type="button" class="btn" id="undo" disabled>撤销 <kbd>Z</kbd></button><button type="button" class="btn" id="restart">重开 <kbd>R</kbd></button></div>
+      <button type="button" class="btn primary next" id="next" hidden>下一关 →</button>
+      <div class="key-hint"><h2>键盘与触控</h2><p>Tab 逐个选择节点，方向键每次移动一小步，按住 Shift 移动一大步。触屏可拖动节点，也可点选后再点空白处。双指缩放页面时，当前拖动会取消。</p></div>
+    </section>
+  </div>
+
+  <section class="challenges" aria-label="固定关卡与额外挑战">
+    <div class="collection" id="collection">
+      <div class="collection-heading">
+        <div><h2>十二星解结 <span id="star-count">0 / 12</span></h2><p id="collection-note">每张固定线网首次解开，点亮一颗星。</p></div>
+      </div>
+      <div class="star-shelf" id="star-shelf" role="list" aria-label="第 1 到 12 关的通关星星"></div>
+    </div>
+    <div class="challenge-head"><h2>十二张固定线网</h2><span id="progress-label">已通关 0 / 12</span></div>
+    <div class="levels" id="levels"></div>
+    <div class="extra">
+      <div><button type="button" class="btn" id="daily">每日一局</button><button type="button" class="btn" id="random">随机挑战</button></div>
+      <p>每日按北京时间生成，当天固定；随机使用中高复杂度种子。两者都不点亮固定星星，也不写入固定关卡最佳记录。</p>
+    </div>
+    <p class="storage-note" id="storage-note" hidden>当前浏览器无法保存通关记录；成绩只保留到本次关闭页面。</p>
+  </section>
+
+  <details class="rules">
+    <summary>玩法与判定规则</summary>
+    <div class="rule-body">
+      <div>
+        <h3>什么算解开</h3>
+        <p>拖动节点，直到所有边都没有非法交叉、贴合或重叠。节点不能互相重合，也不能落在与它不相连的边上。</p>
+        <p>两条边共享一个端点时，端点相接是合法的。若两条边在同一直线上继续重叠，即使共享端点也算冲突。端点落进另一条边的内部同样算冲突。</p>
+        <p><strong>把线网全部解开即可通关。</strong>移动次数会记入本关最佳记录，可以反复挑战。</p>
+      </div>
+      <div>
+        <h3>操作与模式</h3>
+        <p>鼠标或手指拖动节点。也可以先点选节点，再点棋盘空白处把它移过去。方向键移动选中节点；Z 撤销；R 重开。</p>
+        <p>十二张固定线网都有保存的无交叉直线布局作为有解见证。起局坐标会打乱，因此每关开局都有冲突。</p>
+        <p>每日线网以北京时间日期作为种子，当天重复打开仍是同一张图。随机线网在浏览器内即时生成，并同时生成合法见证。每日与随机挑战不点亮十二星。</p>
+      </div>
+    </div>
+  </details>
+  <details class="rules">
+    <summary>难度与验证说明</summary>
+    <div class="rule-body">
+      <div>
+        <h3>关卡的构造</h3>
+        <p>固定关卡覆盖同心环、嵌套多边形、三角剖分网格、三角格、带中心轮辐的环和混合结构。每张图有 8 到 26 个节点、12 到 53 条边。</p>
+        <p>后段关卡增加嵌套层次与连线约束。先找外圈，再逐步整理内部节点，通常比逐个消除交叉更有效。</p>
+      </div>
+      <div>
+        <h3>可复核的见证</h3>
+        <p>每关在 <code>engine.js</code> 的 <code>LEVELS</code> 中保存同一组节点和边的起局坐标与无交叉解坐标。<code>verify.cjs</code> 检查固定解合法、开局存在冲突、随机种子可重现，以及随机图带合法见证。</p>
+        <p>检测器区分共享端点、正常交叉、端点贴合、共线重叠、节点重合、点落在线段上以及越界节点。线段在共享端点之外再次接触时判为冲突。</p>
+      </div>
+    </div>
+  </details>
+
+  <footer><span>Tronix 解结</span><span>离线可玩 · 每张线网都有解</span></footer>
+  <div class="sr-only" id="announcement" role="status" aria-live="polite" aria-atomic="true"></div>
+</main>
+<script src="engine.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

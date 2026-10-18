@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="description" content="顶点着色：让相连的顶点颜色不同，用最少颜色解开图中的约束。十二关、每日与随机挑战。">
+  <meta name="theme-color" content="#edf3f9">
+  <title>顶点着色 · Vertex Coloring</title>
+  <link rel="icon" href="../icons/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="../apple-touch-icon.png">
+  <script>(()=>{let t;try{t=localStorage.getItem('yaozi.home.theme')}catch{}document.documentElement.dataset.theme=['light','dark'].includes(t)?t:matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'})();</script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip-link" href="#game">跳到游戏</a>
+<main class="app">
+  <header class="masthead"><a href="../">← 游戏主页</a><div><span>相连异色 · 恰好够用</span><button class="theme" id="theme" aria-label="切换颜色主题" type="button">◐</button></div></header>
+  <div class="intro"><h1>顶点着色</h1><p>相连的点，颜色不同。<br><strong>用最少的颜色填满整张图。</strong></p></div>
+  <div class="layout" id="game">
+    <section class="play-area" aria-label="着色棋盘">
+      <div class="board-panel">
+        <div class="board-head"><b id="level-title">正在载入关卡</b><span id="board-meta"></span></div>
+        <div class="graph-board" id="board" role="group" aria-label="顶点着色棋盘" aria-describedby="board-help">
+          <svg id="links" class="color-links" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"><g id="edges"></g></svg>
+          <div id="vertices" class="vertices"></div>
+        </div>
+        <p id="board-help" class="board-help">先选颜色，再点顶点。线条交叉处没有圆点，就不相连。选中一个点，可突出显示它的邻居。</p>
+        <p class="selection-note" id="selection-note">选择颜色，开始填图。</p>
+      </div>
+      <div class="palette-panel"><h2>选择颜色 <span id="palette-note"></span></h2><div id="palette" class="palette" role="group" aria-label="颜色与清除工具"></div></div>
+    </section>
+    <section class="side" aria-label="着色进度与操作">
+      <div class="stats">
+        <div class="stat"><span>最少颜色</span><b id="target">—</b><small>色</small></div>
+        <div class="stat"><span>已着色</span><b id="filled">0</b><small id="total"></small></div>
+        <div class="record-row"><span>同色冲突</span><strong id="conflict-count">0 条边</strong></div>
+        <p class="goal-note">虚线标出同色冲突；顶点中的数字代表颜色。</p>
+      </div>
+      <div id="message" class="message" role="status" aria-live="polite" aria-atomic="true"><h2 id="message-title">先观察，再落色</h2><p id="message-text">给后面的顶点留出可用颜色。需要时可以改色或撤销。</p></div>
+      <div class="tools"><button class="btn" id="undo" disabled>撤销 <kbd>Z</kbd></button><button class="btn" id="restart">重开 <kbd>R</kbd></button></div>
+      <button class="btn primary next" id="next" hidden>下一关 →</button>
+      <div class="busy-panel" id="busy" role="status" aria-live="polite" hidden><p id="busy-text">正在生成挑战…</p><button class="btn" id="cancel">取消生成</button></div>
+      <div class="key-hint"><h2>把颜色留给最受限的点</h2><p>一个点相邻的颜色越多，选择就越少。先检查这些点，有时需要回头调整一整片区域。</p><p>Tab 或方向键选点，数字 1–5 着色，Delete 清除。Enter 使用当前颜色。</p></div>
+    </section>
+  </div>
+  <section class="challenges" aria-label="着色挑战">
+    <div class="collection" id="collection"><div class="collection-heading"><div><h2>十二星着色 <span id="star-count">0 / 12</span></h2><p>每关首次完成，点亮一颗星。</p></div></div><div class="star-shelf" id="star-shelf" role="list" aria-label="十二关通关星星"></div></div>
+    <div class="challenge-head"><h2>十二关，从局部到全图</h2><span id="progress-label">已通关 0 / 12</span></div>
+    <div class="levels" id="levels"></div>
+    <div class="extra"><div><button class="btn" id="daily">每日一局</button><button class="btn" id="random">随机挑战</button></div><p>每日按北京时间生成。每日与随机挑战不计入固定关卡星星。</p></div>
+    <p class="storage-note" id="storage-note" hidden>浏览器无法保存记录；本次打开期间仍可收集星星。</p>
+  </section>
+  <details class="rules"><summary>玩法与操作</summary><div class="rule-body"><div><h3>相连的点，颜色不同</h3><p>每个顶点都要填色。边的两端必须使用不同颜色，所有顶点填完、所有冲突消除后通关。</p><p>棋盘上的线条可以交叉；只有圆点才是顶点。点击或聚焦一个顶点，会突出显示它相连的边和邻居。</p></div><div><h3>允许重新选择</h3><p>先选颜色，再点顶点；选“清除”后可以擦去颜色。选中顶点时，数字键直接给该点着色，Delete 或 Backspace 清除。</p><p>任何合法方案都能通关。十二关的星星会保存在当前浏览器，重开和撤销会保留已经获得的星星。</p></div></div></details>
+  <details class="rules"><summary>为什么这些颜色恰好够用</summary><div class="rule-body"><div><h3>找到方案，也排除更少的颜色</h3><p>每关都有一份合法的 k 色方案，并通过完整搜索排除了 k−1 色方案，因此最少需要 k 色。</p><p>搜索优先处理邻居颜色最多的顶点；遇到无法填色的点便回溯，直到找到解或排除全部可能。</p></div><div><h3>后段挑战</h3><p>关卡逐步增加相互制约的结构，包含没有三角形却需要四种颜色的图，以及需要五种颜色的挑战。</p><p>每日与随机关卡也会验证目标色数。生成期间可以取消，或直接切换固定关卡。</p></div></div></details>
+  <footer><span>顶点着色 · Vertex Coloring</span><span>离线可玩 · 最少色数经过验证</span></footer>
+</main>
+<script src="engine.js"></script><script src="game.js"></script>
+</body>
+</html>

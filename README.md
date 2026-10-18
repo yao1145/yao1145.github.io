@@ -4,7 +4,7 @@
 
 ## 中文
 
-五款浏览器小游戏，打开网页就能玩，支持电脑和手机。
+七款浏览器小游戏，打开网页就能玩，支持电脑和手机。
 
 [进入网站](https://yao1145.github.io/)
 
@@ -15,12 +15,14 @@
 | [Cube](https://yao1145.github.io/cube/) | 在 4×4 棋盘上滚动立方体，与落点交换颜色，用最少步数让六面全蓝。 |
 | [Sixteen](https://yao1145.github.io/sixteen/) | 循环滑动整行整列、旋转 2×2 方格，用最少步数把 1–16 复原。 |
 | [王冠巡游](https://yao1145.github.io/knight/) | 让王冠按国际象棋骑士的走法移动，每格恰好经过一次，挑战 5×5 到 8×8 的棋盘。 |
+| [Tronix · 解结](https://yao1145.github.io/tronix/) | 拖动节点，解开全部交叉连线，挑战逐渐复杂的平面图。 |
+| [顶点着色](https://yao1145.github.io/coloring/) | 给相连的顶点填上不同颜色，用最少颜色完成整张图。 |
 
 主页可切换中英文与明暗主题。成绩和通关记录保存在当前浏览器，各游戏页面有具体操作说明。
 
 ## English
 
-Five browser games for desktop and mobile. Open the site and pick one to play.
+Seven browser games for desktop and mobile. Open the site and pick one to play.
 
 [Visit the site](https://yao1145.github.io/)
 
@@ -31,6 +33,8 @@ Five browser games for desktop and mobile. Open the site and pick one to play.
 | [Cube](https://yao1145.github.io/cube/) | Roll a cube across a 4×4 board, swapping colors with each landing square. Turn all six faces blue in the fewest moves. |
 | [Sixteen](https://yao1145.github.io/sixteen/) | Slide rows and columns cyclically and rotate 2×2 blocks. Put 1–16 back in order in the fewest moves. |
 | [Crown Tour](https://yao1145.github.io/knight/) | Move the crown like a chess knight and visit every square exactly once, on boards from 5×5 to 8×8. |
+| [Tronix · Untangle](https://yao1145.github.io/tronix/) | Drag nodes to uncross every line in increasingly intricate planar graphs. |
+| [Vertex Coloring](https://yao1145.github.io/coloring/) | Give connected vertices different colors and solve each graph with the minimum number of colors. |
 
 The homepage has Chinese and English text, with light and dark themes. Scores and completed levels are saved in your browser. Each game has its own controls and instructions.
 

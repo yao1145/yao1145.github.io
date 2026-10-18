@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="yao1145 的小游戏：PKUfighter、十步万度、Cube、Sixteen 与王冠巡游。选一款，开始玩。">
+  <meta name="description" content="yao1145 的小游戏：PKUfighter、十步万度、Cube、Sixteen、王冠巡游、Tronix 与顶点着色。选一款，开始玩。">
   <meta name="theme-color" content="#f3f7fc">
   <title>yao1145 的小游戏</title>
   <script>
@@ -53,8 +53,7 @@
     .intro { margin: 18px 0 36px; color: var(--muted); font-size: 17px; line-height: 1.8; }
     .games { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 24px; }
     .game { display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: var(--card); text-decoration: none; grid-column: span 2; }
-    .game:nth-child(4) { grid-column: 2 / span 2; }
-    .game:nth-child(5) { grid-column: 4 / span 2; }
+    .game:nth-child(7) { grid-column: 3 / span 2; }
     .game:hover { border-color: var(--blue); }
     .preview { height: 232px; display: grid; place-items: center; overflow: hidden; }
     .fighter { position: relative; background: #122947; background-image: radial-gradient(circle at 15% 20%, #8ea8d1 1px, transparent 2px), radial-gradient(circle at 72% 65%, #8ea8d1 1px, transparent 2px), radial-gradient(circle at 42% 85%, #8ea8d1 1px, transparent 2px); background-size: 90px 100px, 140px 120px, 160px 140px; }
@@ -75,6 +74,15 @@
     .knight-start { fill: var(--blue); }
     .knight-crown { fill: var(--gold); stroke: var(--gold-line); stroke-width: 1.2; stroke-linejoin: round; }
     .knight-spark { fill: var(--gold); opacity: .8; }
+    .graph-preview { background: var(--cube-paper); }
+    .graph-preview svg { width: 230px; height: 200px; }
+    .graph-edge { stroke: var(--blue); stroke-width: 2.5; stroke-linecap: round; }
+    .graph-edge.crossed { stroke: var(--dial-accent); stroke-dasharray: 5 4; }
+    .graph-node { fill: var(--card); stroke: var(--blue); stroke-width: 2.5; }
+    .color-node { stroke: var(--card); stroke-width: 3; }
+    .color-node.a { fill: #245ad6; } .color-node.b { fill: #ba542d; }
+    .color-node.c { fill: #19776a; } .color-node.d { fill: #7650b4; }
+    .color-symbol { fill: #fff; font-size: 15px; font-weight: 700; text-anchor: middle; dominant-baseline: central; }
     .dial-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
     .dial { width: 30px; height: 30px; border: 1px solid var(--dial-line); border-radius: 50%; position: relative; }
     .dial::before { content: ""; position: absolute; left: 13px; top: 4px; width: 2px; height: 11px; background: var(--dial-ink); transform-origin: 1px 10px; }
@@ -89,8 +97,8 @@
     .description { font-size: 15px; line-height: 1.8; color: var(--muted); margin: 0 0 24px; flex: 1; }
     .play { align-self: flex-start; background: var(--blue); color: var(--button-ink); border-radius: 7px; padding: 11px 20px; font-size: 14px; font-weight: 600; }
     footer { border-top: 1px solid var(--line); padding: 22px 0 30px; font-size: 13px; color: var(--muted); }
-    @media (min-width: 641px) and (max-width: 900px) { .games { grid-template-columns: repeat(2, minmax(0, 1fr)); } .game, .game:nth-child(4), .game:nth-child(5) { grid-column: auto; } }
-    @media (max-width: 640px) { .page { width: calc(100% - 32px); } header { padding: 22px 0; } main { padding: 36px 0; } .intro { font-size: 15px; margin-bottom: 26px; } .games { grid-template-columns: 1fr; gap: 20px; } .game, .game:nth-child(4), .game:nth-child(5) { grid-column: auto; } .preview { height: 200px; } .copy { padding: 22px; } }
+    @media (min-width: 641px) and (max-width: 900px) { .games { grid-template-columns: repeat(2, minmax(0, 1fr)); } .game, .game:nth-child(7) { grid-column: auto; } }
+    @media (max-width: 640px) { .page { width: calc(100% - 32px); } header { padding: 22px 0; } main { padding: 36px 0; } .intro { font-size: 15px; margin-bottom: 26px; } .games { grid-template-columns: 1fr; gap: 20px; } .game, .game:nth-child(7) { grid-column: auto; } .preview { height: 200px; } .copy { padding: 22px; } }
     @media (max-width: 480px) { header { flex-wrap: wrap; gap: 16px; } .header-tools { width: 100%; justify-content: space-between; gap: 8px; } }
   </style>
 </head>
@@ -115,7 +123,7 @@
     </header>
     <main>
       <h1 data-i18n="heading">选一款，开始玩。</h1>
-      <p class="intro" data-i18n="intro">躲弹幕、拨指针、滚方块。欢迎来到我的小游戏主页。</p>
+      <p class="intro" data-i18n="intro">从弹幕到棋盘，从路线到点线。欢迎来到我的小游戏主页。</p>
       <nav class="games" aria-label="选择游戏" data-i18n-aria="games">
         <a class="game" href="/pkufighter/" aria-labelledby="fighter-title">
           <div class="preview fighter" aria-hidden="true"><span class="shots"></span><img class="badge" src="pkufighter/校徽/北京大学-logo.svg" alt=""></div>
@@ -163,6 +171,22 @@
             <path class="knight-spark" d="m189 151 2 5 5 2-5 2-2 5-2-5-5-2 5-2 2-5Zm-158 19 1.5 4 4 1.5-4 1.5-1.5 4-1.5-4-4-1.5 4-1.5 1.5-4Z"/>
           </svg></div>
           <div class="copy"><h2 id="knight-title" data-i18n="knightTitle">王冠巡游</h2><p class="description" data-i18n="knightDescription">王冠只走骑士步。踏遍 5×5 到 8×8 的每一格，收集十二颗巡游星星。</p><span class="play" data-i18n="knightPlay">开始巡游</span></div>
+        </a>
+        <a class="game" href="/tronix/" aria-labelledby="tronix-title">
+          <div class="preview graph-preview" aria-hidden="true"><svg viewBox="0 0 230 200" fill="none">
+            <path class="graph-edge" d="M46 43 181 49 174 155 53 151 46 43M46 43 116 80 174 155M181 49 116 80 53 151"/>
+            <path class="graph-edge crossed" d="M46 43 174 155M181 49 53 151"/>
+            <g class="graph-node"><circle cx="46" cy="43" r="12"/><circle cx="181" cy="49" r="12"/><circle cx="174" cy="155" r="12"/><circle cx="53" cy="151" r="12"/><circle cx="116" cy="80" r="12"/></g>
+          </svg></div>
+          <div class="copy"><h2 id="tronix-title" data-i18n="tronixTitle">Tronix · 解结</h2><p class="description" data-i18n="tronixDescription">拖动节点，解开交叉的连线。从第一张线网，到层层嵌套的复杂图形。</p><span class="play" data-i18n="tronixPlay">解开线网</span></div>
+        </a>
+        <a class="game" href="/coloring/" aria-labelledby="coloring-title">
+          <div class="preview graph-preview" aria-hidden="true"><svg viewBox="0 0 230 200" fill="none">
+            <path class="graph-edge" d="m115 24 72 52-27 81H70L43 76l72-52V94m72-18-72 18 45 63m-45-63-45 63m45-63L43 76"/>
+            <circle class="color-node a" cx="115" cy="24" r="16"/><circle class="color-node b" cx="187" cy="76" r="16"/><circle class="color-node a" cx="160" cy="157" r="16"/><circle class="color-node b" cx="70" cy="157" r="16"/><circle class="color-node c" cx="43" cy="76" r="16"/><circle class="color-node d" cx="115" cy="94" r="16"/>
+            <g class="color-symbol"><text x="115" y="24">1</text><text x="187" y="76">2</text><text x="160" y="157">1</text><text x="70" y="157">2</text><text x="43" y="76">3</text><text x="115" y="94">4</text></g>
+          </svg></div>
+          <div class="copy"><h2 id="coloring-title" data-i18n="coloringTitle">顶点着色</h2><p class="description" data-i18n="coloringDescription">相连的点，填上不同颜色。用恰好够用的色数，破解整张图的约束。</p><span class="play" data-i18n="coloringPlay">挑战最少颜色</span></div>
         </a>
       </nav>
     </main>
