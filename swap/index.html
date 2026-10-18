@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Swap 全清：交换相邻方块，同色相邻即消除。保留空洞，主动下落，清空全部方块，挑战十二关、每日与随机棋盘。">
+<meta name="theme-color" content="#edf3f9">
+<title>Swap 全清 · 留好最后一对</title>
+<link rel="icon" href="../icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<script>(()=>{let t;try{t=localStorage.getItem('yaozi.home.theme')}catch{}document.documentElement.dataset.theme=['light','dark'].includes(t)?t:matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'})();</script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip-link" href="#game">跳到游戏</a>
+<main class="app">
+  <header class="masthead"><a href="../">← 游戏主页</a><div><span>交换 · 消除 · 全清</span><button class="theme" id="theme" type="button" aria-label="切换颜色主题">◐</button></div></header>
+  <div class="intro"><h1>Swap 全清</h1><p>眼前消得漂亮，<br><strong>也要留好最后一对。</strong></p></div>
+  <div class="layout" id="game">
+    <section class="play-area" aria-label="全清棋盘">
+      <div class="board-panel">
+        <div class="board-head"><b id="level-title">第 1 关 · 初见消除</b><span id="board-meta"></span></div>
+        <div class="board-wrap" id="board-wrap"><div class="swap-board" id="board" role="group" aria-label="Swap 棋盘" aria-describedby="board-help"></div><div id="animation-layer" class="animation-layer" aria-hidden="true"></div></div>
+        <p id="selection-note" class="selection-note" aria-live="polite">点选两块相邻方块，交换位置。</p>
+        <div class="tools board-tools"><button class="btn primary" id="drop">下落 <kbd>G</kbd></button><button class="btn" id="undo" disabled>撤销 <kbd>Z</kbd></button><button class="btn" id="restart">重开 <kbd>R</kbd></button></div>
+        <div class="board-help"><span id="board-help">同色相邻即消除。交换后保留空洞；按“下落”才会压实棋盘。</span><label class="motion">动画<select id="motion" aria-label="方块动画速度"><option value="180">流畅</option><option value="80">快速</option><option value="0">关闭</option></select></label></div>
+      </div>
+    </section>
+    <section class="side" aria-label="全清进度与成绩">
+      <div class="stats">
+        <div class="stat"><span>剩余方块</span><b id="remaining">0</b><small id="total"></small></div>
+        <div class="stat"><span>总操作</span><b id="operations">0</b><small>次</small></div>
+        <div class="record-row"><span>交换 <strong id="swaps">0</strong> 次</span><span>下落 <strong id="drops">0</strong> 次</span></div>
+        <div class="color-counts" id="color-counts" aria-label="各颜色剩余数量"></div>
+        <div class="record-row"><span>本关最佳</span><strong id="best">—</strong></div>
+      </div>
+      <div id="message" class="message" role="status" aria-live="polite" aria-atomic="true"><h2 id="message-title">为残局留一手</h2><p id="message-text">每种颜色都要清空。先观察，再决定交换和下落的顺序。</p></div>
+      <button id="next" class="btn primary next" hidden>下一关 →</button>
+      <div class="busy-panel" id="busy" hidden role="status" aria-live="polite"><p id="busy-text">正在构造可清空的棋盘…</p><button id="cancel" class="btn">取消生成</button></div>
+      <div class="key-hint"><h2>空洞也是布局的一部分</h2><p>可以先做一次不消除的交换，为后面的方块留出位置。下落会改变多列的关系，按下之前，先看清哪些颜色将会碰面。</p><p>方向键移动焦点，Enter 或空格选块；G 下落，Z 撤销，R 重开。每次下落的全部连锁只记一次操作。</p></div>
+    </section>
+  </div>
+  <section class="challenges" aria-label="全清挑战">
+    <div class="collection" id="collection"><div class="collection-heading"><div><h2>十二星全清 <span id="star-count">0 / 12</span></h2><p id="collection-note">每关首次清空，点亮一颗星。</p></div></div><div id="star-shelf" class="star-shelf" role="list" aria-label="十二关通关星星"></div></div>
+    <div class="challenge-head"><h2>十二关，留好每一种颜色</h2><span id="progress-label">已通关 0 / 12</span></div>
+    <div class="levels" id="levels"></div>
+    <div class="extra"><div><button class="btn" id="daily">每日一局</button><button class="btn" id="random">随机挑战</button></div><p>每日按北京时间生成；每日与随机不计入固定关卡星星。</p></div>
+    <p id="storage-note" class="storage-note" hidden>浏览器无法保存记录；本次打开期间仍可收集星星。</p>
+  </section>
+  <details class="rules"><summary>交换、消除与下落</summary><div class="rule-body"><div><h3>清空全部方块</h3><p>点选两块上下或左右相邻的方块进行交换。允许不产生消除的预备交换，空格不能参与交换。</p><p>同色方块上下或左右相邻就会消除，所有符合条件的方块同时消除。斜向相邻不计入。</p><p>交换后保留空洞。点击“下落”，所有方块向下压实；若产生消除，继续下落并结算连锁，直到稳定。</p></div><div><h3>每种颜色都要有同伴</h3><p>棋盘全部清空才通关。没有补块、道具或时间限制。</p><p>某种颜色只剩一块时，已经无法清空，界面会提示你撤销或重开。其他局面仍需要自行判断。</p><p>撤销恢复整次操作，包括一次下落中的全部连锁。重开保留已获得的星星。最佳成绩按总操作次数记录。</p></div></div></details>
+  <details class="rules"><summary>关卡与有解验证</summary><div class="rule-body"><div><h3>先有清盘路线，再生成棋盘</h3><p>固定、每日和随机关卡都由反向构造生成，并附带一条可以逐步回放的全清路线。构造时加入的方块只用于制作关卡，游玩过程中方块数量只会保持或减少。</p><p>后段关卡包含更多预备交换与残局约束，并筛除能被“优先消除最多方块”的简单策略直接清空的布局。</p></div><div><h3>每天一张，同样的题</h3><p>每日题按北京时间日期确定。重复打开，以及切换设备或生成方式，都会得到同一张初始棋盘。</p><p>清盘路线用于验证有解；界面记录你的操作次数，玩家可以寻找更短的解法。</p></div></div></details>
+  <footer><span>灵感：Swap · Microïds</span><span>离线可玩 · 全部清空才通关</span></footer>
+</main>
+<script src="engine.js"></script><script src="levels.js"></script><script src="game.js"></script>
+</body>
+</html>

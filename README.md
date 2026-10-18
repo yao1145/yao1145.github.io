@@ -4,7 +4,7 @@
 
 ## 中文
 
-七款浏览器小游戏，打开网页就能玩，支持电脑和手机。
+八款浏览器小游戏，打开网页就能玩，支持电脑和手机。
 
 [进入网站](https://yao1145.github.io/)
 
@@ -17,12 +17,13 @@
 | [王冠巡游](https://yao1145.github.io/knight/) | 让王冠按国际象棋骑士的走法移动，每格恰好经过一次，挑战 5×5 到 8×8 的棋盘。 |
 | [Tronix · 解结](https://yao1145.github.io/tronix/) | 拖动节点，解开全部交叉连线，挑战逐渐复杂的平面图。 |
 | [顶点着色](https://yao1145.github.io/coloring/) | 给相连的顶点填上不同颜色，用最少颜色完成整张图。 |
+| [Swap 全清](https://yao1145.github.io/swap/) | 交换相邻方块，消除同色邻块，主动下落，清空全部方块。 |
 
 主页可切换中英文与明暗主题。成绩和通关记录保存在当前浏览器，各游戏页面有具体操作说明。
 
 ## English
 
-Seven browser games for desktop and mobile. Open the site and pick one to play.
+Eight browser games for desktop and mobile. Open the site and pick one to play.
 
 [Visit the site](https://yao1145.github.io/)
 
@@ -35,6 +36,7 @@ Seven browser games for desktop and mobile. Open the site and pick one to play.
 | [Crown Tour](https://yao1145.github.io/knight/) | Move the crown like a chess knight and visit every square exactly once, on boards from 5×5 to 8×8. |
 | [Tronix · Untangle](https://yao1145.github.io/tronix/) | Drag nodes to uncross every line in increasingly intricate planar graphs. |
 | [Vertex Coloring](https://yao1145.github.io/coloring/) | Give connected vertices different colors and solve each graph with the minimum number of colors. |
+| [Swap · Clear All](https://yao1145.github.io/swap/) | Swap adjacent tiles, clear matching neighbors, and choose when to drop. Clear every tile to win. |
 
 The homepage has Chinese and English text, with light and dark themes. Scores and completed levels are saved in your browser. Each game has its own controls and instructions.
 
