@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="HEX XII：在 7×7 到 13×13 的六边形棋盘上连接两条边界。十二关、三档 AI、自由对局与局面分析。">
+<meta name="theme-color" content="#edf3f9">
+<title>HEX XII · 连接你的两条边界</title>
+<link rel="icon" href="../icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<script>
+(() => { let theme; try { theme = localStorage.getItem('yaozi.home.theme'); } catch {} document.documentElement.dataset.theme = theme === 'dark' || (!['light','dark'].includes(theme) && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light'; })();
+</script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip-link" href="#game" data-t="skip">跳到游戏</a>
+<main class="app">
+  <header class="masthead"><a href="../" data-t="back">← 游戏主页</a><div><span data-t="kicker">六边形 · 连接边界 · 十二关</span><button id="language-toggle" class="language-toggle" type="button" aria-label="切换语言" title="切换语言">EN</button><button id="theme" class="theme" type="button" aria-label="切换颜色主题">◐</button></div></header>
+  <div class="intro">
+    <div><p class="eyebrow">HEX XII · Connection Game</p><h1>HEX XII</h1></div>
+    <p><span data-t="tagline1">你执红，连接上下；AI 执蓝，连接左右。</span><br><strong data-t="tagline2">先连成一条不断的线者获胜。</strong></p>
+  </div>
+
+  <section class="menu" id="menu" aria-label="开始对局" data-ta="menu-section">
+    <div class="mode-card">
+      <div>
+        <h2 data-t="campaign-title">闯关模式</h2>
+        <p data-t="campaign-text">十二关依次提高棋盘尺寸与 AI 强度。胜出一关，解锁下一关。</p>
+      </div>
+      <div class="mode-actions">
+        <button class="btn primary" id="start-campaign" type="button" data-t="start-campaign">继续闯关</button>
+        <p class="menu-progress" id="campaign-summary">已解锁 1 / 12 · 已通关 0 / 12</p>
+      </div>
+    </div>
+    <div class="mode-card">
+      <div>
+        <h2 data-t="free-title">自由对局</h2>
+        <p data-t="free-text">任选 7×7 到 13×13 与 AI 强度。悔棋、提示和局面分析只在自由对局可用。</p>
+      </div>
+      <div class="free-options">
+        <label><span data-t="free-size">棋盘</span><select id="free-size" aria-label="自由对局棋盘尺寸"></select></label>
+        <label><span data-t="free-difficulty">难度</span><select id="free-difficulty" aria-label="自由对局 AI 难度">
+          <option value="easy" data-t="easy">入门</option>
+          <option value="medium" data-t="medium">策略</option>
+          <option value="high" data-t="high">高级</option>
+        </select></label>
+        <button class="btn primary" id="start-free" type="button" data-t="start-free">开始自由对局</button>
+      </div>
+    </div>
+    <div class="settings-row">
+      <label><span data-t="motion-label">动画</span><select id="motion-select" aria-label="动画">
+        <option value="auto" data-t="motion-auto">跟随系统</option>
+        <option value="off" data-t="motion-off">关闭</option>
+      </select></label>
+      <label><span data-t="performance-label">性能</span><select id="performance-select" aria-label="AI 性能模式">
+        <option value="balanced" data-t="performance-balanced">均衡</option>
+        <option value="fast" data-t="performance-fast">快速</option>
+      </select></label>
+      <p data-t="performance-note">快速模式缩短 AI 思考预算，适合较慢的手机。</p>
+    </div>
+    <p id="storage-note" class="storage-note" hidden data-t="storage-note">浏览器无法保存进度；本次打开期间仍可继续游玩。</p>
+  </section>
+
+  <div class="layout" id="game" hidden>
+    <section class="play-area" aria-label="六边形棋盘" data-ta="board-section">
+      <div class="board-panel">
+        <div class="board-head"><b id="level-title">第 1 关</b><span id="board-meta">7 × 7 · 入门</span></div>
+        <div class="board-topline">
+          <span class="turn-chip" id="turn-chip">红方落子</span>
+          <button class="btn compact" id="zoom-toggle" type="button" aria-pressed="false" hidden>放大棋盘</button>
+        </div>
+        <div class="board-scroll" id="board-scroll">
+          <svg id="board-svg" class="board-svg" viewBox="0 0 30 27" role="group" aria-label="六边形棋盘" aria-describedby="board-hint"></svg>
+        </div>
+        <p class="board-hint" id="board-hint">点空格落子。方向键移动焦点，Enter 或空格确认。</p>
+        <div class="legend">
+          <span><i class="legend-swatch red" aria-hidden="true"></i><span data-t="legend-red">红方 · 上下</span></span>
+          <span><i class="legend-swatch blue" aria-hidden="true"></i><span data-t="legend-blue">蓝方 · 左右</span></span>
+          <span><i class="legend-swatch last" aria-hidden="true"></i><span data-t="legend-last">最后一手</span></span>
+          <span id="legend-win" hidden><i class="legend-swatch win" aria-hidden="true"></i><span data-t="legend-win">获胜连线</span></span>
+          <span id="legend-bridge" hidden><i class="legend-swatch bridge" aria-hidden="true"></i><span data-t="legend-bridge">双桥</span></span>
+          <span id="legend-candidate" hidden><i class="legend-swatch candidate" aria-hidden="true"></i><span data-t="legend-candidate">关键候选</span></span>
+        </div>
+      </div>
+    </section>
+
+    <aside class="side" aria-label="对局状态" data-ta="side-section">
+      <div class="stats">
+        <div class="stat"><span data-t="stat-red">你的棋子</span><b id="stat-red">0</b></div>
+        <div class="stat"><span data-t="stat-blue">AI 棋子</span><b id="stat-blue">0</b></div>
+        <div class="stat-line"><span data-t="stat-time">用时</span><b id="stat-time">00:00</b></div>
+        <div class="stat-line"><span data-t="stat-ai">AI 思考</span><b id="stat-ai">0.0 s</b></div>
+        <div class="stat-line"><span data-t="stat-moves">你的落子</span><b id="stat-moves">0</b></div>
+      </div>
+      <div class="message" id="message" role="status" aria-live="polite" aria-atomic="true"><h2 id="message-title">轮到你落子</h2><p id="message-text">你执红，把上边和下边连起来。</p></div>
+      <div class="thinking" id="thinking" hidden><span class="thinking-dot" aria-hidden="true"></span><p id="thinking-text">蓝方正在搜索落点…</p></div>
+      <div class="tools">
+        <button class="btn" id="undo" type="button" hidden>撤销 <kbd>Z</kbd></button>
+        <button class="btn" id="hint" type="button" hidden>提示</button>
+        <button class="btn" id="restart" type="button">重开 <kbd>R</kbd></button>
+        <button class="btn" id="menu-button" type="button" data-t="menu-button">返回菜单</button>
+      </div>
+      <button class="btn primary next" id="next" type="button" hidden data-t="next">下一关 →</button>
+      <div class="free-tools" id="free-tools" hidden>
+        <label class="check"><input type="checkbox" id="free-analysis"> <span data-t="analysis-toggle">显示局面分析</span></label>
+      </div>
+      <section class="analysis-panel" id="analysis-panel" hidden aria-label="局面分析" data-ta="analysis-section">
+        <div class="analysis-head"><h2 data-t="analysis-title">局面分析</h2><span class="estimate-tag" data-t="estimate-tag">估算</span></div>
+        <div class="analysis-row"><span data-t="ana-red-distance">红方连接距离</span><b id="ana-red">—</b></div>
+        <div class="analysis-row"><span data-t="ana-blue-distance">蓝方连接距离</span><b id="ana-blue">—</b></div>
+        <div class="analysis-row"><span data-t="ana-bridges">已形成双桥</span><b id="ana-bridges">红 0 · 蓝 0</b></div>
+        <div class="analysis-row"><span data-t="ana-winrate">搜索胜率估计</span><b id="ana-winrate">尚未估算</b></div>
+        <div class="analysis-row"><span data-t="ana-candidates">关键候选</span><b id="ana-candidates">—</b></div>
+        <p class="analysis-note" id="analysis-note">距离按经过的空格数计；双桥与候选为启发式提示；胜率来自 AI 搜索，是估计值。</p>
+      </section>
+    </aside>
+  </div>
+
+  <section class="challenges" aria-label="十二关挑战" data-ta="challenges-section">
+    <div class="memorial" id="memorial" hidden>
+      <p class="memorial-kicker" data-t="memorial-kicker">12 / 12</p>
+      <h2 data-t="memorial-title">HEX XII 全通关</h2>
+      <p data-t="memorial-text">从 7×7 到 13×13，你赢下了全部十二关。棋盘没有平局，每一局都有胜负。</p>
+    </div>
+    <div class="challenge-head"><h2 data-t="challenge-title">十二关，四种棋盘，三档 AI</h2><span id="progress-label">已通关 0 / 12</span></div>
+    <div id="levels" class="levels"></div>
+    <p class="challenge-note" data-t="challenge-note">每行对应一种棋盘尺寸，每列对应一档 AI。胜出一关即可解锁下一关。</p>
+  </section>
+
+  <details class="rules" id="rules">
+    <summary data-t="rules-title">玩法：把两条边连成一条线</summary>
+    <div class="rule-body">
+      <div>
+        <h3 data-t="rules-h1">红连上下，蓝连左右</h3>
+        <p data-t="rules-p1">你执红棋，目标是把棋盘的<strong>上边和下边</strong>用连续的红棋连起来。AI 执蓝棋，目标是把<strong>左边和右边</strong>连起来。斜对角相邻的格子也算相连。</p>
+        <p data-t="rules-p2">点击空格落子，红方先手，之后与 AI 轮流落子。棋子落下后不能移动，也不能被吃掉。任意一方先连成目标边界就获胜；Hex 棋盘不会出现平局。</p>
+        <p data-t="rules-p3">棋盘边长从 7 到 13。手机上的大棋盘可以点“放大棋盘”，左右滑动查看，页面本身仍可双指缩放。</p>
+      </div>
+      <div>
+        <h3 data-t="rules-h2">闯关与自由对局</h3>
+        <p data-t="rules-p4">闯关模式共十二关，按 7×7、9×9、11×11、13×13 排列，每档尺寸都有入门、策略、高级三关。胜出一关会解锁下一关，并记录挑战次数、胜场和最佳用时。</p>
+        <p data-t="rules-p5">自由对局可以任选尺寸和 AI 难度，并开启悔棋、提示和局面分析。闯关模式不提供这些辅助，成绩直接计入十二关记录。</p>
+        <p data-t="rules-p6"><strong>操作：</strong>点击或触摸空格落子；方向键移动焦点，Enter 或空格落子；Z 悔棋（自由对局），R 重开。</p>
+      </div>
+    </div>
+  </details>
+  <details class="rules" id="math">
+    <summary data-t="math-title">数学与算法：连接、双桥与搜索</summary>
+    <div class="rule-body">
+      <div>
+        <h3 data-t="math-h1">连接距离</h3>
+        <p data-t="math-p1">把棋盘看成图：每个格子是一个顶点，六个方向相邻就有边。己方棋子通过成本为 0，空格为 1，对方棋子不可通过。用 0-1 BFS 可以求出从一侧边界到另一侧边界的最小连接成本，页面分析中的“连接距离”就是这个数。</p>
+        <p data-t="math-p2">双桥由两枚不相邻的同色棋子和两个共享的空格邻居组成。对手占据其中一格时，可以用另一格把两枚棋子连起来。分析模式会标出双方的双桥结构。</p>
+        <p data-t="math-p3">Hex 的策略窃取论证说明，标准对称棋盘存在先手必胜策略。本游戏始终由红方先手，蓝方 AI 在给定思考预算内搜索应对。</p>
+      </div>
+      <div>
+        <h3 data-t="math-h2">AI 怎样选点</h3>
+        <p data-t="math-p4">入门 AI 用连接距离给候选点排序，并在一批较优点中带权随机选择。策略 AI 用蒙特卡洛树搜索（UCT）配合带双桥倾向的随机模拟。高级 AI 在此基础上加入 RAVE/AMAF 统计和更强的边界、双桥先验，用更多模拟换取更稳的落点。</p>
+        <p data-t="math-p5">分析面板里的“搜索胜率”是搜索树给出的估计值，不是严格的数学获胜概率。关键候选由一层的连接距离变化给出，用来帮助理解局面，不构成胜负证明。</p>
+        <p data-t="math-p6">每关的 AI 思考预算固定，性能模式会缩短预算。计算在 Web Worker 中运行；浏览器不支持 Worker 时改用异步回退，页面保持可操作。</p>
+      </div>
+    </div>
+  </details>
+  <footer><span data-t="footer-left">灵感：Hex · 六边形连接棋</span><span data-t="footer-right">离线可玩 · 十二关进度保存在本机</span></footer>
+  <div class="sr-only" id="announcement" role="status" aria-live="polite" aria-atomic="true"></div>
+</main>
+
+<dialog class="final-dialog" id="final-dialog" aria-labelledby="final-title" aria-describedby="final-text">
+  <div class="final-inner">
+    <p class="final-kicker" id="final-kicker">12 / 12</p>
+    <h2 id="final-title">HEX XII 全通关</h2>
+    <p id="final-text">四种棋盘尺寸，三档 AI，十二关全部获胜。棋盘不会给出平局，这十二场分出胜负的连线属于你。</p>
+    <button class="btn primary" id="close-final" type="button">回到棋盘</button>
+  </div>
+</dialog>
+
+<script src="engine.js"></script>
+<script src="ai.js"></script>
+<script src="store.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

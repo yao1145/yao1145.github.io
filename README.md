@@ -4,7 +4,7 @@
 
 ## 中文
 
-十一款浏览器小游戏，打开网页就能玩，支持电脑和手机。
+十二款浏览器小游戏，打开网页就能玩，支持电脑和手机。
 
 [进入网站](https://yao1145.github.io/)
 
@@ -21,12 +21,13 @@
 | [Flip](https://yao1145.github.io/flip/) | 翻转局部方格，用最少点击点亮全盘。 |
 | [Pegs · 孔明棋](https://yao1145.github.io/pegs/) | 在多种棋盘上跳吃棋子，最终只留一子。 |
 | [Robots · 四机归位](https://yao1145.github.io/robots/) | 机器人遇障碍才停，让四台同时停在各自目标上。 |
+| [HEX XII](https://yao1145.github.io/hex/) | 执红棋连接上下两边，挑战三档 AI、十二关，或自由选择 7×7 到 13×13 棋盘。 |
 
 主页与 PKUfighter 以外的游戏可切换中英文，并沿用同一语言偏好。这些页面也支持明暗主题。成绩和通关记录保存在当前浏览器，各游戏页面有具体操作说明。
 
 ## English
 
-Eleven browser games for desktop and mobile. Open the site and pick one to play.
+Twelve browser games for desktop and mobile. Open the site and pick one to play.
 
 [Visit the site](https://yao1145.github.io/)
 
@@ -43,6 +44,7 @@ Eleven browser games for desktop and mobile. Open the site and pick one to play.
 | [Flip](https://yao1145.github.io/flip/) | Flip local patterns and light every tile in the fewest clicks. |
 | [Pegs · Solitaire](https://yao1145.github.io/pegs/) | Jump and remove pegs on different boards, leaving just one. |
 | [Robots · Chain](https://yao1145.github.io/robots/) | Slide four robots and park them on all four matching targets at once. |
+| [HEX XII](https://yao1145.github.io/hex/) | Connect the top and bottom with red stones. Play twelve levels against three AI difficulties, or choose any board size from 7×7 to 13×13. |
 
 The homepage and all games except PKUfighter support Chinese and English, sharing your language preference. These pages also have light and dark themes. Scores and completed levels are saved in your browser. Each game has its own controls and instructions.
 

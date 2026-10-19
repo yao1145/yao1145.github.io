@@ -6,7 +6,7 @@
   const strings = {
     zh: {
       title: 'yao1145 的小游戏',
-      description: 'yao1145 的小游戏：PKUfighter、十步万度、Cube、Sixteen、王冠巡游、Tronix、顶点着色、Swap 全清、Flip、Pegs 与 Robots。简单规则，意想不到的世界。',
+      description: 'yao1145 的小游戏：PKUfighter、十步万度、Cube、Sixteen、王冠巡游、Tronix、顶点着色、Swap 全清、Flip、Pegs、Robots 与 HEX XII。简单规则，意想不到的世界。',
       heading: '简单规则，意想不到的世界。',
       intro: '从弹幕到棋盘，从路线到点线。欢迎来到我的小游戏主页。',
       language: '语言', games: '选择游戏',
@@ -40,13 +40,15 @@
       robotsTitle: 'Robots · 四机归位',
       robotsDescription: '机器人遇墙才停。借助彼此作挡板，让四台机器人同时抵达各自目标。',
       robotsPlay: '规划四机路线',
+      hexDescription: '执红棋连接上下两边，与三档 AI 对弈。从 7×7 到 13×13，逐关掌握六边形上的连接策略。',
+      hexPlay: '连接两岸',
       footer: '在浏览器里，随时开一局。',
       light: '浅色', dark: '深色',
       toLight: '切换至浅色模式', toDark: '切换至深色模式'
     },
     en: {
       title: "yao1145's mini games",
-      description: 'Play PKUfighter, Clock Relay, Cube, Sixteen, Crown Tour, Tronix, Vertex Coloring, Swap, Flip, Pegs and Robots. Simple rules. Unexpected worlds.',
+      description: 'Play PKUfighter, Clock Relay, Cube, Sixteen, Crown Tour, Tronix, Vertex Coloring, Swap, Flip, Pegs, Robots and HEX XII. Simple rules. Unexpected worlds.',
       heading: 'Simple rules. Unexpected worlds.',
       intro: 'From bullet storms to boards, paths to networks. Welcome to my little arcade.',
       language: 'Language', games: 'Choose a game',
@@ -80,6 +82,8 @@
       robotsTitle: 'Robots · Chain',
       robotsDescription: 'Slide until a wall or robot stops you. Use one another as stoppers and park all four on their targets together.',
       robotsPlay: 'Plan four routes',
+      hexDescription: 'Connect the top and bottom with red stones against three AI levels. Explore Hex strategy on boards from 7×7 to 13×13.',
+      hexPlay: 'Connect the sides',
       footer: 'A quick game, right in your browser.',
       light: 'Light', dark: 'Dark',
       toLight: 'Switch to light mode', toDark: 'Switch to dark mode'
