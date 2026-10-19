@@ -2,6 +2,16 @@ const fs = require('node:fs'), path = require('node:path'), crypto = require('no
 const { spawn } = require('node:child_process');
 const cfg = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
 const cache = path.join(cfg.cwd, '.browser-objects'); fs.mkdirSync(cache, { recursive: true });
+// Header edits change class layouts too; never link stale dependent objects.
+function headers(dir) {
+  return fs.readdirSync(dir, { withFileTypes: true }).sort((a,b) => a.name.localeCompare(b.name)).flatMap(entry => {
+    const full = path.join(dir, entry.name);
+    return entry.isDirectory() ? headers(full) : /\.(h|hpp)$/.test(entry.name) ? [full] : [];
+  });
+}
+const headerHash = crypto.createHash('sha256');
+for (const file of headers(path.join(cfg.cwd, 'src'))) headerHash.update(fs.readFileSync(file));
+const headerKey = headerHash.digest('hex');
 function exec(args) {
   return new Promise((resolve, reject) => {
     const proc = spawn('python', [cfg.emcc, ...args], { cwd: cfg.cwd, env: process.env, windowsHide: true });
@@ -14,7 +24,7 @@ function exec(args) {
   await Promise.all(Array.from({ length: 6 }, async () => {
     while (!failed && index < cfg.sources.length) {
       const source = cfg.sources[index++], full = path.join(cfg.cwd, source);
-      const hash = crypto.createHash('sha256').update(fs.readFileSync(full)).update(JSON.stringify(cfg.compile)).digest('hex');
+      const hash = crypto.createHash('sha256').update(fs.readFileSync(full)).update(JSON.stringify(cfg.compile)).update(headerKey).digest('hex');
       const object = path.join(cache, source.replace(/[\\/]/g, '_') + '-' + hash.slice(0, 16) + '.o');
       objects.push(object);
       if (fs.existsSync(object)) continue;

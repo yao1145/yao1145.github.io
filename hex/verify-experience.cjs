@@ -77,9 +77,13 @@ async function fresh(options={},init){const c=await browser.newContext({locale:'
  await p.evaluate(()=>clearInterval(hexTickTimer));
  await p.screenshot({path:path.resolve('.codex/hex/mobile-large.png'),fullPage:true});await c.close();
  // A silent Worker times out and recovers using real local AI.
- ({c,p}=await fresh({},()=>{window.Worker=class{postMessage(){}terminate(){}};const timer=window.setTimeout.bind(window);window.setTimeout=(fn,ms,...args)=>timer(fn,ms===30000?20:ms,...args);}));
+ ({c,p}=await fresh({},()=>{window.Worker=class{postMessage(){}terminate(){}};const timer=window.setTimeout.bind(window);let boot=false;window.setTimeout=(fn,ms,...args)=>{if(ms===30000&&!boot){boot=true;ms=20;}return timer(fn,ms,...args);};}));
  await p.evaluate(()=>HexGame.startFree(7,'easy'));await move(p,0);await settled(p);
  eq((await snap(p)).state.moves.length,2,'silent Worker timeout recovers');eq((await snap(p)).analysis.source,'fallback','timeout uses async fallback');await c.close();
+ // Loading gets its own deadline, but repeated heartbeats cannot extend it.
+ ({c,p}=await fresh({},()=>{const timer=window.setTimeout.bind(window);window.setTimeout=(fn,ms,...args)=>timer(fn,ms===120000?50:ms,...args);window.Worker=class{postMessage({id}){this.pulse=setInterval(()=>this.onmessage?.({data:{id,type:'progress',phase:'loading'}}),5);}terminate(){clearInterval(this.pulse);}};}));
+ await p.evaluate(()=>{HexAI.search=async()=>{throw Error('offline-test');};HexGame.startFree(13,'high');});await settled(p);
+ ok((await snap(p)).engineError,'stalled loader reaches a bounded error');eq((await snap(p)).engineFailure.worker,'worker-loading-timeout','repeated loading progress does not reset deadline');eq((await snap(p)).state.moves.length,0,'timeout preserves opening position');await c.close();
  // Failure keeps the position and offers a retry; no weaker bot is substituted.
  ({c,p}=await fresh({},()=>{window.Worker=function(){throw Error('Unavailable');};}));
  await p.evaluate(()=>{window.hexOriginalSearch=HexAI.search;HexAI.search=async()=>{throw Error('Search failed');};HexGame.startFree(7,'easy');});

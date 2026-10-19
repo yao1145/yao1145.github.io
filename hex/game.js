@@ -25,6 +25,8 @@
   ];
   const LEVELS = Array.isArray(Store && Store.LEVELS) && Store.LEVELS.length === MAX_LEVEL ? Store.LEVELS : DEFAULT_LEVELS;
   const FREE_BUDGET = { easy: 250, medium: 1600, high: 4500 };
+  const PHASE_TIMEOUTS = { loading: 120000, initializing: 90000, analyzing: 30000, searching: 30000 };
+  const knownPhase = value => Object.prototype.hasOwnProperty.call(PHASE_TIMEOUTS, value);
 
   const DICT = {
     'opening-rule': ['Easy：玩家先手，无交换。Medium：玩家先手，AI 可接管首着。High：AI 先手，无交换。', 'Easy: you start, no swap. Medium: you start, AI may take over your opening. High: AI starts, no swap.'],
@@ -131,6 +133,9 @@
     'turn-won': ['你获胜', 'You won'],
     'turn-lost': ['AI 获胜', 'AI won'],
     'thinking-text': ['AI 正在搜索落点…', 'The AI is searching for a move…'],
+    'ai-loading': ['正在下载 AI 引擎与棋形库，首次打开需要稍等…', 'Downloading the AI engine and patterns. The first load may take a moment…'],
+    'ai-initializing': ['正在准备 MoHex 引擎…', 'Preparing the MoHex engine…'],
+    'ai-analyzing': ['AI 正在分析双桥与虚连接…', 'The AI is analyzing bridges and virtual connections…'],
     'retry-ai': ['重试 AI', 'Retry AI'],
     'engine-error-title': ['MoHex 暂时不可用', 'MoHex is unavailable'],
     'engine-error-text': ['引擎未能完成计算。本局已保留，请重试；首次加载需要下载引擎资源。', 'The engine could not finish. Your position is saved in this game. Retry; the first load downloads engine resources.'],
@@ -732,7 +737,7 @@
       title = t('swap-title'); text = t('swap-text');
     } else if (game.thinking) {
       title = t('msg-thinking-title');
-      text = t('msg-thinking-text');
+      text = game.aiPhase && game.aiPhase !== 'searching' ? t('ai-' + game.aiPhase) : t('msg-thinking-text');
     } else if (state.moves.length > 0) {
       title = t('msg-turn-title');
       const last = state.moves[state.moves.length - 1];
@@ -754,7 +759,7 @@
 
     $('thinking').hidden = !game.thinking;
     if (game.thinking) {
-      $('thinking-text').textContent = state.opening.phase === 'swap' ? t('swap-text') : game.winRate === null
+      $('thinking-text').textContent = game.aiPhase && game.aiPhase !== 'searching' ? t('ai-' + game.aiPhase) : state.opening.phase === 'swap' ? t('swap-text') : game.winRate === null
         ? t('thinking-text')
         : fill('thinking-progress', { it: game.iterations || 0, pct: Math.round(game.winRate * 100) });
     }
@@ -1033,12 +1038,23 @@
   function workerSearch(request, token, onProgress) {
     return new Promise((resolve, reject) => {
       let worker;
-      try { worker = activeWorker || new Worker('worker.js'); }
+      try { worker = activeWorker || new Worker('worker.js?v=' + AI.VERSION); }
       catch (error) { reject(error); return; }
       activeWorker = worker;
       const id = 'hex-' + token + '-' + Date.now();
       let settled = false;
-      const timer = setTimeout(() => finish(reject, new Error('worker-timeout')), Math.max(30000, request.budgetMs + 10000));
+      let phase = 'boot';
+      let timer = setTimeout(() => finish(reject, new Error('worker-boot-timeout')), 30000);
+      function progress(value) {
+        // Loading/compilation are not part of the move's search budget. A
+        // repeated heartbeat cannot keep a broken phase alive indefinitely.
+        if (knownPhase(value.phase) && value.phase !== phase) {
+          phase = value.phase;
+          clearTimeout(timer);
+          timer = setTimeout(() => finish(reject, new Error('worker-' + phase + '-timeout')), PHASE_TIMEOUTS[phase]);
+        }
+        onProgress(value);
+      }
       function finish(callback, value) {
         if (settled) return;
         settled = true;
@@ -1055,11 +1071,11 @@
       worker.onmessage = event => {
         const data = event.data || {};
         if (data.id !== id) return;
-        if (data.type === 'progress') { onProgress(data.progress || data); return; }
+        if (data.type === 'progress') { progress(data.progress || data); return; }
         if (data.type === 'result') { finish(resolve, data.result); return; }
         if (data.type === 'error') finish(reject, new Error(data.message || 'worker-error'));
       };
-      worker.onerror = () => finish(reject, new Error('worker-error'));
+      worker.onerror = event => finish(reject, new Error(event.message || 'worker-error'));
       worker.postMessage({ id, type: 'search', request });
     });
   }
@@ -1069,13 +1085,23 @@
     const budget = Math.max(80, Math.min(request.budgetMs, 3000));
     let abandon = false;
     const isCancelled = () => abandon || token !== searchToken || !game || game.ended;
-    let timer = null;
+    let timer = null, phase = 'loading';
+    let fail;
+    const arm = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => { abandon = true; fail(new Error('fallback-' + phase + '-timeout')); }, PHASE_TIMEOUTS[phase]);
+    };
     const timeout = new Promise((resolve, reject) => {
-      timer = setTimeout(() => { abandon = true; reject(new Error('fallback-timeout')); }, budget + 6000);
+      fail = reject; arm();
     });
+    const progress = value => {
+      if (isCancelled()) return;
+      if (knownPhase(value.phase) && value.phase !== phase) { phase = value.phase; arm(); }
+      onProgress(value);
+    };
     try {
       const result = await Promise.race([
-        Promise.resolve(AI.search({ ...request, board: request.board.slice(), budgetMs: budget }, onProgress, isCancelled)),
+        Promise.resolve(AI.search({ ...request, board: request.board.slice(), budgetMs: budget }, progress, isCancelled)),
         timeout
       ]);
       if (isCancelled()) throw new Error('cancelled');
@@ -1088,12 +1114,17 @@
 
   function handleProgress(progress) {
     if (!game || !game.thinking) return;
+    if (knownPhase(progress.phase)) game.aiPhase = progress.phase;
     if (Number.isFinite(progress.iterations)) game.iterations = progress.iterations;
     if (Number.isFinite(progress.winRate)) {
       game.winRate = Math.max(0, Math.min(1, progress.winRate));
       if (analysisEnabled()) $('ana-winrate').textContent = fill('winrate-value', { pct: Math.round(game.winRate * 100), color: colorName(game.state.ai) });
     }
-    if (game.state.opening.phase === 'swap') $('thinking-text').textContent = t('swap-text');
+    if (game.aiPhase && game.aiPhase !== 'searching') {
+      $('thinking-text').textContent = t('ai-' + game.aiPhase);
+      $('message-text').textContent = t('ai-' + game.aiPhase);
+    }
+    else if (game.state.opening.phase === 'swap') $('thinking-text').textContent = t('swap-text');
     else if (game.winRate === null) $('thinking-text').textContent = t('thinking-text');
     else $('thinking-text').textContent = fill('thinking-progress', { it: game.iterations || 0, pct: Math.round(game.winRate * 100) });
   }
@@ -1103,6 +1134,8 @@
     const deciding = game.state.opening.phase === 'swap';
     game.thinking = true;
     game.engineError = false;
+    game.engineFailure = null;
+    game.aiPhase = 'loading';
     game.winRate = null;
     game.iterations = 0;
     game.searchSource = null;
@@ -1127,12 +1160,15 @@
       if (game) game.searchSource = 'worker';
     } catch (error) {
       if (token !== searchToken || !game || game.ended) return;
+      game.engineFailure = { worker: String(error.message || error) };
       try {
         result = await fallbackSearch(request, token, onProgress);
         if (token !== searchToken || !game) return;
         if (game) game.searchSource = 'fallback';
       } catch (fallbackError) {
         if (token !== searchToken || !game || game.ended) return;
+        game.engineFailure.fallback = String(fallbackError.message || fallbackError);
+        console.warn('MoHex could not complete the turn', game.engineFailure);
         result = null;
       }
     }
@@ -1416,6 +1452,8 @@
         thinking: Boolean(game && game.thinking),
         engine: game ? game.engineName || null : null,
         engineError: Boolean(game && game.engineError),
+        aiPhase: game && game.thinking ? game.aiPhase || null : null,
+        engineFailure: game ? game.engineFailure || null : null,
         analysis
       };
     },

@@ -1,0 +1,2 @@
+# Emscripten SINGLE_FILE contains raw WebAssembly bytes inside JavaScript.
+hex/vendor/mohex/mohex.js binary

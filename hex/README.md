@@ -24,7 +24,7 @@ Medium 的交换占用 AI 这一回合，不额外放棋。首子保留原位，
 
 Medium 的接管决定来自 MoHex 自带的开局交换表。分析面板中的胜率来自 MoHex，界面的连接距离、双桥标记与提示仍用于解释局面。提示、胜负和成绩跟随玩家身份计算，悔棋会恢复对应的交换状态。引擎不可用时保留当前棋局并显示重试按钮。
 
-首次 AI 回合按需加载约 8.1 MiB 本地资源；之后复用已加载的引擎。无服务端推理，也不依赖外部 CDN。上游对应源码、许可证、构建适配和重链接说明均随站点提供，详见 [引擎来源](vendor/mohex/README.md)。
+首次 AI 回合按需加载约 5.3 MiB 本地资源；之后复用已加载的引擎。下载、初始化、虚连接分析与搜索分别计时，界面会显示当前阶段。移动端构建压缩重复资源并降低内存占用，保留全部棋形权重与虚连接防守。无服务端推理，也不依赖外部 CDN。上游对应源码、许可证、构建适配和重链接说明均随站点提供，详见 [引擎来源](vendor/mohex/README.md)。
 
 ## 验证与部署
 
@@ -43,6 +43,8 @@ node hex/calibrate.cjs --games=16 --budget=40
 HEX_TEST_URL=http://127.0.0.1:8000/hex/ node hex/verify-browser.cjs
 HEX_TEST_URL=http://127.0.0.1:8000/hex/ node hex/verify-experience.cjs
 HEX_TEST_URL=http://127.0.0.1:8000/hex/ node hex/verify-opening-browser.cjs
+HEX_TEST_URL=http://127.0.0.1:8000/hex/ node hex/verify-mobile-ai.cjs --slow-network
+HEX_TEST_URL=http://127.0.0.1:8000/hex/ node hex/verify-mobile-ai.cjs --slow-network --no-worker
 ```
 
 Windows PowerShell 可先设置 `$env:HEX_TEST_URL`。使用 `PLAYWRIGHT_MODULE` 指定 Playwright 包路径。体验检查需要该版本对应的 WebKit；`--webkit-only` 可单独运行 WebKit 部分。检查覆盖桌面和手机宽度、实际 Worker、过期结果、完整对局、离线与存储禁用场景。实测结果见 [验证记录](VALIDATION.md)。
@@ -61,4 +63,4 @@ Twelve campaign levels span four board sizes and three AI difficulties. A win op
 
 Click or tap to place a stone. Arrow keys move focus; Enter or Space confirms. Press R to restart, or Z to undo in free play. Enlarge the board on small screens for precise taps. Open the page through a static server or directly from disk. All AI runs locally, with no build step or external service.
 
-All tiers now use the existing MoHex 2.0 / Benzene engine, with upstream virtual connections, must-play defense, learned pattern weights, UCT and RAVE. Medium uses MoHex's swap table; tiers retain their opening rules and receive different search budgets. The first AI turn loads about 8.1 MiB of local engine resources. [Credits, LGPL notices, source and rebuild instructions](vendor/mohex/README.md) are included.
+All tiers use the existing MoHex 2.0 / Benzene engine, with upstream virtual connections, must-play defense, learned pattern weights, UCT and RAVE. Medium uses MoHex's swap table; tiers retain their opening rules and receive different search budgets. The first AI turn loads about 5.3 MiB of local engine resources. Downloading and initialization have separate deadlines from search. The mobile build retains every pattern weight while reducing memory and duplicate downloads. [Credits, LGPL notices, source and rebuild instructions](vendor/mohex/README.md) are included.

@@ -1,5 +1,23 @@
 # HEX XII 验证记录
 
+## 2026-10-20：手机端 AI 启动修复
+
+旧版在首次引擎下载延迟 34 秒时，约 39.1 秒后报告不可用，棋盘仍为 0 子：后台的 30 秒总超时打断下载，主线程回退又在 9 秒后超时。原有 13×13 高级开局的 WebAssembly 线性内存增长至 318.625 MiB。测试复现了超时路径；用户手机上的实际进程内存和网络未直接测量。
+
+修复将下载、初始化、虚连接分析和搜索分别计时，显示加载阶段，并为引擎资源增加一致版本号。棋形包去重后从 6,440,795 字节降至 3,275,375 字节，八份原始文件逐字节一致。原生模式表按实际容量分配，关闭子树复用的浏览器调用直接清空并复用 4,096 项知识缓存，搜索节点和防守算法保持原配置。
+
+- `node hex/verify.cjs`：18,045 项通过；`node hex/verify-opening.cjs`：218 项通过。
+- `node hex/verify-defense.cjs`：1,496 项通过，包含 48 组独立穷举核验战术、32 组大棋盘虚接防守及关键双桥补救。
+- `node hex/verify-memory.cjs`：13×13 连续 40 手真实 MoHex 搜索通过，WebAssembly 线性内存峰值 160.125 MiB；八份原始棋形文本核验一致。
+- `node hex/verify-mobile-ai.cjs --slow-network`：WebKit、Edge 的 390px 触摸环境通过。首次引擎下载延迟 34 秒，约 41～43 秒完成高级首手，继续落子后 AI 正常应答；峰值 180.1875 MiB。
+- `node hex/verify-mobile-ai.cjs --slow-network --no-worker`：WebKit、Edge 均通过。首次下载延迟 12 秒，主线程异步回退正常完成高级首手及后续应答，峰值 160.125～180.1875 MiB。
+- `node hex/verify-experience.cjs`：110 项通过，覆盖启动取消、静默 Worker 超时回退、重复加载进度不能延长死锁期限、错误保留棋局与重试。
+- `node hex/verify-browser.cjs`：35 项通过，包含真实对局、离线资源加载及手机宽度。
+
+上述内存数值为 WebAssembly 线性内存容量，不是浏览器进程总内存。手机测试使用桌面 WebKit/Edge 的视口与触摸模拟，没有真实 iPhone/iPad 测量。
+
+## 2026-10-19：MoHex 2.0 接入
+
 2026-10-19，Windows 桌面环境。此次将自写 AI 替换为现成 MoHex 2.0 / Benzene WebAssembly 引擎。
 
 ## 本次已完成的验证

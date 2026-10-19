@@ -18,6 +18,10 @@
 using namespace benzene;
 
 namespace {
+void phase(const char* value) {
+    EM_ASM({ if (Module.hexPhase) Module.hexPhase(UTF8ToString($0)); }, value);
+    emscripten_sleep(0);
+}
 class BrowserPlayer : public MoHexPlayer {
 public:
     using MoHexPlayer::Search;
@@ -25,6 +29,7 @@ public:
     HexPoint Search(const HexState& state, const Game& game, HexBoard& board,
                     const bitset_t& consider, double seconds, double& score) override {
         searched = true;
+        phase("searching");
         return MoHexPlayer::Search(state, game, board, consider, seconds, score);
     }
 };
@@ -70,6 +75,7 @@ extern "C" const char* hex_search(const char* cells, int size, int color,
         emscripten_sleep(0);
         init(size);
         if (SgUserAbort()) return "{\"move\":-1}";
+        phase("analyzing");
         SgRandom::SetSeed(seed > 0 ? seed : 1947);
         // Thread-state HexBoards retain a reference to these parameters. Keep
         // both the root board and its configuration alive between calls.

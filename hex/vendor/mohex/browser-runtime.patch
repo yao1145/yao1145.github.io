@@ -10,7 +10,7 @@
  void HexBoard::BuildVCs()
 --- a/src/mohex/MoHexPlayer.cpp
 +++ b/src/mohex/MoHexPlayer.cpp
-@@ -122,7 +122,7 @@
+@@ -122,10 +122,18 @@
      LogInfo() << "Time for PreSearch: " << timer.GetTime() << "s\n";
  
      maxTime -= timer.GetTime();
@@ -18,8 +18,29 @@
 +    maxTime = std::max(0.005, maxTime);
          
      // Create the initial state data
-     MoHexSharedData data(m_search.FillinMapBits());
-@@ -185,7 +185,7 @@
+-    MoHexSharedData data(m_search.FillinMapBits());
++    // Reuse the existing cache when subtree reuse is disabled. Its old
++    // entries are unreachable after Clear(), exactly as in a fresh cache.
++    boost::scoped_ptr<MoHexSharedData> fresh(m_reuse_subtree
++        ? new MoHexSharedData(m_search.FillinMapBits()) : NULL);
++    MoHexSharedData& data = fresh.get() ? *fresh : m_search.SharedData();
++    if (!fresh.get()) {
++        data.stateData.Clear();
++        data.treeStatistics = MoHexSharedData::TreeStatistics();
++    }
+     data.gameSequence = game.History();
+     if (UseRootData())
+     {
+@@ -151,7 +159,7 @@
+         if (!initTree)
+             LogInfo() << "No subtree to reuse.\n";
+     }
+-    m_search.SetSharedData(data);
++    if (fresh.get()) m_search.SetSharedData(data);
+ 
+     brd.GetPatternState().ClearPatternCheckStats();
+ 
+@@ -185,7 +193,7 @@
      // move.
      LogWarning() << "**** MoHexSearch returned empty sequence!\n"
  		 << "**** Returning random move!\n";
@@ -39,6 +60,132 @@
        m_priorPruning(true),
        m_vcmGamma(282.0f),
        m_sharedData(new MoHexSharedData(m_fillinMapBits)),
+--- a/src/mohex/MoHexSearch.hpp
++++ b/src/mohex/MoHexSearch.hpp
+@@ -205,6 +205,9 @@
+ 
+ inline void MoHexSearch::SetSharedData(MoHexSharedData& data)
+ {
++    // Release the previous cache before copying the new one.
++    // No search uses the previous state here; avoid a third live cache.
++    m_sharedData.reset();
+     m_sharedData.reset(new MoHexSharedData(data));
+ }
+ 
+--- a/src/mohex/MoHexPatterns.cpp
++++ b/src/mohex/MoHexPatterns.cpp
+@@ -3,6 +3,7 @@
+ //----------------------------------------------------------------------------
+ 
+ #include "SgSystem.h"
++extern "C" void hex_yield(double, double);
+ #include "SgHash.h"
+ #include "Misc.hpp"
+ #include "MoHexPatterns.hpp"
+@@ -27,10 +28,9 @@
+ uint64_t MoHexPatterns::m_zobrist_size[5];
+ 
+ MoHexPatterns::MoHexPatterns()
+-    : m_table(2)
+-{
+-    m_table[0] = new Data[TABLE_SIZE];
+-    m_table[1] = new Data[TABLE_SIZE];
++    : m_table(2, NULL), m_tableSize(0)
++{
++
+ }
+ 
+ MoHexPatterns::~MoHexPatterns()
+@@ -332,7 +332,7 @@
+ inline const MoHexPatterns::Data* 
+ MoHexPatterns::QueryHashtable(const Data* table, uint64_t key) const
+ {
+-    static const uint64_t mask = (uint64_t)(TABLE_SIZE - 1);
++    const uint64_t mask = (uint64_t)(m_tableSize - 1);
+     uint64_t index = key & mask;
+     for (;;)
+     {
+@@ -349,7 +349,7 @@
+ bool MoHexPatterns::InsertHashTable(Data* table, uint64_t key, float gamma, 
+                                     int type, int killer, int id)
+ {
+-    const uint64_t mask = (uint64_t)(TABLE_SIZE - 1);
++    const uint64_t mask = (uint64_t)(m_tableSize - 1);
+     uint64_t index = key & mask;
+     for (;;)
+     {
+@@ -395,7 +395,13 @@
+ void MoHexPatterns::ReadPatterns(std::string filename, bool makeMirrorComplete,
+                                  float (*GammaFunction)(int type, float gamma))
+ {
+-    for (size_t i = 0; i < TABLE_SIZE; ++i)
++    // All supplied patterns fit below 50% load. Keep every key and weight;
++    // local tables need far fewer slots than global tables.
++    delete[] m_table[0]; delete[] m_table[1];
++    m_tableSize = filename.find("local") != std::string::npos ? (1 << 16) : (1 << 18);
++    m_table[0] = new Data[m_tableSize];
++    m_table[1] = new Data[m_tableSize];
++    for (size_t i = 0; i < m_tableSize; ++i)
+     {
+         m_table[BLACK][i].key = 0;
+         m_table[BLACK][i].gamma = 1.0f;
+@@ -426,8 +432,10 @@
+         int A;
+         ins >> A; // skip number of patterns in file
+     }
++    unsigned loaded = 0;
+     while (ins.good()) 
+     {
++        if ((++loaded % 1024) == 0) hex_yield(0, 0.5);
+         std::string line;
+         if (!std::getline(ins, line))
+             break;
+@@ -488,7 +496,7 @@
+                 if (type)
+                     prunableCount[BLACK]++;
+             }
+-            if (tableEntries[BLACK] > TABLE_SIZE / 4)
++            if (tableEntries[BLACK] > m_tableSize / 2)
+                 throw BenzeneException("Black table too small!\n");
+ 	    for (int j = 1; j <= 3; j++)
+ 	        RotatePattern(size, pattern, &killer);
+@@ -517,7 +525,7 @@
+                 if (type)
+                     prunableCount[WHITE]++;
+             }
+-            if (tableEntries[WHITE] > TABLE_SIZE / 4)
++            if (tableEntries[WHITE] > m_tableSize / 2)
+                 throw BenzeneException("White table too small!\n");
+ 	    for (int j = 1; j <= 3; j++)
+ 	        RotatePattern(size, pattern, &killer);
+@@ -533,7 +541,7 @@
+             const HexColor color = *c;
+             const HexColor other = !color;
+             Data* gt = m_table[color];
+-            for (size_t i = 0; i < TABLE_SIZE; ++i)
++            for (size_t i = 0; i < m_tableSize; ++i)
+             {        
+                 const uint64_t key = gt[i].key;
+                 const float gamma = gt[i].gamma;
+@@ -604,7 +612,7 @@
+     for (BWIterator c; c; ++c)
+     {
+         Data* gt = global.m_table[*c];
+-        for (size_t i = 0; i < TABLE_SIZE; ++i)
++        for (size_t i = 0; i < global.m_tableSize; ++i)
+         {        
+             uint64_t key = gt[i].key;
+             if (key == 0 || gt[i].type != 0)
+--- a/src/mohex/MoHexPatterns.hpp
++++ b/src/mohex/MoHexPatterns.hpp
+@@ -105,6 +105,7 @@
+     static uint64_t ComputeKey(int size, const int pattern[]);
+ 
+     std::vector<Data*> m_table;
++    size_t m_tableSize;
+     std::vector<Pattern> m_patterns;
+ 
+     mutable Statistics m_stats;
 --- a/src/smartgame/SgUctSearch.cpp
 +++ b/src/smartgame/SgUctSearch.cpp
 @@ -3,6 +3,7 @@

@@ -7,8 +7,10 @@
   const clock = () => typeof performance !== 'undefined' ? performance.now() : Date.now();
   const pause = () => new Promise(resolve => setTimeout(resolve, 0));
   const base = !node && typeof document !== 'undefined' ? new URL('.', document.currentScript.src) : null;
+  const VERSION = '20261020-mobile1';
   let loading = null, queue = Promise.resolve();
   function script(name) {
+    name += '?v=' + VERSION;
     if (typeof importScripts === 'function') { importScripts(name); return Promise.resolve(); }
     return new Promise((resolve, reject) => {
       const tag = document.createElement('script'); tag.src = new URL(name, base).href;
@@ -27,7 +29,11 @@
       }
       const engine = await factory({ print: () => {}, printErr: () => {} });
       engine.FS.mkdir('/share');
-      for (const [name, text] of Object.entries(patterns)) engine.FS.writeFile('/share/' + name, text);
+      const files = new Map();
+      for (const [name, text] of Object.entries(patterns)) {
+        if (files.has(text)) engine.FS.symlink('/share/' + files.get(text), '/share/' + name);
+        else { engine.FS.writeFile('/share/' + name, text); files.set(text, name); }
+      }
       return engine;
     })().catch(error => { loading = null; throw error; });
     return loading;
@@ -42,13 +48,21 @@
     if (stopped() || E.winner(board, n) || !board.includes(0)) return cancelled();
     if (request.action === 'swap' && (color !== 2 || board.filter(v => v === 1).length !== 1 || board.includes(2))) throw Error('Invalid swap position');
     await pause(); if (stopped()) return cancelled();
+    let phase = 'loading';
+    const notify = next => {
+      phase = next;
+      if (onProgress && !stopped()) onProgress({ phase, elapsedMs: clock() - started });
+    };
+    notify('loading');
     const engine = await load(); if (stopped()) return cancelled();
+    notify('initializing');
     const budget = Math.max(5, Math.min(15000, Number(request.budgetMs) || 100));
     const maxGames = request.maxIterations === undefined ? (difficulty === 'easy' ? 192 : 10000000) : Math.max(1, Math.min(10000000, Math.floor(request.maxIterations)));
     engine.hexProgress = (iterations, winRate) => {
       if (stopped()) { engine._hex_cancel(); return; }
-      if (onProgress) onProgress({ iterations, winRate, elapsedMs: clock() - started });
+      if (onProgress) onProgress({ phase, iterations, winRate: phase === 'searching' ? winRate : null, elapsedMs: clock() - started });
     };
+    engine.hexPhase = notify;
     const timer = setInterval(() => { if (stopped()) engine._hex_cancel(); }, 16);
     try {
       const raw = await engine.ccall('hex_search', 'string',
@@ -61,7 +75,7 @@
       if (result.error) throw Error(result.error);
       if (!(request.action === 'swap' && result.swap) && (!Number.isInteger(result.move) || result.move < 0 || result.move >= n * n || board[result.move])) throw Error('MoHex returned an illegal move');
       return { ...result, algorithm: 'MoHex 2.0 · patterns, virtual connections and RAVE', engine: 'mohex-2.0', elapsedMs: clock() - started };
-    } finally { clearInterval(timer); engine.hexProgress = null; }
+    } finally { clearInterval(timer); engine.hexProgress = null; engine.hexPhase = null; }
   }
   function search(request, onProgress, isCancelled) {
     // Asyncify supports one active C++ stack per module. Cancelled searches finish
@@ -70,5 +84,5 @@
     queue = result.catch(() => {});
     return result;
   }
-  return { search };
+  return { search, VERSION };
 });

@@ -17,3 +17,4 @@ jobs:
       - run: node hex/verify.cjs
       - run: node hex/verify-opening.cjs
       - run: node hex/verify-defense.cjs
+      - run: node hex/verify-memory.cjs

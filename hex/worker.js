@@ -1,5 +1,5 @@
 'use strict';
-importScripts('engine.js', 'ai.js');
+importScripts('engine.js', 'ai.js?v=20261020-mobile1');
 let current = 0;
 self.onmessage = async function (event) {
   const { id, type, request } = event.data || {};
