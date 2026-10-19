@@ -77,13 +77,13 @@ async function fresh(options={},init){const c=await browser.newContext({locale:'
  await p.evaluate(()=>clearInterval(hexTickTimer));
  await p.screenshot({path:path.resolve('.codex/hex/mobile-large.png'),fullPage:true});await c.close();
  // A silent Worker times out and recovers using real local AI.
- ({c,p}=await fresh({},()=>{window.Worker=class{postMessage(){}terminate(){}};}));
+ ({c,p}=await fresh({},()=>{window.Worker=class{postMessage(){}terminate(){}};const timer=window.setTimeout.bind(window);window.setTimeout=(fn,ms,...args)=>timer(fn,ms===30000?20:ms,...args);}));
  await p.evaluate(()=>HexGame.startFree(7,'easy'));await move(p,0);await settled(p);
  eq((await snap(p)).state.moves.length,2,'silent Worker timeout recovers');eq((await snap(p)).analysis.source,'fallback','timeout uses async fallback');await c.close();
- // Errors in both computing routes still choose a legal tactical recovery move.
+ // Failure keeps the position and offers a retry; no weaker bot is substituted.
  ({c,p}=await fresh({},()=>{window.Worker=function(){throw Error('Unavailable');};}));
- await p.evaluate(()=>{HexAI.search=async()=>{throw Error('Search failed');};HexGame.startFree(7,'easy');});
- await move(p,0);await settled(p);eq((await snap(p)).state.moves.length,2,'both routes failing preserves game');await c.close();
+ await p.evaluate(()=>{window.hexOriginalSearch=HexAI.search;HexAI.search=async()=>{throw Error('Search failed');};HexGame.startFree(7,'easy');});
+ await move(p,0);await settled(p);eq((await snap(p)).state.moves.length,1,'engine failure preserves human move');ok((await snap(p)).engineError,'engine error is explicit');ok(await p.locator('#retry-ai').isVisible(),'retry action visible');await p.evaluate(()=>{HexAI.search=hexOriginalSearch;});await p.locator('#retry-ai').click();await settled(p);eq((await snap(p)).state.moves.length,2,'retry resumes the same game with MoHex');await c.close();
  await browser.close();browser=null;
  console.log(`Hex Edge experience verified: ${checks} checks passed.`);
  }

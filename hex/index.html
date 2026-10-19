@@ -100,6 +100,7 @@
         <button class="btn" id="undo" type="button" hidden>撤销 <kbd>Z</kbd></button>
         <button class="btn" id="hint" type="button" hidden>提示</button>
         <button class="btn" id="restart" type="button">重开 <kbd>R</kbd></button>
+        <button class="btn primary" id="retry-ai" type="button" hidden data-t="retry-ai">重试 AI</button>
         <button class="btn" id="menu-button" type="button" data-t="menu-button">返回菜单</button>
       </div>
       <button class="btn primary next" id="next" type="button" hidden data-t="next">下一关 →</button>
@@ -113,7 +114,7 @@
         <div class="analysis-row"><span data-t="ana-bridges">已形成双桥</span><b id="ana-bridges">红 0 · 蓝 0</b></div>
         <div class="analysis-row"><span data-t="ana-winrate">AI 胜率估计</span><b id="ana-winrate">尚未估算</b></div>
         <div class="analysis-row"><span data-t="ana-candidates">关键候选</span><b id="ana-candidates">—</b></div>
-        <p class="analysis-note" id="analysis-note">距离按经过的空格数计；双桥与候选为启发式提示；胜率综合 AI 搜索和开局评估。</p>
+        <p class="analysis-note" id="analysis-note">距离按经过的空格数计；双桥与候选为界面提示；胜率来自 MoHex 当前棋色的搜索估计。</p>
       </section>
     </aside>
   </div>
@@ -157,9 +158,10 @@
       </div>
       <div>
         <h3 data-t="math-h2">AI 怎样选点</h3>
-        <p data-t="math-p4">入门 AI 用连接距离给候选点排序，并在一批较优点中带权随机选择。策略 AI 用蒙特卡洛树搜索（UCT）配合带双桥倾向的随机模拟。高级 AI 在此基础上加入 RAVE/AMAF 统计和更强的边界、双桥先验，用更多模拟换取更稳的落点。</p>
-        <p data-t="math-p5">胜率为 AI 当前棋色的算法估计，综合搜索与开局评估。关键候选按玩家当前棋色计算，比较一步落子后的连接距离。</p>
+        <p data-t="math-p4">三档均使用现成的 MoHex 2.0 引擎。它用虚连接分析识别双桥和虚接，找出必须防守的区域，再结合学习得到的棋形权重、蒙特卡洛树搜索和 RAVE 统计选择落点。策略与高级档使用更长的搜索预算。</p>
+        <p data-t="math-p5">胜率来自 MoHex 对 AI 当前棋色的搜索估计；确定胜负的虚连接结果也由引擎给出。界面的关键候选按玩家当前棋色计算一步连接距离，供理解局面。</p>
         <p data-t="math-p6">每关的 AI 思考预算固定，性能模式会缩短预算。计算在 Web Worker 中运行；浏览器不支持 Worker 时改用异步回退，页面保持可操作。</p>
+        <p><a href="vendor/mohex/README.md">MoHex 2.0 · LGPLv3 · Source &amp; credits</a></p>
       </div>
     </div>
   </details>

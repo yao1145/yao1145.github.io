@@ -1,0 +1,14 @@
+mohex browser opponent
+LGPLv3; Benzene/MoHex and Fuego contributors. Boost is under the Boost Software License 1.0.
+Pinned upstream source: https://github.com/linusneumann/mohex2/tree/8fd7e13aa501c05e1a328f019b95ef15ae1e785c
+
+MoHex 2.0 single-thread synchronous UCT. Normal/Hard: at most 100/500 playouts, 250/800ms search budgets; 20,000 tree nodes. Pattern startup also takes time. No Berkeley DB, opening book, OS threads or hosted engine. Thread wrappers are explicitly adapted for synchronous single-worker use; database APIs throw rather than writing. Deprecated std::mem_fun is replaced with its equivalent loop; file lookup uses /share. Published patterns and swap table are the pinned upstream files. The supplied Boost include subset is the exact dependency closure used by the compiled source. Set BOOST_HEADERS to source.zip boost-headers directory before invoking the build script.
+
+Browser computation only; no server bot, account, network inference, shared memory or background jobs.
+Emscripten 6.0.11, single browser worker. Activate that SDK before rebuilding.
+Unzip source.zip, set ENGINE_SOURCE to the extracted engine directory and ENGINE_OUTPUT
+to an output directory; run sh scripts/engines/more/build-mohex.sh.
+Exact changed source, worker adapter, build script and linked Emscripten/libc/C++ runtime
+preferred sources are included. Retain all component licenses when rebuilding/relinking.
+Website-side adapters and native rules: /engines/chessops/source.zip (application sources).
+No private game resources, account credentials, browser saves or model training outputs are included.

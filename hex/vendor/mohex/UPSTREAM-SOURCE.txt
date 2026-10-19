@@ -1,0 +1,40 @@
+mohex browser opponent
+LGPLv3; Benzene/MoHex and Fuego contributors. Boost is under the Boost Software License 1.0.
+Pinned upstream source: https://github.com/linusneumann/mohex2/tree/8fd7e13aa501c05e1a328f019b95ef15ae1e785c
+
+MoHex 2.0 single-thread synchronous UCT. Normal/Hard: at most 100/500 playouts, 250/800ms search budgets; 20,000 tree nodes. Pattern startup also takes time. No Berkeley DB, opening book, OS threads or hosted engine. Thread wrappers are explicitly adapted for synchronous single-worker use; database APIs throw rather than writing. Deprecated std::mem_fun is replaced with its equivalent loop; file lookup uses /share. Published patterns and swap table are the pinned upstream files. The supplied Boost include subset is the exact dependency closure used by the compiled source. Set BOOST_HEADERS to source.zip boost-headers directory before invoking the build script.
+
+Browser computation only; no server bot, account, network inference, shared memory or background jobs.
+Emscripten 6.0.11, single browser worker. Activate that SDK before rebuilding.
+Unzip source.zip, set ENGINE_SOURCE to the extracted engine directory and ENGINE_OUTPUT
+to an output directory; run sh scripts/engines/more/build-mohex.sh.
+Exact changed source, worker adapter, build script and linked Emscripten/libc/C++ runtime
+preferred sources are included. Retain all component licenses when rebuilding/relinking.
+Website-side adapters and native rules: /engines/chessops/source.zip (application sources).
+No private game resources, account credentials, browser saves or model training outputs are included.
+
+Exact corresponding source: source.zip; component notices and upstream-changes.patch are alongside it.
+SHA-256 inventory:
+BOOST-LICENSE.txt: c9bff75738922193e67fa726fa225535870d2aa1059f91452c411736284ad566
+BUILD.txt: 3138c1fbcb2f293d6283c247c96d014649ff9df77270f684afba0e61b478eda3
+COMPILER-RT-LICENSE.txt: 1a8f1058753f1ba890de984e48f0242a3a5c29a6a8f2ed9fd813f36985387e8d
+EMSCRIPTEN-LICENSE.txt: 620a78084fc7ca97c0b5dea9abf891f3ffcadfdbf305276f099c9c4e12fc1d86
+GPLv3.txt: 8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903
+LIBCXX-LICENSE.txt: 539dd7aed86e8a4f12cbdd0e6c50c189c7d74847e4fecc64ce2c6ee3a01da38b
+LIBCXXABI-LICENSE.txt: e2b35be49f7284a45b7baca8fc7b3ab7440e7902392b2528a457816b5bb2a15c
+LICENSE: a853c2ffec17057872340eee242ae4d96cbf2b520ae27d903e1b2fef1a5f9d1c
+MUSL-COPYRIGHT.txt: f9bc4423732350eb0b3f7ed7e91d530298476f8fec0c6c427a1c04ade22655af
+mohex.js: 6cac6491a8330beb6797769767418f2fff59d9cfaac96acc9840b4ee5e9c2b85
+mohex.wasm: 63555d42b158ac76b780337c992ee3c74130012f16c06e1a7808cca65c80510b
+patterns/ice-patterns.txt: 204eb910ea90796495ac55054d352fff04c0efb67804a070c4488b839928b4b8
+patterns/mohex-global-pattern-gamma.txt: 40da56902767a14ec1168904109c491aba30f988dc4279a9259d8aced7dec72d
+patterns/mohex-global-playout-pattern-gamma.txt: 40da56902767a14ec1168904109c491aba30f988dc4279a9259d8aced7dec72d
+patterns/mohex-local-pattern-gamma.txt: 6ff76675f534efc1a3500feaf1300dfa433985788979abab972c761fb3945d9e
+patterns/mohex-local-playout-pattern-gamma.txt: 6ff76675f534efc1a3500feaf1300dfa433985788979abab972c761fb3945d9e
+patterns/swap-moves.txt: 3dac69d7a7c262278a0c16d97da7c7f349b87eb539719dacb43b176c57211214
+patterns/vc-captured-set.txt: f883fb07b12d74abde764fafbb60d6359af9c42416f233a784a69c142b402e41
+patterns/vc-patterns.txt: 980720bb99151366846127f8974b99b6382fd3cea349abe7d878e44edf49f6a0
+patterns.json: 17c4240c2d8a626ad4591f5993cc75b1fa7425d65316c281f20c527b9fd0fc4a
+source.zip: 3292f0f0b36b7ba744ab3c5f2533fd9a29612b00fdbf9a5f649380eadf3ce0ad
+upstream-changes.patch: ecc6e5f85e63dac522ac6bfe281d8dac5cd4151a57cfd54e53608fcb74386236
+worker.js: 1bd7348981ad4230d1221064a1830691b58cc6a8793d6b012e44a82dceadbb39

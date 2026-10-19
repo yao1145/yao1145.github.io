@@ -16,3 +16,4 @@ jobs:
           node-version: 22
       - run: node hex/verify.cjs
       - run: node hex/verify-opening.cjs
+      - run: node hex/verify-defense.cjs

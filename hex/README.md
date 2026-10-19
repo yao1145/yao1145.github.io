@@ -18,17 +18,20 @@ Medium 的交换占用 AI 这一回合，不额外放棋。首子保留原位，
 
 ## AI 与分析
 
-- 入门：0-1 BFS 计算双方连接代价，从高分候选中加权选择。
-- 策略：UCT 蒙特卡洛树搜索，模拟中加入双桥应对偏好。
-- 高级：在树搜索上增加 RAVE/AMAF、双桥和边界偏好，以及同一局面的有限统计复用。
+- 三档均使用现成的 [MoHex 2.0 / Benzene](vendor/mohex/README.md) WebAssembly 引擎，沿用上游虚连接分析、劣势格分析、学习得到的棋形权重、UCT 与 RAVE。
+- 实际落子前计算对手虚接的 must-play 防区，搜索在引擎给出的候选集合中进行。策略与高级档启用预搜索并使用更长的思考预算。
+- 入门档限制为最多 192 次模拟，策略与高级档主要由现有的各关预算控制。所有难度保留原先的先后手和交换规则。
 
-三档都会先检查立即获胜和对方一步获胜的落点。Medium 在玩家首着后，结合树搜索和开局位置先验评估是否接管红棋。双桥与关键候选用作启发式；分析面板中的胜率是 AI 当前棋色的搜索估计。提示、胜负和成绩跟随玩家身份计算，悔棋会恢复对应的交换状态。
+Medium 的接管决定来自 MoHex 自带的开局交换表。分析面板中的胜率来自 MoHex，界面的连接距离、双桥标记与提示仍用于解释局面。提示、胜负和成绩跟随玩家身份计算，悔棋会恢复对应的交换状态。引擎不可用时保留当前棋局并显示重试按钮。
+
+首次 AI 回合按需加载约 8.1 MiB 本地资源；之后复用已加载的引擎。无服务端推理，也不依赖外部 CDN。上游对应源码、许可证、构建适配和重链接说明均随站点提供，详见 [引擎来源](vendor/mohex/README.md)。
 
 ## 验证与部署
 
 ```sh
 node hex/verify.cjs
 node hex/verify-opening.cjs
+node hex/verify-defense.cjs
 node hex/calibrate.cjs --games=16 --budget=40
 ```
 
@@ -57,3 +60,5 @@ Connect your two opposite edges first to win. Red joins top to bottom; blue join
 Twelve campaign levels span four board sizes and three AI difficulties. A win opens the next level. Free play supports every size from 7×7 to 13×13, with undo, hints and optional analysis. Scores stay in your browser, and language and theme preferences are shared with the homepage.
 
 Click or tap to place a stone. Arrow keys move focus; Enter or Space confirms. Press R to restart, or Z to undo in free play. Enlarge the board on small screens for precise taps. Open the page through a static server or directly from disk. All AI runs locally, with no build step or external service.
+
+All tiers now use the existing MoHex 2.0 / Benzene engine, with upstream virtual connections, must-play defense, learned pattern weights, UCT and RAVE. Medium uses MoHex's swap table; tiers retain their opening rules and receive different search budgets. The first AI turn loads about 8.1 MiB of local engine resources. [Credits, LGPL notices, source and rebuild instructions](vendor/mohex/README.md) are included.

@@ -91,12 +91,13 @@ async function main() {
     eq(win.move,6,`${difficulty} takes immediate win`); eq(Array.from(b),original,'AI input preserved');
     const threat=new Uint8Array(49); for(let r=0;r<6;r++) threat[r*7]=1;
     const block=await AI.search({size:7,board:threat,player:2,difficulty,budgetMs:40,maxIterations:48,seed:12});
-    eq(block.move,42,`${difficulty} blocks immediate loss`);
+    ok(block.move===42 || block.proven && block.winRate===0,`${difficulty} blocks immediate loss or establishes that the position is already lost`);
     const b2=E.create(7).board; b2[24]=1;
     const answer=await AI.search({size:7,board:b2,player:2,difficulty,budgetMs:70,maxIterations:96,seed:42});
     ok(Number.isInteger(answer.move) && b2[answer.move]===0,`${difficulty} legal search result`);
     ok(typeof answer.algorithm==='string',`${difficulty} reports actual algorithm`);
-    if(difficulty!=='easy') ok(answer.iterations>0,`${difficulty} actually simulates`);
+    if(difficulty!=='easy') ok(answer.iterations>0 || answer.proven,`${difficulty} simulates or establishes a connection strategy`);
+    eq(answer.engine,'mohex-2.0',`${difficulty} uses the real MoHex engine`);
     console.log(`${difficulty}: ${answer.algorithm}, ${answer.iterations} iterations, ${Math.round(answer.elapsedMs)} ms`);
     const terminal=new Uint8Array(49).fill(1);
     eq((await AI.search({size:7,board:terminal,player:2,difficulty,budgetMs:10})).move,-1,'terminal search no move');

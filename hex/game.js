@@ -99,8 +99,8 @@
     'ana-winrate': ['AI 胜率估计', 'Estimated AI win rate'],
     'ana-candidates': ['关键候选', 'Key candidates'],
     'analysis-note': [
-      '距离按经过的空格数计；双桥与候选为启发式提示；胜率综合 AI 搜索和开局评估。',
-      'Distance counts empty cells crossed. Bridges and candidates are heuristic markers. The win rate combines search and opening evaluation.'
+      '距离按经过的空格数计；双桥与候选为界面提示；胜率来自 MoHex 当前棋色的搜索估计。',
+      'Distance counts empty cells crossed. Bridges and candidates are interface markers. Win rates come from MoHex for the AI’s current color.'
     ],
     'challenges-section': ['十二关挑战', 'Twelve-level challenges'],
     'memorial-kicker': ['12 / 12', '12 / 12'],
@@ -131,6 +131,9 @@
     'turn-won': ['你获胜', 'You won'],
     'turn-lost': ['AI 获胜', 'AI won'],
     'thinking-text': ['AI 正在搜索落点…', 'The AI is searching for a move…'],
+    'retry-ai': ['重试 AI', 'Retry AI'],
+    'engine-error-title': ['MoHex 暂时不可用', 'MoHex is unavailable'],
+    'engine-error-text': ['引擎未能完成计算。本局已保留，请重试；首次加载需要下载引擎资源。', 'The engine could not finish. Your position is saved in this game. Retry; the first load downloads engine resources.'],
     'thinking-progress': ['AI 已模拟 {it} 次 · 估计胜率 {pct}%', 'The AI has simulated {it} playouts · estimated win rate {pct}%'],
     'msg-start-title': ['轮到你落子', 'Your move'],
     'msg-start-text': ['连接属于你的两条边界。', 'Connect your two target edges.'],
@@ -179,8 +182,8 @@
     'math-p2': ['双桥由两枚不相邻的同色棋子和两个共享的空格邻居组成。对手占据其中一格时，可以用另一格把两枚棋子连起来。分析模式会标出双方的双桥结构。', 'A bridge consists of two nonadjacent friendly stones with two shared empty neighbours. If the opponent takes one carrier, you can connect through the other. Analysis marks these structures for both sides.'],
     'math-p3': ['普通 Hex 的对称棋盘存在先手必胜策略。Easy 把先手交给玩家；Medium 允许后手 AI 接管首着，鼓励均衡开局；High 由 AI 先手。交换只改变棋色和连接目标的归属，棋盘上的首子保持原位。', 'Ordinary Hex on a symmetric board has a first-player winning strategy. Easy gives you the first move. Medium lets the second player take over the opening, encouraging a balanced first move. High gives the AI the first move. A swap changes ownership of colors and target edges; the opening stone stays in place.'],
     'math-h2': ['AI 怎样选点', 'How the AI chooses'],
-    'math-p4': ['入门 AI 用连接距离给候选点排序，并在一批较优点中带权随机选择。策略 AI 用蒙特卡洛树搜索（UCT）配合带双桥倾向的随机模拟。高级 AI 在此基础上加入 RAVE/AMAF 统计和更强的边界、双桥先验，用更多模拟换取更稳的落点。', 'Easy AI ranks candidates by connection distance and picks among the better ones with weighted randomness. Medium AI runs Monte Carlo tree search with UCT and bridge-biased playouts. High AI adds RAVE/AMAF statistics and stronger edge and bridge priors, spending more playouts for a steadier move.'],
-    'math-p5': ['胜率为 AI 当前棋色的算法估计，综合搜索与开局评估。关键候选按玩家当前棋色计算，比较一步落子后的连接距离。', 'The win rate is an algorithmic estimate for the AI’s current color, combining search and opening evaluation. Key candidates use your current color and compare one-ply connection distances.'],
+    'math-p4': ['三档均使用现成的 MoHex 2.0 引擎。它用虚连接分析识别双桥和虚接，找出必须防守的区域，再结合学习得到的棋形权重、蒙特卡洛树搜索和 RAVE 统计选择落点。策略与高级档使用更长的搜索预算。', 'All tiers use the existing MoHex 2.0 engine. Virtual connection analysis identifies bridges, connection threats and must-play defense regions. Learned pattern weights, Monte Carlo tree search and RAVE statistics guide move selection. Medium and High receive longer search budgets.'],
+    'math-p5': ['胜率来自 MoHex 对 AI 当前棋色的搜索估计；确定胜负的虚连接结果也由引擎给出。界面的关键候选按玩家当前棋色计算一步连接距离，供理解局面。', 'Win rates come from MoHex for the AI’s current color, including outcomes established by its virtual connection analysis. The interface’s key candidates compare one-ply connection distances for your color.'],
     'math-p6': ['每关的 AI 思考预算固定，性能模式会缩短预算。计算在 Web Worker 中运行；浏览器不支持 Worker 时改用异步回退，页面保持可操作。', 'Each level fixes an AI thinking budget, and fast performance mode shortens it. Search runs in a Web Worker; when Workers are unavailable, an asynchronous fallback keeps the page responsive.'],
     'footer-left': ['灵感：Hex · 六边形连接棋', 'Inspired by Hex'],
     'footer-right': ['离线可玩 · 十二关进度保存在本机', 'Playable offline · campaign progress stays on this device'],
@@ -723,6 +726,8 @@
       title = fill('msg-lost-title', { color: colorName(state.ai) });
       text = game.mode === 'campaign' ? t('msg-lost-campaign') : t('msg-lost-free');
       tone = 'lost';
+    } else if (game.engineError) {
+      title = t('engine-error-title'); text = t('engine-error-text'); tone = 'lost';
     } else if (state.opening.phase === 'swap') {
       title = t('swap-title'); text = t('swap-text');
     } else if (game.thinking) {
@@ -766,6 +771,7 @@
     $('undo').disabled = !free || game.thinking || !E.canUndo(game.state);
     $('hint').disabled = !free || game.thinking || Boolean(winner);
     $('restart').disabled = false;
+    $('retry-ai').hidden = !game.engineError;
     $('next').hidden = !(game.mode === 'campaign' && winner === game.state.human && game.levelId < MAX_LEVEL);
     $('analysis-panel').hidden = !(free && settings.analysis);
     $('legend-win').hidden = !winner;
@@ -942,6 +948,7 @@
       elapsedMs: 0,
       aiMs: 0,
       thinking: false,
+      engineError: false,
       ended: false,
       humanMoves: 0,
       aiMoves: 0,
@@ -1023,34 +1030,6 @@
     return true;
   }
 
-  function legalRecoveryMove() {
-    const size = game.size, board = game.state.board;
-    const empties = [];
-    for (let i = 0; i < board.length; i++) if (board[i] === 0) empties.push(i);
-    if (!empties.length) return -1;
-    for (const index of empties) {
-      board[index] = game.state.ai;
-      const won = E.winner(board, size) === game.state.ai;
-      board[index] = 0;
-      if (won) return index;
-    }
-    for (const index of empties) {
-      board[index] = game.state.human;
-      const won = E.winner(board, size) === game.state.human;
-      board[index] = 0;
-      if (won) return index;
-    }
-    const mid = (size - 1) / 2;
-    let best = empties[0], bestScore = -Infinity;
-    for (const index of empties) {
-      let score = 0;
-      try { for (const neighbour of E.neighbors(size, index)) { if (board[neighbour] === game.state.ai) score += 2; else if (board[neighbour] === game.state.human) score += 1; } } catch {}
-      score -= (Math.abs(Math.floor(index / size) - mid) + Math.abs(index % size - mid)) * 0.15;
-      if (score > bestScore) { bestScore = score; best = index; }
-    }
-    return best;
-  }
-
   function workerSearch(request, token, onProgress) {
     return new Promise((resolve, reject) => {
       let worker;
@@ -1059,13 +1038,13 @@
       activeWorker = worker;
       const id = 'hex-' + token + '-' + Date.now();
       let settled = false;
-      const timer = setTimeout(() => finish(reject, new Error('worker-timeout')), Math.max(3000, request.budgetMs + 5000));
+      const timer = setTimeout(() => finish(reject, new Error('worker-timeout')), Math.max(30000, request.budgetMs + 10000));
       function finish(callback, value) {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
         if (activeWorker === worker) activeCancel = null;
-        // Keep successful searches in the same Worker so position priors survive undo/replay.
+        // Keep the loaded MoHex runtime and pattern tables between turns.
         if (callback !== resolve) {
           if (activeWorker === worker) activeWorker = null;
           try { worker.terminate(); } catch {}
@@ -1123,6 +1102,7 @@
     if (!game || game.ended || game.state.winner || game.state.turn !== game.state.ai) return;
     const deciding = game.state.opening.phase === 'swap';
     game.thinking = true;
+    game.engineError = false;
     game.winRate = null;
     game.iterations = 0;
     game.searchSource = null;
@@ -1159,21 +1139,24 @@
     if (token !== searchToken || !game || game.ended) return;
     const elapsed = Math.max(0, performance.now() - started);
     game.aiMs += elapsed;
+    if (!result || result.engine && result.engine !== 'mohex-2.0' ||
+      deciding && typeof result.swap !== 'boolean' ||
+      !(deciding && result.swap) && (!Number.isInteger(result.move) || result.move < 0 || result.move >= game.size * game.size || game.state.board[result.move] !== 0)) {
+      game.thinking = false; game.engineError = true;
+      renderAll(); announce(t('engine-error-title')); return;
+    }
+    game.engineName = result.engine || null;
+    game.iterations = result.iterations || 0;
     if (result && Number.isFinite(result.winRate)) game.winRate = Math.max(0, Math.min(1, result.winRate));
     if (deciding) {
-      const first = game.state.moves[0], middle = (game.size - 1) / 2;
-      const centrality = 1 - (Math.abs(Math.floor(first / game.size) - middle) + Math.abs(first % game.size - middle)) / (game.size - 1);
-      const takeOver = result && typeof result.swap === 'boolean' ? result.swap : centrality > .5;
+      const takeOver = result.swap;
       E.resolveSwap(game.state, takeOver);
       if (takeOver) {
         game.thinking = false; game.hintIndex = null;
         renderAll(); announce(t('swapped-text')); return;
       }
     }
-    let move = result && Number.isInteger(result.move) ? result.move : -1;
-    if (move < 0 || move >= game.size * game.size || game.state.board[move] !== 0) {
-      move = legalRecoveryMove(); result = null; game.recovered = true;
-    }
+    const move = result.move;
     if (move < 0) {
       game.thinking = false;
       message(language === 'zh' ? '没有合法落点' : 'No legal move', language === 'zh' ? '可以重开本局。' : 'Restart the game.', 'error');
@@ -1246,6 +1229,7 @@
     game.winRate = null;
     game.iterations = 0;
     game.recovered = false;
+    game.engineError = false;
     game.humanMoves = humanMoveCount();
     game.aiMoves = countStones(game.state.ai);
     game.startedAt = Date.now() - game.elapsedMs;
@@ -1304,6 +1288,7 @@
   $('undo').addEventListener('click', undo);
   $('hint').addEventListener('click', showHint);
   $('restart').addEventListener('click', restart);
+  $('retry-ai').addEventListener('click', startAI);
   $('menu-button').addEventListener('click', showMenu);
   $('next').addEventListener('click', () => { if (game && game.mode === 'campaign' && game.levelId < MAX_LEVEL) startCampaign(game.levelId + 1); });
   $('zoom-toggle').addEventListener('click', toggleZoom);
@@ -1429,6 +1414,8 @@
         levelId: game && game.mode === 'campaign' ? game.levelId : null,
         progress: JSON.parse(JSON.stringify(progress)),
         thinking: Boolean(game && game.thinking),
+        engine: game ? game.engineName || null : null,
+        engineError: Boolean(game && game.engineError),
         analysis
       };
     },
