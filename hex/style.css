@@ -17,7 +17,6 @@
 @keyframes path-light{from{opacity:.35;transform:scale(.8)}to{opacity:1;transform:scale(1)}}
 @keyframes path-draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
 .opening-rule{font-size:14px;line-height:1.7;color:var(--muted);margin:-6px 0 26px}
-.board-svg .hex-cell.offered .stone{opacity:.45;stroke-dasharray:.16 .1}.board-svg .hex-cell.offered .hex-shape{stroke:var(--stone-red);stroke-width:.12}.board-svg .hex-cell.opening-selected .hex-shape{stroke:var(--stone-red);stroke-width:.1}
 :root[data-motion="off"] *,:root[data-motion="off"] *:before,:root[data-motion="off"] *:after{transition:none!important;animation:none!important}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
 @media(max-width:900px){.app{padding:20px 20px 30px}.layout{grid-template-columns:1fr;gap:28px}.menu{grid-template-columns:1fr}.side{display:grid;grid-template-columns:1fr 1fr;column-gap:24px;align-items:start}.side .stats{grid-row:span 2}.side .message{margin-top:0}.side .tools,.side .free-tools,.side .analysis-panel,.side .next{grid-column:1/-1}.board-panel{padding:20px 24px 18px}}

@@ -42,8 +42,7 @@ async function layout(p,width,height=920){
  await layout(page,844,390);
  await page.setViewportSize({width:1280,height:1000});
  await page.evaluate(()=>HexGame.startFree(7,'high'));
- await move(page,0);
- ok((await snap(page)).thinking,'high starts thinking');
+ ok((await snap(page)).thinking,'High automatically starts thinking');
  await page.evaluate(()=>HexGame.startFree(9,'easy'));await page.waitForTimeout(500);
  const clean=await snap(page);eq(clean.state.moves.length,0,'stale result ignored');eq(clean.state.size,9,'restart/switch board retained');
  await page.evaluate(()=>HexGame.startFree(7,'easy'));
@@ -57,11 +56,7 @@ async function layout(p,width,height=920){
    return HexEngine.connection(b,s.size,1).path.find(i=>!b[i])??b.findIndex(v=>!v);
   });
   await move(page,index);await settled(page);
-  const proposal=(await snap(page)).state.opening;
-  if(proposal&&proposal.phase==='offer'&&proposal.candidates.length===1){
-   const second=await page.evaluate(()=>{const s=HexGame.snapshot().state;return s.board.findIndex((v,i)=>!v&&!s.opening.candidates.includes(i));});
-   await move(page,second);await settled(page);
-  }
+
  }
  ok((await snap(page)).state.winner>0,'complete legal browser game');
  ok((await snap(page)).state.path.length>=7,'winner path displayed');

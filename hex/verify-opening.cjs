@@ -1,37 +1,12 @@
-const assert=require('node:assert/strict');
-const E=require('./engine.js'), AI=require('./ai.js');
-let checks=0;const eq=(a,b,s)=>{assert.deepEqual(a,b,s);checks++;};const ok=(v,s)=>{assert.ok(v,s);checks++;};
-function opening(n=7){const s=E.create(n,{choiceOpening:true});E.play(s,0);E.play(s,n-1);return s;}
+const assert=require('node:assert/strict'),E=require('./engine.js'),AI=require('./ai.js');let checks=0;const eq=(a,b,s)=>{assert.deepEqual(a,b,s);checks++;};const ok=(a,s)=>{assert.ok(a,s);checks++;};
 (async()=>{
- const fresh=E.create(7,{choiceOpening:true});eq(fresh.opening.phase,'first','opening enabled');
- const s=opening();eq(s.opening.phase,'offer','second red turn requests two candidates');
- ok(!E.play(s,7),'ordinary red move blocked during offer');
- for(const bad of [0,6,-1,49,2.5,'7',null])ok(!E.propose(s,bad),'invalid candidate rejected');
- ok(E.propose(s,7),'first candidate accepted');eq(s.board[7],0,'candidate is not committed');eq(s.moves,[0,6],'proposal does not count as move');
- eq(s.turn,1,'red keeps proposal turn');ok(E.propose(s,7),'tap selected candidate removes it');eq(s.opening.candidates,[],'duplicate not counted twice');
- E.propose(s,7);E.propose(s,8);eq(s.opening.phase,'choose','two distinct candidates trigger AI choice');
- ok(!E.propose(s,9),'third candidate rejected');ok(!E.play(s,9),'normal play blocked pending choice');
- ok(!E.resolveOpening(s,9),'AI cannot choose outside offer');ok(E.resolveOpening(s,7),'AI offered choice accepted');
- eq(s.board[7],1,'chosen point becomes red');eq(s.board[8],0,'unchosen point stays empty');eq(s.moves,[0,6,7],'one actual red stone recorded');eq(s.turn,2,'blue moves after red choice');
- ok(!E.resolveOpening(s,8),'choice cannot be applied twice');ok(E.play(s,5),'normal blue reply accepted');eq(s.turn,1,'ordinary alternation resumes');
- E.undoRound(s);eq(s.moves,[0,6],'undo removes chosen red plus blue reply');eq(s.opening.phase,'offer','undo reopens proposal');eq(s.opening.candidates,[],'undo clears candidates');
- E.propose(s,8);E.undoRound(s);eq(s.moves,[0,6],'undo pending proposal keeps committed pair');eq(s.opening.candidates,[],'pending candidate cancelled');
- E.propose(s,8);E.propose(s,9);E.resolveOpening(s,9);E.undoRound(s);eq(s.opening.phase,'offer','undo before blue reply reopens offer');
- E.undoRound(s);eq(s.moves,[],'undo first completed round');eq(s.opening.phase,'first','empty board reset opening');
  for(let n=7;n<=13;n++){
-  const t=opening(n);E.propose(t,n);E.propose(t,n+1);E.resolveOpening(t,n+1);
-  while(!t.winner){const i=t.board.findIndex(v=>!v);ok(i>=0,'board ends before full draw');ok(E.play(t,i),'post-opening legal game');}
-  eq(t.winner,E.winner(t.board,n),'opening game connectivity');ok(t.path.length>=n,'opening game has winning path');
+  const easy=E.create(n,{difficulty:'easy'});eq(easy.human,1,'Easy player red');eq(easy.ai,2,'Easy AI blue');E.play(easy,0);ok(!E.resolveSwap(easy,true),'Easy cannot swap');E.play(easy,1);eq(easy.turn,easy.human,'Easy alternates');E.undoRound(easy);eq(easy.moves,[],'Easy undo round');
+  const mid=E.create(n,{difficulty:'medium'});E.play(mid,0);eq(mid.opening.phase,'swap','Medium decision after first stone');ok(!E.play(mid,1),'must resolve swap first');ok(E.resolveSwap(mid,true),'take over first move');eq(mid.moves,[0],'swap adds no stone');eq(mid.board[0],1,'first stone stays red');eq(mid.human,2,'player becomes blue');eq(mid.ai,1,'AI becomes red');eq(mid.turn,2,'player immediately moves after swap');ok(!E.resolveSwap(mid,true),'cannot swap twice');E.play(mid,n);E.play(mid,1);eq(E.humanMoves(mid),2,'human moves counts actual placements');E.undoRound(mid);eq(mid.moves,[0],'undo post-swap round');eq(mid.human,2,'undo preserves earlier swap');E.undoRound(mid);eq(mid.moves,[],'undo swap and first move');eq(mid.human,1,'undo restores first player role');eq(mid.turn,1,'undo returns human turn');
+  const keep=E.create(n,{difficulty:'medium'});E.play(keep,0);ok(E.resolveSwap(keep,false),'AI declines');E.play(keep,1);eq(keep.human,1,'decline preserves colors');eq(keep.turn,1,'decline has normal reply');E.undoRound(keep);eq(keep.moves,[],'decline round undo');
+  const high=E.create(n,{difficulty:'high'});eq(high.turn,high.ai,'High AI starts');eq(high.human,2,'High player blue');E.play(high,0);ok(!E.canUndo(high),'cannot undo AI opening alone');E.play(high,n);E.play(high,1);E.undoRound(high);eq(high.moves,[0],'High undo keeps AI opening');eq(high.turn,2,'High undo returns human turn');ok(!E.resolveSwap(high,true),'High cannot swap');
  }
- for(const difficulty of ['easy','medium','high']){
-  const t=opening(), original=Array.from(t.board);
-  const result=await AI.search({action:'choose-opening',size:7,board:t.board,candidates:[7,48],difficulty,budgetMs:70,maxIterations:24,seed:4});
-  ok([7,48].includes(result.move),`${difficulty} chooses only offered red point`);eq(Array.from(t.board),original,'choice search is pure');
-  ok(result.algorithm.includes('choice'),`${difficulty} reports choice search`);
-  if(difficulty==='easy')eq(result.move,48,'AI chooses less favorable red connection');
- }
- await assert.rejects(AI.search({action:'choose-opening',size:7,board:opening().board,candidates:[7,7],difficulty:'easy'}));checks++;
- const result=await AI.search({action:'choose-opening',size:13,board:opening(13).board,candidates:[13,14],difficulty:'high',budgetMs:5000},null,()=>true);
- eq(result.move,-1,'cancelled choice returns no move');
- console.log(`Hex choice opening verified: ${checks} checks passed.`);
+ for(const first of [0,24]){const b=new Uint8Array(49);b[first]=1;const r=await AI.search({action:'swap',size:7,board:b,difficulty:'medium',budgetMs:2000,maxIterations:48,seed:4});eq(r.swap,first===24,'center taken over, corner declined');if(!r.swap)ok(b[r.move]===0,'decline includes legal blue reply');eq(b.filter(v=>v).length,1,'swap evaluation pure');}
+ const cancelledBoard=new Uint8Array(49);cancelledBoard[24]=1;const cancelled=await AI.search({action:'swap',size:7,board:cancelledBoard,difficulty:'medium'},null,()=>true);eq(cancelled.swap,null,'cancelled swap has no decision');eq(cancelled.move,-1,'cancelled swap has no move');await assert.rejects(AI.search({action:'swap',size:7,board:new Uint8Array(49),difficulty:'medium'}));checks++;
+ console.log(`Hex difficulty openings verified: ${checks} checks passed.`);
 })().catch(e=>{console.error(e);process.exitCode=1;});

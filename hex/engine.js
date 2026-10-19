@@ -103,7 +103,12 @@
       moves: [],
       path: []
     };
-    if (options.choiceOpening) state.opening = { phase: 'first', candidates: [], selected: null };
+    if (['easy', 'medium', 'high'].includes(options.difficulty)) {
+      state.human = options.difficulty === 'high' ? BLUE : RED;
+      state.ai = 3 - state.human;
+      state.opening = { rule: options.difficulty === 'medium' ? 'swap' : 'none', phase: 'first', swapped: false };
+      state.history = [];
+    }
     dsuCache.set(state, makeDsu(size));
     return state;
   }
@@ -111,15 +116,16 @@
   function play(state, index) {
     if (!state || !isSize(state.size)) return false;
     if (state.winner !== 0) return false;
-    if (state.opening && ['offer', 'choose'].includes(state.opening.phase)) return false;
+    if (state.opening && state.opening.phase === 'swap') return false;
     if (!isPlayer(state.turn)) return false;
     if (!Number.isInteger(index) || index < 0 || index >= state.size * state.size) return false;
     if (state.board[index] !== 0) return false;
 
     const size = state.size, color = state.turn;
+    if (state.history) state.history.push({ type: 'move', index, actor: color === state.human ? 'human' : 'ai', before: checkpoint(state) });
     state.board[index] = color;
     state.moves.push(index);
-    if (state.opening && state.moves.length <= 2) state.opening.phase = state.moves.length === 1 ? 'reply' : 'offer';
+    if (state.opening && state.moves.length === 1) state.opening.phase = state.opening.rule === 'swap' ? 'swap' : 'done';
 
     let dsu = dsuCache.get(state);
     if (!dsu || dsu.size !== size) {
@@ -138,33 +144,39 @@
     return true;
   }
 
-  function propose(state, index) {
-    if (!state || state.winner || state.turn !== RED || !state.opening || state.opening.phase !== 'offer') return false;
-    if (!Number.isInteger(index) || index < 0 || index >= state.size * state.size || state.board[index] !== 0) return false;
-    const candidates = state.opening.candidates;
-    const existing = candidates.indexOf(index);
-    if (existing >= 0) candidates.splice(existing, 1);
-    else candidates.push(index);
-    if (candidates.length === 2) state.opening.phase = 'choose';
+  function checkpoint(state) {
+    return { turn: state.turn, human: state.human, ai: state.ai, opening: { ...state.opening } };
+  }
+
+  function resolveSwap(state, takeOver) {
+    const opening = state && state.opening;
+    if (!opening || opening.rule !== 'swap' || opening.phase !== 'swap' || state.moves.length !== 1 || typeof takeOver !== 'boolean') return false;
+    state.history.push({ type: 'swap', before: checkpoint(state) });
+    opening.phase = 'done';
+    opening.swapped = takeOver;
+    if (takeOver) { state.human = BLUE; state.ai = RED; }
     return true;
   }
 
-  function resolveOpening(state, index) {
-    const opening = state && state.opening;
-    if (!opening || opening.phase !== 'choose' || opening.candidates.length !== 2 || !opening.candidates.includes(index) || state.board[index] !== 0) return false;
-    opening.phase = 'done';
-    if (!play(state, index)) { opening.phase = 'choose'; return false; }
-    opening.selected = index;
-    return true;
+  function humanMoves(state) {
+    return state.history ? state.history.filter(item => item.type === 'move' && item.actor === 'human').length : Math.ceil(state.moves.length / 2);
   }
+  function canUndo(state) { return state.history ? humanMoves(state) > 0 : state.moves.length > 0; }
 
   function undoRound(state) {
     if (!state || !Array.isArray(state.moves) || state.moves.length === 0) return false;
     const size = state.size;
     if (!isSize(size) || !state.board) return false;
-    if (state.opening && ['offer', 'choose'].includes(state.opening.phase) && state.opening.candidates.length) {
-      state.opening.candidates = [];
-      state.opening.phase = 'offer';
+    if (state.history) {
+      if (!canUndo(state)) return false;
+      while (state.history.length) {
+        const action = state.history.pop();
+        if (action.type === 'move') { state.board[action.index] = 0; state.moves.pop(); }
+        Object.assign(state, action.before);
+        if (action.type === 'move' && action.actor === 'human') break;
+      }
+      state.winner = 0; state.path = [];
+      dsuCache.set(state, rebuildDsu(state.board, size));
       return true;
     }
     // Moves always alternate red then blue, red first.
@@ -176,11 +188,6 @@
     state.winner = 0;
     state.path = [];
     state.turn = RED;
-    if (state.opening && state.moves.length <= 2) {
-      state.opening.phase = state.moves.length === 0 ? 'first' : state.moves.length === 1 ? 'reply' : 'offer';
-      state.opening.candidates = [];
-      state.opening.selected = null;
-    }
     dsuCache.set(state, rebuildDsu(state.board, size));
     return true;
   }
@@ -342,8 +349,9 @@
     neighbors,
     create,
     play,
-    propose,
-    resolveOpening,
+    resolveSwap,
+    humanMoves,
+    canUndo,
     undoRound,
     winner,
     winningPath,

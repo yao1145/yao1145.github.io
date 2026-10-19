@@ -10,7 +10,7 @@ let checks=0,browser;
 function ok(a,b){assert.ok(a,b);checks++;}function eq(a,b,c){assert.deepEqual(a,b,c);checks++;}
 function mockWorker(){
  window.Worker=class{
-  postMessage({id,request}){window.hexLastBudget=request.budgetMs;let move=request.action==='choose-opening'?request.candidates[0]:Array.from(request.board).findIndex((v,i)=>v===0&&i%request.size!==0);setTimeout(()=>this.onmessage?.({data:{id,type:'result',result:{move,iterations:1,winRate:.5,elapsedMs:1}}}),1);}
+  postMessage({id,request}){window.hexLastBudget=request.budgetMs;const n=request.size;let move=Array.from(request.board).findIndex((v,i)=>v===0&&(request.player===1?i>=n*(n-1):i%n!==0));setTimeout(()=>this.onmessage?.({data:{id,type:'result',result:{move,swap:request.action==='swap',iterations:1,winRate:.5,elapsedMs:1}}}),1);}
   terminate(){}
  };
 }
@@ -21,11 +21,11 @@ async function fresh(options={},init){const c=await browser.newContext({locale:'
  let {c,p}=await fresh({},mockWorker);
  await p.locator('#start-campaign').click();
  for(let id=1;id<=12;id++){
-  const size=(await snap(p)).state.size;
-  for(let r=0;r<size;r++){await move(p,r*size);if(r===1)await move(p,r*size+1);await settled(p);}
-  let s=await snap(p);eq(s.state.winner,1,`level ${id} win settles`);eq(s.progress.levels[id-1].wins,1,`level ${id} record`);
+  await settled(p);let state=(await snap(p)).state;const size=state.size;const isSwapLevel=id%3===2;if(isSwapLevel){await move(p,size*size-1);await settled(p);state=(await snap(p)).state;}
+  for(let r=0;r<size;r++){await move(p,state.human===1?r*size:r);await settled(p);}
+  let s=await snap(p);eq(s.state.winner,s.state.human,`level ${id} human win settles`);eq(s.progress.levels[id-1].wins,1,`level ${id} record`);
   eq(s.progress.unlocked,Math.min(12,id+1),`level ${id} unlock`);
-  eq(s.progress.levels[id-1].last.moves,size,`level ${id} moves recorded`);
+  eq(s.progress.levels[id-1].last.moves,size+(isSwapLevel?1:0),`level ${id} moves recorded`);
   ok(await p.locator('.win-line').count()===1,`level ${id} path rendered`);
   if(id<12)await p.locator('#next').click();
  }
@@ -64,16 +64,16 @@ async function fresh(options={},init){const c=await browser.newContext({locale:'
  eq(await p.evaluate(()=>hexLastBudget),55,'fast campaign budget is actually shorter');
  await c.close();
  // A live Worker should leave the main thread available for actual controls.
- ({c,p}=await fresh());await p.evaluate(()=>HexGame.startFree(13,'high'));await move(p,84);
+ ({c,p}=await fresh());await p.evaluate(()=>HexGame.startFree(13,'high'));
  const before=Date.now();await p.locator('#theme').click();ok(Date.now()-before<1000,'theme responds during high search');
- await p.locator('#restart').click();await p.waitForTimeout(150);eq((await snap(p)).state.moves.length,0,'restart cancels real Worker');await c.close();
+ await p.locator('#restart').click();await p.evaluate(()=>HexGame.startFree(9,'easy'));await p.waitForTimeout(150);eq((await snap(p)).state.moves.length,0,'restart cancels real Worker');await c.close();
  // Main-thread fallback cancellation must also yield and discard its old result.
  ({c,p}=await fresh({viewport:{width:390,height:844},reducedMotion:'reduce'},()=>{window.Worker=function(){throw Error('Unavailable');};}));
  for(let size=7;size<=13;size++){await p.evaluate(n=>HexGame.startFree(n,'easy'),size);eq(await p.locator('[data-index]').count(),size*size,`free size ${size}`);}
  const geometry=await p.locator('[data-index="84"]').boundingBox();ok(geometry.width>=43,'large mobile targets after enlargement');
  await p.evaluate(()=>{window.hexTicks=0;window.hexTickTimer=setInterval(()=>hexTicks++,10);HexGame.startFree(13,'high');});
- await move(p,0);await p.waitForTimeout(70);ok(await p.evaluate(()=>hexTicks)>1,'fallback yields to main event loop');
- await p.locator('#restart').click();await p.waitForTimeout(200);eq((await snap(p)).state.moves.length,0,'restart cancels fallback');
+ await p.waitForTimeout(70);ok(await p.evaluate(()=>hexTicks)>1,'fallback yields to main event loop');
+ await p.locator('#restart').click();await p.evaluate(()=>HexGame.startFree(9,'easy'));await p.waitForTimeout(200);eq((await snap(p)).state.moves.length,0,'restart cancels fallback');
  await p.evaluate(()=>clearInterval(hexTickTimer));
  await p.screenshot({path:path.resolve('.codex/hex/mobile-large.png'),fullPage:true});await c.close();
  // A silent Worker times out and recovers using real local AI.

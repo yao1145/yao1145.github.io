@@ -19,10 +19,10 @@
   <header class="masthead"><a href="../" data-t="back">← 游戏主页</a><div><span data-t="kicker">六边形 · 连接边界 · 十二关</span><button id="language-toggle" class="language-toggle" type="button" aria-label="切换语言" title="切换语言">EN</button><button id="theme" class="theme" type="button" aria-label="切换颜色主题">◐</button></div></header>
   <div class="intro">
     <div><p class="eyebrow">HEX XII · Connection Game</p><h1>HEX XII</h1></div>
-    <p><span data-t="tagline1">你执红，连接上下；AI 执蓝，连接左右。</span><br><strong data-t="tagline2">先连成一条不断的线者获胜。</strong></p>
+    <p><span data-t="tagline1">按难度选择先后手与交换规则。</span><br><strong data-t="tagline2">先连成一条不断的线者获胜。</strong></p>
   </div>
 
-  <p class="opening-rule" data-t="opening-rule">交换开局：第二回合提出两个红棋候选点，AI 选一个保留，再落蓝棋。</p>
+  <p class="opening-rule" data-t="opening-rule">Easy：玩家先手，无交换。Medium：玩家先手，AI 可接管首着。High：AI 先手，无交换。</p>
   <section class="menu" id="menu" aria-label="开始对局" data-ta="menu-section">
     <div class="mode-card">
       <div>
@@ -94,8 +94,8 @@
         <div class="stat-line"><span data-t="stat-ai">AI 思考</span><b id="stat-ai">0.0 s</b></div>
         <div class="stat-line"><span data-t="stat-moves">你的落子</span><b id="stat-moves">0</b></div>
       </div>
-      <div class="message" id="message" role="status" aria-live="polite" aria-atomic="true"><h2 id="message-title">轮到你落子</h2><p id="message-text">你执红，把上边和下边连起来。</p></div>
-      <div class="thinking" id="thinking" hidden><span class="thinking-dot" aria-hidden="true"></span><p id="thinking-text">蓝方正在搜索落点…</p></div>
+      <div class="message" id="message" role="status" aria-live="polite" aria-atomic="true"><h2 id="message-title">轮到你落子</h2><p id="message-text">连接属于你的两条边界。</p></div>
+      <div class="thinking" id="thinking" hidden><span class="thinking-dot" aria-hidden="true"></span><p id="thinking-text">AI 正在搜索落点…</p></div>
       <div class="tools">
         <button class="btn" id="undo" type="button" hidden>撤销 <kbd>Z</kbd></button>
         <button class="btn" id="hint" type="button" hidden>提示</button>
@@ -111,9 +111,9 @@
         <div class="analysis-row"><span data-t="ana-red-distance">红方连接距离</span><b id="ana-red">—</b></div>
         <div class="analysis-row"><span data-t="ana-blue-distance">蓝方连接距离</span><b id="ana-blue">—</b></div>
         <div class="analysis-row"><span data-t="ana-bridges">已形成双桥</span><b id="ana-bridges">红 0 · 蓝 0</b></div>
-        <div class="analysis-row"><span data-t="ana-winrate">搜索胜率估计</span><b id="ana-winrate">尚未估算</b></div>
+        <div class="analysis-row"><span data-t="ana-winrate">AI 胜率估计</span><b id="ana-winrate">尚未估算</b></div>
         <div class="analysis-row"><span data-t="ana-candidates">关键候选</span><b id="ana-candidates">—</b></div>
-        <p class="analysis-note" id="analysis-note">距离按经过的空格数计；双桥与候选为启发式提示；胜率来自 AI 搜索，是估计值。</p>
+        <p class="analysis-note" id="analysis-note">距离按经过的空格数计；双桥与候选为启发式提示；胜率综合 AI 搜索和开局评估。</p>
       </section>
     </aside>
   </div>
@@ -134,8 +134,8 @@
     <div class="rule-body">
       <div>
         <h3 data-t="rules-h1">红连上下，蓝连左右</h3>
-        <p data-t="rules-p1">你执红棋，连接上边和下边；AI 执蓝棋，连接左边和右边。共享一条边的六边形格子相连。</p>
-        <p data-t="rules-p2">红方先手。第二回合提出两个不同空格作为红棋候选点，AI 选定一个，另一格恢复为空；随后 AI 正常落蓝棋，此后双方每回合各落一子。已落下的棋子不能移动或被吃掉，先连通目标边界者获胜。</p>
+        <p data-t="rules-p1">红棋连接上边和下边，蓝棋连接左边和右边。你的棋色取决于难度和是否交换；棋盘上方与图例会显示双方身份。共享一条边的六边形格子相连。</p>
+        <p data-t="rules-p2">每回合在空格放一颗棋子。Easy 玩家先手、无交换；Medium 玩家先手，AI 可接管首着并与玩家交换棋色及目标边界，交换后立即轮到玩家，不额外落子；High AI 先手、无交换。已落棋子不能移动或被吃掉，先连通目标边界者获胜。</p>
         <p data-t="rules-p3">棋盘边长从 7 到 13。手机上的大棋盘可以点“放大棋盘”，左右滑动查看，页面本身仍可双指缩放。</p>
       </div>
       <div>
@@ -153,12 +153,12 @@
         <h3 data-t="math-h1">连接距离</h3>
         <p data-t="math-p1">把棋盘看成图：每个格子是一个顶点，六个方向相邻就有边。己方棋子通过成本为 0，空格为 1，对方棋子不可通过。用 0-1 BFS 可以求出从一侧边界到另一侧边界的最小连接成本，页面分析中的“连接距离”就是这个数。</p>
         <p data-t="math-p2">双桥由两枚不相邻的同色棋子和两个共享的空格邻居组成。对手占据其中一格时，可以用另一格把两枚棋子连起来。分析模式会标出双方的双桥结构。</p>
-        <p data-t="math-p3">普通 Hex 的对称棋盘存在先手必胜策略。本游戏在第二回合加入候选选择：红方提出两种落点方案，蓝方 AI 比较局面并决定保留哪一个，再下蓝棋。</p>
+        <p data-t="math-p3">普通 Hex 的对称棋盘存在先手必胜策略。Easy 把先手交给玩家；Medium 允许后手 AI 接管首着，鼓励均衡开局；High 由 AI 先手。交换只改变棋色和连接目标的归属，棋盘上的首子保持原位。</p>
       </div>
       <div>
         <h3 data-t="math-h2">AI 怎样选点</h3>
         <p data-t="math-p4">入门 AI 用连接距离给候选点排序，并在一批较优点中带权随机选择。策略 AI 用蒙特卡洛树搜索（UCT）配合带双桥倾向的随机模拟。高级 AI 在此基础上加入 RAVE/AMAF 统计和更强的边界、双桥先验，用更多模拟换取更稳的落点。</p>
-        <p data-t="math-p5">分析面板里的“搜索胜率”是搜索树给出的估计值，不是严格的数学获胜概率。关键候选由一层的连接距离变化给出，用来帮助理解局面，不构成胜负证明。</p>
+        <p data-t="math-p5">胜率为 AI 当前棋色的算法估计，综合搜索与开局评估。关键候选按玩家当前棋色计算，比较一步落子后的连接距离。</p>
         <p data-t="math-p6">每关的 AI 思考预算固定，性能模式会缩短预算。计算在 Web Worker 中运行；浏览器不支持 Worker 时改用异步回退，页面保持可操作。</p>
       </div>
     </div>
