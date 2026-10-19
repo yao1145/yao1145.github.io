@@ -10,7 +10,7 @@ let checks=0,browser;
 function ok(a,b){assert.ok(a,b);checks++;}function eq(a,b,c){assert.deepEqual(a,b,c);checks++;}
 function mockWorker(){
  window.Worker=class{
-  postMessage({id,request}){window.hexLastBudget=request.budgetMs;let move=Array.from(request.board).findIndex((v,i)=>v===0&&i%request.size!==0);setTimeout(()=>this.onmessage?.({data:{id,type:'result',result:{move,iterations:1,winRate:.5,elapsedMs:1}}}),1);}
+  postMessage({id,request}){window.hexLastBudget=request.budgetMs;let move=request.action==='choose-opening'?request.candidates[0]:Array.from(request.board).findIndex((v,i)=>v===0&&i%request.size!==0);setTimeout(()=>this.onmessage?.({data:{id,type:'result',result:{move,iterations:1,winRate:.5,elapsedMs:1}}}),1);}
   terminate(){}
  };
 }
@@ -22,7 +22,7 @@ async function fresh(options={},init){const c=await browser.newContext({locale:'
  await p.locator('#start-campaign').click();
  for(let id=1;id<=12;id++){
   const size=(await snap(p)).state.size;
-  for(let r=0;r<size;r++){await move(p,r*size);await settled(p);}
+  for(let r=0;r<size;r++){await move(p,r*size);if(r===1)await move(p,r*size+1);await settled(p);}
   let s=await snap(p);eq(s.state.winner,1,`level ${id} win settles`);eq(s.progress.levels[id-1].wins,1,`level ${id} record`);
   eq(s.progress.unlocked,Math.min(12,id+1),`level ${id} unlock`);
   eq(s.progress.levels[id-1].last.moves,size,`level ${id} moves recorded`);

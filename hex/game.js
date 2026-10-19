@@ -27,6 +27,13 @@
   const FREE_BUDGET = { easy: 250, medium: 1600, high: 4500 };
 
   const DICT = {
+    'opening-rule': ['交换开局：第二回合提出两个红棋候选点，AI 选一个保留，再落蓝棋。', 'Choice opening: on your second turn, offer two red points. The AI keeps one, then plays blue.'],
+    'opening-offer-title': ['提出两个红棋候选点', 'Offer two red points'],
+    'opening-offer-text': ['第二回合先选两个不同空格，由 AI 决定保留哪颗红棋。已选 {n}/2；再点候选可撤回。', 'On your second turn, offer two empty hexes. The AI keeps one red stone. Selected {n}/2; tap a candidate again to remove it.'],
+    'opening-choose-title': ['AI 正在选择红棋', 'AI is choosing your red stone'],
+    'opening-choose-text': ['AI 比较两个候选局面，选定红棋后再正常落蓝棋。', 'The AI compares both red positions, then plays its blue reply.'],
+    'opening-selected': ['AI 选中 {coord} 为红棋，另一候选已撤回。', 'The AI kept red at {coord} and withdrew the other proposal.'],
+    'opening-cell': ['{coord}，红棋候选，点击撤回', '{coord}, red candidate, click to remove'],
     'doc-title': ['HEX XII · 连接你的两条边界', 'HEX XII · Connect your two edges'],
     'doc-description': [
       'HEX XII：在 7×7 到 13×13 的六边形棋盘上连接两条边界。十二关、三档 AI、自由对局与局面分析。',
@@ -156,8 +163,8 @@
     'candidate-value': ['{coords}', '{coords}'],
     'rules-title': ['玩法：把两条边连成一条线', 'Rules: join two opposite edges'],
     'rules-h1': ['红连上下，蓝连左右', 'Red joins top to bottom'],
-    'rules-p1': ['你执红棋，目标是把上边和下边用连续的红棋连起来。AI 执蓝棋，目标是把左边和右边连起来。斜对角相邻的格子也算相连。', 'You play red and join the top edge to the bottom edge with connected red stones. The AI plays blue and joins the left edge to the right edge. Diagonal neighbours count as connected.'],
-    'rules-p2': ['点击空格落子，红方先手，之后与 AI 轮流落子。棋子落下后不能移动，也不能被吃掉。任意一方先连成目标边界就获胜；Hex 棋盘不会出现平局。', 'Tap an empty cell. Red moves first, then you alternate with the AI. Stones never move or get captured. The first side to connect its target edges wins, and Hex has no draws.'],
+    'rules-p1': ['你执红棋，连接上边和下边；AI 执蓝棋，连接左边和右边。共享一条边的六边形格子相连。', 'You play red and connect top to bottom; the blue AI connects left to right. Hexes sharing an edge are adjacent.'],
+    'rules-p2': ['红方先手。第二回合提出两个不同空格作为红棋候选点，AI 选定一个，另一格恢复为空；随后 AI 正常落蓝棋，此后双方每回合各落一子。已落下的棋子不能移动或被吃掉，先连通目标边界者获胜。', 'Red plays first. On your second turn, offer two different empty hexes for red. The AI keeps one and leaves the other empty, then plays blue. After that, each side places one stone per turn. Placed stones stay fixed; connect your target edges first to win.'],
     'rules-p3': ['棋盘边长从 7 到 13。手机上的大棋盘可以点“放大棋盘”，左右滑动查看，页面本身仍可双指缩放。', 'Boards run from 7 to 13 per side. On a phone, use Enlarge board and scroll to inspect a large board. Page pinch-zoom remains available.'],
     'rules-h2': ['闯关与自由对局', 'Campaign and free play'],
     'rules-p4': ['闯关模式共十二关，按 7×7、9×9、11×11、13×13 排列，每档尺寸都有入门、策略、高级三关。胜出一关会解锁下一关，并记录挑战次数、胜场和最佳用时。', 'The campaign has twelve levels: 7×7, 9×9, 11×11, and 13×13, each with Easy, Medium, and High tiers. A win unlocks the next level and records attempts, wins, and your best time.'],
@@ -167,7 +174,7 @@
     'math-h1': ['连接距离', 'Connection distance'],
     'math-p1': ['把棋盘看成图：每个格子是一个顶点，六个方向相邻就有边。己方棋子通过成本为 0，空格为 1，对方棋子不可通过。用 0-1 BFS 可以求出从一侧边界到另一侧边界的最小连接成本，页面分析中的“连接距离”就是这个数。', 'View the board as a graph: one vertex per cell, an edge between the six neighbours. Your stones cost 0 to cross, empty cells cost 1, and enemy stones are blocked. A 0-1 BFS gives the minimum connection cost between the two target edges, which is the connection distance shown in analysis.'],
     'math-p2': ['双桥由两枚不相邻的同色棋子和两个共享的空格邻居组成。对手占据其中一格时，可以用另一格把两枚棋子连起来。分析模式会标出双方的双桥结构。', 'A bridge consists of two nonadjacent friendly stones with two shared empty neighbours. If the opponent takes one carrier, you can connect through the other. Analysis marks these structures for both sides.'],
-    'math-p3': ['Hex 的策略窃取论证说明，标准对称棋盘存在先手必胜策略。本游戏始终由红方先手，蓝方 AI 在给定思考预算内搜索应对。', 'The strategy-stealing argument establishes a first-player winning strategy on the standard symmetric board. Red always plays first here, and the blue AI searches for a response within its thinking budget.'],
+    'math-p3': ['普通 Hex 的对称棋盘存在先手必胜策略。本游戏在第二回合加入候选选择：红方提出两种落点方案，蓝方 AI 比较局面并决定保留哪一个，再下蓝棋。', 'Ordinary Hex on a symmetric board has a first-player winning strategy. Here the second red turn has a choice: you offer two red points, and the blue AI compares the resulting positions before keeping one and playing its blue reply.'],
     'math-h2': ['AI 怎样选点', 'How the AI chooses'],
     'math-p4': ['入门 AI 用连接距离给候选点排序，并在一批较优点中带权随机选择。策略 AI 用蒙特卡洛树搜索（UCT）配合带双桥倾向的随机模拟。高级 AI 在此基础上加入 RAVE/AMAF 统计和更强的边界、双桥先验，用更多模拟换取更稳的落点。', 'Easy AI ranks candidates by connection distance and picks among the better ones with weighted randomness. Medium AI runs Monte Carlo tree search with UCT and bridge-biased playouts. High AI adds RAVE/AMAF statistics and stronger edge and bridge priors, spending more playouts for a steadier move.'],
     'math-p5': ['分析面板里的“搜索胜率”是搜索树给出的估计值，不是严格的数学获胜概率。关键候选由一层的连接距离变化给出，用来帮助理解局面，不构成胜负证明。', 'The search win rate in analysis is the tree search’s estimate, not an exact mathematical probability. Key candidates come from one-ply changes in connection distance and help you read the position; they are not a proof of the result.'],
@@ -591,7 +598,10 @@
   function updateBoardHint() {
     if (!game) return;
     let text = t('board-help');
-    if (game.hintIndex !== null) text = fill('hint-note', { coord: coordOf(game.hintIndex) });
+    if (game.state.opening && game.state.opening.phase === 'offer') text = fill('opening-offer-text', { n: game.state.opening.candidates.length });
+    else if (game.state.opening && game.state.opening.phase === 'choose') text = t('opening-choose-text');
+    else if (game.state.opening && game.state.opening.selected !== null && game.state.moves.length <= 4) text = fill('opening-selected', { coord: coordOf(game.state.opening.selected) });
+    else if (game.hintIndex !== null) text = fill('hint-note', { coord: coordOf(game.hintIndex) });
     else if (zoomOn) text = t('zoom-hint');
     $('board-hint').textContent = text;
   }
@@ -609,18 +619,24 @@
     const winning = new Set(Array.isArray(game.state.path) ? game.state.path : []);
     $('board-svg').classList.toggle('finished', Boolean(winner));
     const last = lastMoveIndex();
+    const opening = game.state.opening;
+    const offered = opening && ['offer', 'choose'].includes(opening.phase) ? opening.candidates : [];
     cells.forEach((cell, index) => {
       const value = board[index];
-      cell.group.classList.toggle('red', value === 1);
+      const candidate = offered.includes(index);
+      cell.group.classList.toggle('red', value === 1 || candidate);
       cell.group.classList.toggle('blue', value === 2);
+      cell.group.classList.toggle('offered', candidate);
+      cell.group.classList.toggle('opening-selected', Boolean(opening && opening.selected === index));
       cell.group.classList.toggle('path', winning.has(index));
       cell.group.style.setProperty('--path-order', Math.max(0, game.state.path.indexOf(index)));
-      cell.stone.style.display = value ? '' : 'none';
+      cell.stone.style.display = value || candidate ? '' : 'none';
       cell.stone.classList.toggle('placed', value && index === game.animateIndex);
       cell.shine.style.display = value ? '' : 'none';
       cell.lastRing.style.display = index === last ? '' : 'none';
       cell.group.setAttribute('tabindex', index === focusIndex ? '0' : '-1');
       let label = value === 1 ? fill('cell-red', { coord: coordOf(index) }) : value === 2 ? fill('cell-blue', { coord: coordOf(index) }) : fill('cell-empty', { coord: coordOf(index) });
+      if (candidate) label = fill('opening-cell', { coord: coordOf(index) });
       if (index === last) label += t('cell-last');
       if (winning.has(index)) label += language === 'zh' ? '，获胜连线' : ', winning path';
       cell.group.setAttribute('aria-label', label);
@@ -708,6 +724,12 @@
       title = t('msg-lost-title');
       text = game.mode === 'campaign' ? t('msg-lost-campaign') : t('msg-lost-free');
       tone = 'lost';
+    } else if (state.opening && state.opening.phase === 'choose') {
+      title = t('opening-choose-title');
+      text = t('opening-choose-text');
+    } else if (state.opening && state.opening.phase === 'offer') {
+      title = t('opening-offer-title');
+      text = fill('opening-offer-text', { n: state.opening.candidates.length });
     } else if (game.thinking) {
       title = t('msg-thinking-title');
       text = t('msg-thinking-text');
@@ -728,11 +750,11 @@
     const chip = $('turn-chip');
     chip.classList.toggle('blue', game.thinking && !state.winner);
     chip.classList.toggle('done', Boolean(state.winner));
-    chip.textContent = state.winner === 1 ? t('turn-won') : state.winner === 2 ? t('turn-lost') : game.thinking ? t('turn-blue') : t('turn-red');
+    chip.textContent = state.winner === 1 ? t('turn-won') : state.winner === 2 ? t('turn-lost') : state.opening && state.opening.phase === 'choose' ? t('opening-choose-title') : game.thinking ? t('turn-blue') : t('turn-red');
 
     $('thinking').hidden = !game.thinking;
     if (game.thinking) {
-      $('thinking-text').textContent = game.winRate === null
+      $('thinking-text').textContent = state.opening && state.opening.phase === 'choose' ? t('opening-choose-text') : game.winRate === null
         ? t('thinking-text')
         : fill('thinking-progress', { it: game.iterations || 0, pct: Math.round(game.winRate * 100) });
     }
@@ -916,7 +938,7 @@
       size,
       difficulty,
       budgetMs,
-      state: E.create(size),
+      state: E.create(size, { choiceOpening: true }),
       startedAt: Date.now(),
       elapsedMs: 0,
       aiMs: 0,
@@ -986,6 +1008,15 @@
     if (!canPlay()) return false;
     if (!Number.isInteger(index) || index < 0 || index >= game.size * game.size) return false;
     if (game.state.board[index] !== 0) return false;
+    if (game.state.opening && game.state.opening.phase === 'offer') {
+      if (!E.propose(game.state, index)) return false;
+      game.hintIndex = null;
+      focusIndex = index;
+      renderAll();
+      if (game.state.opening.phase === 'choose') startAI();
+      else announce(fill('opening-offer-text', { n: game.state.opening.candidates.length }));
+      return true;
+    }
     const ok = E.play(game.state, index);
     if (!ok) return false;
     game.humanMoves = countStones(1);
@@ -1092,12 +1123,14 @@
       game.winRate = Math.max(0, Math.min(1, progress.winRate));
       if (analysisEnabled()) $('ana-winrate').textContent = fill('winrate-value', { pct: Math.round(game.winRate * 100) });
     }
-    if (!game.winRate) $('thinking-text').textContent = t('thinking-text');
+    if (game.state.opening && game.state.opening.phase === 'choose') $('thinking-text').textContent = t('opening-choose-text');
+    else if (game.winRate === null) $('thinking-text').textContent = t('thinking-text');
     else $('thinking-text').textContent = fill('thinking-progress', { it: game.iterations || 0, pct: Math.round(game.winRate * 100) });
   }
 
   async function startAI() {
     if (!game || game.ended || game.state.winner) return;
+    const choosing = Boolean(game.state.opening && game.state.opening.phase === 'choose');
     game.thinking = true;
     game.winRate = null;
     game.iterations = 0;
@@ -1111,6 +1144,10 @@
       difficulty: game.difficulty,
       budgetMs: game.budgetMs
     };
+    if (choosing) {
+      request.action = 'choose-opening';
+      request.candidates = game.state.opening.candidates.slice();
+    }
     const started = performance.now();
     const onProgress = progress => {
       if (token === searchToken && game && game.thinking) handleProgress(progress);
@@ -1134,8 +1171,16 @@
     if (token !== searchToken || !game || game.ended) return;
     const elapsed = Math.max(0, performance.now() - started);
     let move = result && Number.isInteger(result.move) ? result.move : -1;
-    if (move < 0 || move >= game.size * game.size || game.state.board[move] !== 0) {
-      move = legalRecoveryMove();
+    if (move < 0 || move >= game.size * game.size || game.state.board[move] !== 0 || (choosing && !request.candidates.includes(move))) {
+      if (choosing) {
+        let bestScore = -Infinity;
+        move = request.candidates[0];
+        for (const candidate of request.candidates) {
+          const trial = game.state.board.slice(); trial[candidate] = 1;
+          const score = E.connection(trial, game.size, 1).distance - E.connection(trial, game.size, 2).distance;
+          if (score > bestScore) { bestScore = score; move = candidate; }
+        }
+      } else move = legalRecoveryMove();
       result = null;
       if (game) game.recovered = true;
     }
@@ -1149,6 +1194,16 @@
     if (result && Number.isFinite(result.winRate)) game.winRate = Math.max(0, Math.min(1, result.winRate));
     game.thinking = false;
     game.animateIndex = move;
+    if (choosing) {
+      if (!E.resolveOpening(game.state, move)) { renderAll(); return; }
+      game.humanMoves = countStones(1);
+      game.hintIndex = null;
+      renderAll();
+      announce(fill('opening-selected', { coord: coordOf(move) }));
+      if (game.state.winner) finishGame();
+      else startAI();
+      return;
+    }
     game.aiMoves = countStones(2) + 1;
     const played = E.play(game.state, move);
     if (!played) {
@@ -1229,7 +1284,7 @@
       try { beginAttempt(game.levelId); } catch {}
     }
     const size = game.size;
-    game.state = E.create(size);
+    game.state = E.create(size, { choiceOpening: true });
     game.startedAt = Date.now();
     game.elapsedMs = 0;
     game.aiMs = 0;
@@ -1384,7 +1439,8 @@
           turn: game.state.turn,
           winner: game.state.winner,
           moves: game.state.moves.slice(),
-          path: game.state.path.slice()
+          path: game.state.path.slice(),
+          opening: game.state.opening ? JSON.parse(JSON.stringify(game.state.opening)) : null
         } : null,
         mode: game ? game.mode : null,
         levelId: game && game.mode === 'campaign' ? game.levelId : null,

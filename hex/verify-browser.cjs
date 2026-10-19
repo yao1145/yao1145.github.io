@@ -57,6 +57,11 @@ async function layout(p,width,height=920){
    return HexEngine.connection(b,s.size,1).path.find(i=>!b[i])??b.findIndex(v=>!v);
   });
   await move(page,index);await settled(page);
+  const proposal=(await snap(page)).state.opening;
+  if(proposal&&proposal.phase==='offer'&&proposal.candidates.length===1){
+   const second=await page.evaluate(()=>{const s=HexGame.snapshot().state;return s.board.findIndex((v,i)=>!v&&!s.opening.candidates.includes(i));});
+   await move(page,second);await settled(page);
+  }
  }
  ok((await snap(page)).state.winner>0,'complete legal browser game');
  ok((await snap(page)).state.path.length>=7,'winner path displayed');

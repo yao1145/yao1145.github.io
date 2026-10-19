@@ -81,7 +81,39 @@
     for (let k = 0; k < items.length; k++) { value -= weights[k]; if (value <= 0) return items[k]; }
     return items[items.length - 1];
   }
+  async function chooseOpening(request, onProgress, isCancelled) {
+    const started = clock(), n = request.size, candidates = request.candidates;
+    if (!Number.isInteger(n) || n < 2 || n > 13 || !request.board || request.board.length !== n * n ||
+      !Array.isArray(candidates) || candidates.length !== 2 || candidates[0] === candidates[1] ||
+      candidates.some(i => !Number.isInteger(i) || i < 0 || i >= n * n || request.board[i] !== 0)) throw Error('Invalid opening candidates');
+    let best = null, iterations = 0;
+    for (let k = 0; k < 2; k++) {
+      if (isCancelled && isCancelled()) return { move: -1, iterations, elapsedMs: clock() - started, winRate: null, algorithm: 'Opening choice cancelled' };
+      const trial = Uint8Array.from(request.board); trial[candidates[k]] = 1;
+      const red = E.connection(trial, n, 1).distance, blue = E.connection(trial, n, 2).distance;
+      const staticScore = (Number.isFinite(red) ? red : n * 2) - (Number.isFinite(blue) ? blue : n * 2);
+      let score = staticScore, result = null;
+      if (request.difficulty !== 'easy' && !E.winner(trial, n)) {
+        result = await search({ ...request, action: undefined, candidates: undefined, player: 2, board: trial,
+          budgetMs: Math.max(5, (Number(request.budgetMs) || 100) / 2), seed: request.seed },
+          progress => { if (onProgress) onProgress({ ...progress, iterations: iterations + progress.iterations, elapsedMs: clock() - started }); }, isCancelled);
+        iterations += result.iterations;
+        if (result.move === -1 && isCancelled && isCancelled()) return { ...result, algorithm: 'Opening choice cancelled' };
+        score = (Number.isFinite(result.winRate) ? result.winRate : .5) + Math.tanh(staticScore / n) * .05;
+        if (result.move >= 0) { trial[result.move] = 2; if (E.winner(trial, n) === 2) score = Infinity; }
+      }
+      if (red === 0) score = -Infinity;
+      const candidate = { move: candidates[k], score, winRate: result && result.winRate };
+      if (!best || candidate.score > best.score) best = candidate;
+      await pause();
+    }
+    if (isCancelled && isCancelled()) return { move: -1, iterations, elapsedMs: clock() - started, winRate: null, algorithm: 'Opening choice cancelled' };
+    return { move: best.move, iterations, elapsedMs: clock() - started, winRate: best.winRate,
+      algorithm: 'Opening choice · ' + (request.difficulty === 'easy' ? '0-1 BFS' : request.difficulty === 'high' ? 'UCT + RAVE/AMAF' : 'UCT MCTS') };
+  }
+
   async function search(request, onProgress, isCancelled) {
+    if (request.action === 'choose-opening') return chooseOpening(request, onProgress, isCancelled);
     const started = clock(), n = request.size, color = request.player || 2;
     if (!Number.isInteger(n) || n < 2 || n > 13 || !request.board || request.board.length !== n * n || ![1, 2].includes(color)) throw Error('Invalid Hex search');
     const board = Uint8Array.from(request.board), adj = neighbors(n), difficulty = request.difficulty || 'easy';
