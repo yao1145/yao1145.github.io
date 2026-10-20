@@ -179,4 +179,5 @@ node tests/cube-browser.cjs
 - 新建分支默认使用 `codex/` 前缀。按用户授权执行提交、推送、合并和发布；“提交但不推送”应停在本地提交。
 - 当前 README 记录 GitHub Pages 从 `main` 的仓库根目录发布。涉及部署时重新确认 Pages 设置；推送到发布分支会影响线上站点。
 - 发布后等待 Pages 工作流结束，再验证主页、改动的游戏路由、资源和实际操作。部署中的短暂 404 应结合工作流状态判断。
+- 保留根目录 `.nojekyll`，让 Markdown 源稿按静态文件发布；文章渲染由 `scripts/build-blog.cjs` 完成，避免 Pages 再次转换带元信息的 Markdown。
 - `.gitignore` 保留 `AGENTS.md`、`CLAUDE.md`、`tests/`、`.codex/` 和 `docs/` 的忽略模式。`AGENTS.md` 已随本次博客规范单独纳入版本管理；其余文件维持现有策略，用户要求提交时再针对目标文件处理。
