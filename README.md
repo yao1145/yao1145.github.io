@@ -1,10 +1,12 @@
-# Yaozi 的小游戏
+# Yaozi 的个人网站
 
 [中文](#中文) · [English](#english)
 
 ## 中文
 
-十二款浏览器小游戏，打开网页就能玩，支持电脑和手机。
+代码、小游戏、工具与随想。Games 收集十二款浏览器小游戏，Blog 留给个人随想与文章，Tools 提供平水韵查询和灵性测试入口，Personal 介绍公开 GitHub 仓库的用途。支持电脑和手机。
+
+博客使用 Markdown 写作，格式与更新方法见 [博客写作指南](blog/README.md)。
 
 [进入网站](https://yao1145.github.io/)
 
@@ -27,7 +29,9 @@
 
 ## English
 
-Twelve browser games for desktop and mobile. Open the site and pick one to play.
+Code, small games, tools and notes. Browse twelve browser games in Games, find essays and reflections in Blog, look up Pingshui rhymes or visit the Spirituality Test in Tools, and explore my public GitHub projects in Personal. For desktop and mobile.
+
+Blog posts use Markdown. See the [writing guide](blog/README.md) for the format and update steps.
 
 [Visit the site](https://yao1145.github.io/)
 

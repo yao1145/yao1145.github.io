@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="离线查询平水韵：输入汉字查韵部，输入韵部查全部韵字。">
+  <meta name="theme-color" content="#f5f5f7">
+  <title>平水韵查询</title>
+  <link rel="icon" type="image/svg+xml" sizes="any" href="../../icons/favicon.svg">
+  <script>
+    // Apply the home page's saved language and theme before the first paint.
+    (() => {
+      let language, theme;
+      try {
+        language = localStorage.getItem('yaozi.home.language');
+        theme = localStorage.getItem('yaozi.home.theme');
+      } catch (error) {}
+      const root = document.documentElement;
+      const languageValue = language === 'zh' || language === 'en'
+        ? language
+        : ((navigator.language || 'zh').toLowerCase().startsWith('zh') ? 'zh' : 'en');
+      root.dataset.language = languageValue;
+      root.lang = languageValue === 'zh' ? 'zh-CN' : 'en';
+      const preference = theme === 'light' || theme === 'dark' ? theme : 'system';
+      const resolved = preference === 'system'
+        ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+        : preference;
+      root.dataset.themePreference = preference;
+      root.dataset.theme = resolved;
+      root.style.colorScheme = resolved;
+      const meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.content = resolved === 'dark' ? '#111113' : '#f5f5f7';
+    })();
+  </script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="../../index.html#tools" aria-label="返回主页" data-i18n-aria="backHome">
+        <img src="../../icons/favicon.svg" alt="" width="28" height="28">
+        <span data-i18n="brand">平水韵</span>
+      </a>
+      <div class="header-actions">
+        <div class="language" role="group" aria-label="界面语言" data-i18n-aria="languageGroup">
+          <button type="button" data-language="zh" aria-pressed="true">中文</button>
+          <button type="button" data-language="en" aria-pressed="false">EN</button>
+        </div>
+        <button class="theme-toggle" id="theme-toggle" type="button" aria-label="切换明暗主题" data-i18n-aria="themeToggle">
+          <svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M20.5 14.6A8.5 8.5 0 0 1 9.4 3.5a8.5 8.5 0 1 0 11.1 11.1Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          </svg>
+          <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="hero" aria-labelledby="page-heading">
+      <p class="eyebrow" data-i18n="eyebrow">工具</p>
+      <h1 id="page-heading" data-i18n="heading">平水韵查询</h1>
+      <p class="intro" data-i18n="intro">输入汉字查所属韵部，输入韵部查全部韵字。字典随页面加载，不发送查询。</p>
+    </section>
+
+    <section class="tool-card" aria-labelledby="query-label">
+      <form id="query-form" novalidate>
+        <label class="field-label" id="query-label" for="query-input" data-i18n="queryLabel">查询内容</label>
+        <div class="query-row">
+          <input
+            id="query-input"
+            name="q"
+            type="search"
+            inputmode="search"
+            enterkeyhint="search"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
+            data-i18n-placeholder="placeholder"
+            placeholder="例如：东、一东、15合、字 东">
+          <button class="primary-button" type="submit" data-i18n="submit">查询</button>
+        </div>
+
+        <div class="query-options">
+          <fieldset class="mode-group">
+            <legend data-i18n="modeLegend">查询方式</legend>
+            <div class="mode-options">
+              <label class="mode-option">
+                <input type="radio" name="mode" value="auto" checked>
+                <span data-i18n="modeAuto">自动</span>
+              </label>
+              <label class="mode-option">
+                <input type="radio" name="mode" value="char">
+                <span data-i18n="modeChar">查字</span>
+              </label>
+              <label class="mode-option">
+                <input type="radio" name="mode" value="rhyme">
+                <span data-i18n="modeRhyme">查韵部</span>
+              </label>
+            </div>
+          </fieldset>
+          <p class="hint" data-i18n="modeHint">单字自动查询会同时给出该字的读音和同名韵部。</p>
+        </div>
+      </form>
+
+      <div class="examples">
+        <span class="examples-label" data-i18n="examples">示例</span>
+        <div class="example-list">
+          <button type="button" class="example" data-example="东">东</button>
+          <button type="button" class="example" data-example="一东">一东</button>
+          <button type="button" class="example" data-example="15合">15合</button>
+          <button type="button" class="example" data-example="十五合入">十五合入</button>
+          <button type="button" class="example" data-example="上平一东">上平一东</button>
+          <button type="button" class="example" data-example="字 东">字 东</button>
+          <button type="button" class="example" data-example="韵 一东">韵 一东</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="results" id="result" aria-live="polite" aria-atomic="false"></section>
+
+    <details class="help">
+      <summary data-i18n="helpSummary">使用说明</summary>
+      <div class="help-body">
+        <p data-i18n="helpP1">输入单个汉字，查它的全部读音、韵部和备注。若这个字同时是韵部名，也会一并给出韵部中的字。</p>
+        <p data-i18n="helpP2">输入韵部可以查完整韵字：东、一东、1、15合、十五合入、上平一东都可以。纯数字会列出该编号下的全部韵部。</p>
+        <p data-i18n="helpP3">用“字 东”强制查字，用“韵 一东”或“部 十五合”强制查韵部。也可以用上方的查询方式选项。</p>
+        <p data-i18n="helpP4">韵部原文中的方括号是原数据备注，页面原样保留；字位统计不计方括号内的注释。</p>
+        <p data-i18n="helpP5">界面语言和明暗主题沿用主页设置。查询词保存在地址栏，刷新或前进后退会恢复。</p>
+      </div>
+    </details>
+
+    <footer class="site-footer">
+      <p class="footer-source">
+        <a id="source-link" href="https://github.com/yao1145/ping_shui_yun" target="_blank" rel="noreferrer">源仓库 ping_shui_yun</a>
+        <span aria-hidden="true"> · </span>
+        <a id="data-version" href="https://github.com/yao1145/ping_shui_yun" target="_blank" rel="noreferrer">数据版本</a>
+      </p>
+      <p class="footer-note" data-i18n="footerNote">纯前端工具。数据随页面加载，不发送查询，也不改写原文。</p>
+    </footer>
+  </main>
+
+  <noscript>
+    <p class="page noscript-note">此工具需要启用 JavaScript。 / This tool requires JavaScript.</p>
+  </noscript>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
