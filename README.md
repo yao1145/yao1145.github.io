@@ -4,7 +4,7 @@
 
 ## 中文
 
-代码、小游戏、工具与随想。Games 收集十二款浏览器小游戏，Blog 留给个人随想与文章，Tools 提供平水韵查询和灵性测试入口，Personal 介绍公开 GitHub 仓库的用途。支持电脑和手机。
+代码、小游戏、工具与随想。Games 收集十二款浏览器小游戏，Blog 收录小游戏的数学论文与个人随想，Tools 提供平水韵查询和灵性测试入口，Personal 介绍公开 GitHub 仓库的用途。支持电脑和手机。
 
 博客使用 Markdown 写作，格式与更新方法见 [博客写作指南](blog/README.md)。
 
@@ -29,7 +29,7 @@
 
 ## English
 
-Code, small games, tools and notes. Browse twelve browser games in Games, find essays and reflections in Blog, look up Pingshui rhymes or visit the Spirituality Test in Tools, and explore my public GitHub projects in Personal. For desktop and mobile.
+Code, small games, tools and notes. Browse twelve browser games in Games, read the mathematics behind the games and personal notes in Blog, look up Pingshui rhymes or visit the Spirituality Test in Tools, and explore my public GitHub projects in Personal. For desktop and mobile.
 
 Blog posts use Markdown. See the [writing guide](blog/README.md) for the format and update steps.
 

@@ -11,6 +11,7 @@
       heading: '简单规则，意想不到的世界。',
       intro: '从弹幕到棋盘，从路线到点线。欢迎来到我的小游戏主页。',
       language: '语言', games: '选择游戏', sections: '分区导航',
+      readPaper: '查看论文', postLoading: '正在加载论文…', postLoadFailed: '文章加载失败，请重试。', postRetry: '重新加载',
       navGames: '游戏', navPersonal: '个人', navBlog: '博客', navTools: '工具',
       fighterDescription: '驾驶北大校徽，穿过弹幕、迎战高校 Boss。选择效果卡，搭配你的战斗路线。',
       fighterPlay: '开始战斗',
@@ -80,6 +81,7 @@
       heading: 'Simple rules. Unexpected worlds.',
       intro: 'From bullet storms to boards, paths to networks. Welcome to my little arcade.',
       language: 'Language', games: 'Choose a game', sections: 'Sections',
+      readPaper: 'Read paper', postLoading: 'Loading article…', postLoadFailed: 'Could not load this article. Please try again.', postRetry: 'Retry',
       navGames: 'Games', navPersonal: 'Personal', navBlog: 'Blog', navTools: 'Tools',
       fighterDescription: 'Pilot the Peking University emblem through bullet storms and face university bosses. Pick effect cards to shape your run.',
       fighterPlay: 'Start battle',
@@ -250,6 +252,31 @@
     if (repoEmpty) repoEmpty.hidden = valid.length > 0;
   }
 
+  const articleLoads = new Map();
+  function loadArticle(post) {
+    if (window.YAOZI_BLOG_ARTICLES?.[post.slug]) return Promise.resolve();
+    if (articleLoads.has(post.slug)) return articleLoads.get(post.slug);
+    const promise = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      let settled = false;
+      const finish = error => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        script.remove();
+        if (error) { articleLoads.delete(post.slug); reject(error); }
+        else resolve();
+      };
+      const timeout = setTimeout(() => finish(new Error('Article timed out')), 15000);
+      script.onload = () => finish(window.YAOZI_BLOG_ARTICLES?.[post.slug] ? null : new Error('Missing article'));
+      script.onerror = () => finish(new Error('Article unavailable'));
+      script.src = post.contentUrl;
+      document.head.append(script);
+    });
+    articleLoads.set(post.slug, promise);
+    return promise;
+  }
+
   function renderBlog(slug) {
     if (!postListView || !blogListView) return;
     const language = root.dataset.language;
@@ -295,10 +322,34 @@
     postTitle.textContent = pickLocalized(active.title, language) || text.blogHeading;
     postDate.textContent = formatDate(active.date);
     postBody.replaceChildren();
-    const html = pickLocalized(active.html, language);
+    postBody.removeAttribute('aria-busy');
+    const html = pickLocalized(active.html || window.YAOZI_BLOG_ARTICLES?.[active.slug], language);
     if (html) {
       // Generated from Markdown by build-blog.cjs with raw HTML disabled.
       postBody.innerHTML = html;
+      return;
+    }
+    if (active.contentUrl) {
+      postBody.setAttribute('aria-busy', 'true');
+      const loading = document.createElement('p');
+      loading.setAttribute('role', 'status');
+      loading.textContent = text.postLoading;
+      postBody.append(loading);
+      loadArticle(active).then(() => {
+        if (activeSlug === active.slug && !postView.hidden) renderBlog(active.slug);
+      }).catch(() => {
+        if (activeSlug !== active.slug || postView.hidden) return;
+        postBody.removeAttribute('aria-busy');
+        const failure = document.createElement('p');
+        failure.setAttribute('role', 'alert');
+        failure.textContent = strings[root.dataset.language].postLoadFailed;
+        const retry = document.createElement('button');
+        retry.type = 'button';
+        retry.className = 'post-retry';
+        retry.textContent = strings[root.dataset.language].postRetry;
+        retry.addEventListener('click', () => renderBlog(active.slug));
+        postBody.replaceChildren(failure, retry);
+      });
       return;
     }
     const rawBody = active.body;

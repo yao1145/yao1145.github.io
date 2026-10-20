@@ -8,3 +8,11 @@
 - License: MIT; retained in `markdown-it.LICENSE`.
 
 The downloaded package was checked against the registry's SHA-512 integrity value before extraction. Raw HTML is disabled in the generator. Update this file and rerun the blog verification when replacing the parser.
+
+## Math typesetting
+
+KaTeX **0.19.0** is the official npm UMD bundle (`katex.min.js`); its MIT license is retained in `katex.LICENSE`. The homepage loads its matching CSS and fonts from `blog/vendor/katex/`, without a CDN or browser math script.
+
+The math delimiter parser is **@vscode/markdown-it-katex 1.1.2**, from https://github.com/microsoft/vscode-markdown-it-katex. `markdown-it-katex.cjs` retains the compiled npm distribution, with its sole `require("katex")` changed to `require("./katex.min.js")`. Its MIT license is retained separately. Both tarballs were verified against the npm registry SHA-512 integrity before extraction.
+
+The generator overrides math renderers to fail on invalid TeX, disable trusted HTML/URL commands, and emit both visual HTML and accessible MathML. Unicode text is permitted. Code blocks and escaped dollar signs keep their Markdown semantics.

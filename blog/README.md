@@ -37,6 +37,20 @@ node scripts/verify-blog.cjs
 
 生成器校验元信息、合并同篇文章的语言版本、按日期倒序生成 `blog/posts.js`。格式错误时会报告文件名，并保留旧的生成文件。`--check` 只检查源稿与生成文件是否一致。
 
-通过本地 HTTP 服务访问 `/#blog` 查看列表，通过 `/#blog/first-note` 直接阅读文章。发布时一起提交 Markdown、使用的素材和 `blog/posts.js`；站点继续从 `main` 根目录发布。`blog/posts.js` 是生成文件，每次修改文章后重新生成，不手工编辑它，也不再向 `home-content.js` 手工添加文章。
+通过本地 HTTP 服务访问 `/#blog` 查看列表，通过 `/#blog/first-note` 直接阅读文章。发布时一起提交 Markdown、使用的素材、`blog/posts.js` 与 `blog/articles/`；站点继续从 `main` 根目录发布。`blog/articles/*.js` 为按需加载的文章正文；`blog/posts.js` 是文章索引。两者都是生成文件，每次修改文章后重新生成，不手工编辑它，也不再向 `home-content.js` 手工添加文章。
 
 智能体整理原稿时遵循根目录 [AGENTS.md](../AGENTS.md) 中的“博客 Markdown 与文本整理”规则。
+
+## 数学公式
+
+行内公式写作 `$x_i^2 + \alpha$`；独立公式使用单独成行的 `$$` 包围 LaTeX，例如：
+
+```text
+$$
+A x = b
+$$
+```
+
+公式在生成博客时由固定版本的 KaTeX 排版，浏览器使用站内样式与字体。支持矩阵、分段函数、求和与多行公式；保留 MathML 和原始 TeX。代码块、行内代码及转义的 `\$` 保持字面内容。无效公式会报告源文件并终止生成，修复后再发布。
+
+浏览器检查使用现有 Playwright 安装：`node scripts/verify-blog-browser.cjs`；加 `--webkit` 检查 WebKit。通过 `PLAYWRIGHT_MODULE` 指定模块路径，必要时用 `WEBKIT_EXECUTABLE` 指定匹配的引擎。默认启动本地静态服务；设置 `BLOG_TEST_URL` 可验证发布站点。

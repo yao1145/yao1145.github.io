@@ -42,6 +42,18 @@ rejects(source({}, '   '), /body/i);
 checks++; assert.throws(() => compilePosts([file('first-note.zh.md', source()), file('first-note.zh.md', source())]), /Duplicate/);
 checks++; assert.throws(() => compilePosts([file('first-note.zh.md', source()), file('first-note.en.md', source({ lang: 'en', date: '2026-10-19' }))]), /date/);
 
+// Formula rendering must happen before Markdown consumes underscores and backslashes.
+const math = compile(source({}, '## 公式\n\n行内 $x_i^2 + \\alpha = 1$。\n\n$$\n\\begin{pmatrix}1 & 0\\\\0 & 1\\end{pmatrix}\n$$\n\n| 变量 | 值 |\n| --- | --- |\n| $x_i$ | $2^n$ |\n'))[0].html.zh;
+check((math.match(/class="katex"/g) || []).length === 4, 'inline, display, and table formulas render');
+check(math.includes('class="katex-display"') && math.includes('<math'), 'display layout and accessible MathML');
+check(math.includes('encoding="application/x-tex"') && math.includes('x_i^2'), 'original TeX remains available in MathML');
+const literals = compile(source({}, '代码 `$x$`，价格 $20 和 $30。\\$5。\n\n```text\n$$x_i$$\n```'))[0].html.zh;
+check(!literals.includes('class="katex"') && literals.includes('<code>$x$</code>') && literals.includes('$$x_i$$'), 'code, currency, and escaped dollars remain literal');
+rejects(source({}, '$\\notARealMathCommand{1}$'), /first-note.zh.md.*(?:KaTeX|math|Undefined)/i);
+const unsafeMath = compile(source({}, '$\\href{javascript:alert(1)}{x}$ $\\htmlClass{injected}{x}$'))[0].html.zh;
+check(!unsafeMath.includes('href="javascript:') && !unsafeMath.includes('class="injected"'), 'untrusted TeX cannot inject links or HTML');
+
+
 const dangerous = compile(source({}, '<script>alert(1)</script>\n\n<img src=x onerror=alert(1)>\n\n[bad](javascript:alert(1))\n\n![bad](data:image/svg+xml;base64,PHN2Zz4=)\n\n```js\nconst answer = 42;\n```'))[0].html.zh;
 check(!dangerous.includes('<script>') && !dangerous.includes('<img src=x'), 'raw HTML escaped');
 check(!dangerous.includes('href="javascript:') && !dangerous.includes('src="data:image/svg'), 'unsafe links blocked');
@@ -63,6 +75,17 @@ try {
   const output = path.join(temporary, 'blog', 'posts.js');
   const previous = fs.readFileSync(output, 'utf8');
   check(buildBlog(temporary, { check: true }).count === 1, 'check verifies current output');
+  const indexContext = { window: {} };
+  vm.runInNewContext(previous, indexContext);
+  const entry = indexContext.window.YAOZI_BLOG_POSTS[0];
+  check(!entry.html && /^blog\/articles\/first-note\.js\?v=[a-f0-9]{12}$/.test(entry.contentUrl), 'index keeps metadata and a versioned article URL');
+  const articlePath = path.join(temporary, entry.contentUrl.split('?')[0]);
+  const article = fs.readFileSync(articlePath, 'utf8');
+  vm.runInNewContext(article, indexContext);
+  check(indexContext.window.YAOZI_BLOG_ARTICLES['first-note'].zh.includes('<strong>重点</strong>'), 'article asset loads rendered content');
+  fs.writeFileSync(articlePath, 'stale');
+  checks++; assert.throws(() => buildBlog(temporary, { check: true }), /out of date/i);
+  fs.writeFileSync(articlePath, article);
   fs.writeFileSync(input, source({ title: '更新标题' }));
   checks++; assert.throws(() => buildBlog(temporary, { check: true }), /out of date/i);
   check(fs.readFileSync(output, 'utf8') === previous, 'check never writes');
