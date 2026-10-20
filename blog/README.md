@@ -2,6 +2,8 @@
 
 一篇文章一个 Markdown 文件，保存在 `blog/posts/<slug>.<lang>.md`。从 [TEMPLATE.md](TEMPLATE.md) 复制新文章，例如 `blog/posts/first-note.zh.md`。模板本身不参与生成。
 
+`drafts/` 是本地草稿目录，已在 `.gitignore` 中忽略，原稿保留在本地，不提交、不进入站点。发布时按下面的格式整理到 `blog/posts/`，不要把草稿文件复制进版本库。
+
 文件开头使用以下单行 YAML 元信息：
 
 ```yaml

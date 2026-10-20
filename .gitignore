@@ -4,6 +4,7 @@
 /.claude
 /docs
 /tests
+/drafts
 
 CLAUDE.md
 AGENTS.md
