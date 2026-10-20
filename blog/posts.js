@@ -34,6 +34,28 @@ window.YAOZI_BLOG_POSTS = [
     "contentUrl": "blog/articles/beidou-ode.js?v=88a0c902ac9c"
   },
   {
+    "slug": "electrochemistry-notes",
+    "date": "2026-10-20",
+    "title": {
+      "zh": "电化学"
+    },
+    "summary": {
+      "zh": "整理半反应与电极电势的参考约定、电池反应的热力学量，以及液接电势和唐南平衡的计算。"
+    },
+    "contentUrl": "blog/articles/electrochemistry-notes.js?v=60b436ad4582"
+  },
+  {
+    "slug": "equilibrium-constant",
+    "date": "2026-10-20",
+    "title": {
+      "zh": "平衡常数"
+    },
+    "summary": {
+      "zh": "从化学势判据说明吉布斯自由能判据与亥姆霍兹自由能判据的等价性，并讨论标准自由能表与化学势的关系。"
+    },
+    "contentUrl": "blog/articles/equilibrium-constant.js?v=197af4a2347b"
+  },
+  {
     "slug": "math-games-01-clocks",
     "date": "2026-10-20",
     "title": {
@@ -153,5 +175,16 @@ window.YAOZI_BLOG_POSTS = [
       "zh": "从六边形棋盘的边界连通出发，介绍 Hex 无平局定理、策略窃取、交换规则与 MoHex 搜索。"
     },
     "contentUrl": "blog/articles/math-games-11-hex.js?v=0eb3ea97f070"
+  },
+  {
+    "slug": "organic-chemistry-lab",
+    "date": "2026-10-20",
+    "title": {
+      "zh": "第3章 有机化合物的分离和提纯"
+    },
+    "summary": {
+      "zh": "有机化学实验讲义：重结晶、升华、蒸馏、分馏、减压蒸馏、水蒸气蒸馏、干燥、萃取和色谱的装置与操作要点。"
+    },
+    "contentUrl": "blog/articles/organic-chemistry-lab.js?v=ec7fc345011f"
   }
 ];
