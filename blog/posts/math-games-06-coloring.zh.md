@@ -1,6 +1,7 @@
 ---
 slug: "math-games-06-coloring"
 date: "2026-10-20"
+section: "math"
 lang: "zh"
 title: "顶点着色：色数、下界与约束搜索"
 summary: "从相邻顶点异色的规则出发，介绍色数、团下界、Brooks 定理、Mycielski 构造与 DSATUR 搜索。"

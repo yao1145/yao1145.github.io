@@ -1,6 +1,7 @@
 ---
 slug: "math-games-07-swap"
 date: "2026-10-20"
+section: "math"
 lang: "zh"
 title: "交换、消去与反向构造：浏览器游戏《Swap 全清》的网格数学"
 summary: "把交换、消去与主动下落写成网格状态变换，分析连通分量、状态图和保证有解的反向构造。"

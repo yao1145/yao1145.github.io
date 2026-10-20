@@ -1,6 +1,7 @@
 ---
 slug: "first-note"
 date: "2026-10-20"
+section: "math"
 lang: "zh"
 title: "文章标题"
 summary: "用一两句话概括文章的主要内容。"

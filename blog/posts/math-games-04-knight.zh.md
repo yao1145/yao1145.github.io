@@ -1,6 +1,7 @@
 ---
 slug: "math-games-04-knight"
 date: "2026-10-20"
+section: "math"
 lang: "zh"
 title: "王冠巡游：骑士图上的哈密顿路径、颜色约束与 Warnsdorff 回溯"
 summary: "把王冠巡游写成骑士图上的哈密顿路径问题，分析颜色约束、存在性定理与 Warnsdorff 回溯。"

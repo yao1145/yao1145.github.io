@@ -1,6 +1,7 @@
 ---
 slug: "math-games-02-cube"
 date: "2026-10-20"
+section: "math"
 lang: "zh"
 title: "滚动立方体的颜色守恒与最短路径"
 summary: "用颜色守恒、立方体旋转群和状态图描述 Cube，说明反向广度优先搜索如何求出最短路线。"

@@ -1,6 +1,7 @@
 ---
 slug: "math-games-11-hex"
 date: "2026-10-20"
+section: "math"
 lang: "zh"
 title: "六边形棋盘上的连接博弈：Hex 的无平局定理、策略窃取与 MoHex 搜索"
 summary: "从六边形棋盘的边界连通出发，介绍 Hex 无平局定理、策略窃取、交换规则与 MoHex 搜索。"

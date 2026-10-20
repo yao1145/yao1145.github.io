@@ -1,6 +1,7 @@
 ---
 slug: "organic-chemistry-lab"
 date: "2026-10-20"
+section: "chemistry"
 lang: "zh"
 title: "第3章 有机化合物的分离和提纯"
 summary: "有机化学实验讲义：重结晶、升华、蒸馏、分馏、减压蒸馏、水蒸气蒸馏、干燥、萃取和色谱的装置与操作要点。"

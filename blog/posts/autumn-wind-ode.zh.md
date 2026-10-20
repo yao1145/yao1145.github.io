@@ -1,6 +1,7 @@
 ---
 slug: "autumn-wind-ode"
 date: "2026-10-20"
+section: "literature"
 lang: "zh"
 title: "秋风赋"
 summary: "殷仲元十七不得察举，愤而作《秋风赋》，借秋气与古人遭际抒写失意与去意。"

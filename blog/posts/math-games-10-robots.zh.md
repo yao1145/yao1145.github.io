@@ -1,6 +1,7 @@
 ---
 slug: "math-games-10-robots"
 date: "2026-10-20"
+section: "math"
 lang: "zh"
 title: "Robots · 四机归位：配置空间、松弛下界与构造式出题"
 summary: "以四台机器人的联合配置描述滑行谜题，证明松弛模型给出的下界，并分析构造式出题与解证书。"

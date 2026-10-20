@@ -5,7 +5,7 @@ const { createHash } = require('node:crypto');
 const MarkdownIt = require('./vendor/markdown-it.min.js');
 const katex = require('./vendor/katex.min.js');
 const mathPlugin = require('./vendor/markdown-it-katex.cjs').default;
-const fields = new Set(['slug', 'date', 'lang', 'title', 'summary', 'draft']);
+const fields = new Set(['slug', 'date', 'lang', 'title', 'summary', 'section', 'draft']);
 
 function parsePost(source, name) {
   const normalized = source.replace(/^\ufeff/, '').replace(/\r\n?/g, '\n');
@@ -41,6 +41,7 @@ function parsePost(source, name) {
   for (const key of fields) if (!Object.hasOwn(metadata, key)) fail(`Missing required field: ${key}`);
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(metadata.slug)) fail('slug must use lowercase letters, numbers and single hyphens.');
   if (!['zh', 'en'].includes(metadata.lang)) fail('lang must be zh or en.');
+  if (!['math', 'chemistry', 'literature'].includes(metadata.section)) fail('section must be math, chemistry or literature.');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(metadata.date)) fail('date must be YYYY-MM-DD.');
   const date = new Date(`${metadata.date}T00:00:00Z`);
   if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== metadata.date) fail('date must be a real calendar date.');
@@ -104,11 +105,12 @@ function compilePosts(files) {
     if (meta.draft) continue;
     let post = entries.get(meta.slug);
     if (!post) {
-      post = { slug: meta.slug, date: meta.date, title: {}, summary: {}, html: {} };
+      post = { slug: meta.slug, date: meta.date, section: meta.section, title: {}, summary: {}, html: {} };
       entries.set(meta.slug, post);
     }
     if (Object.hasOwn(post.title, meta.lang)) throw new Error(`${name}: Duplicate ${meta.lang} translation for ${meta.slug}.`);
     if (post.date !== meta.date) throw new Error(`${name}: Translations of ${meta.slug} must share the same date.`);
+    if (post.section !== meta.section) throw new Error(`${name}: Translations of ${meta.slug} must share the same section.`);
     post.title[meta.lang] = meta.title;
     post.summary[meta.lang] = meta.summary;
     post.html[meta.lang] = renderMarkdown(markdown, name);

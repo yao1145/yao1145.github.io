@@ -205,7 +205,9 @@ async function checkPost(page, url, slug) {
     await ready(page);
     check((await page.locator('#post-title').textContent()).includes('十步万度'), 'keyboard paper entry');
     await page.locator('#post-back').click();
-    check(await page.locator('#post-list .post-item').count() >= 11, 'blog list includes all papers');
+    check(await page.locator('#post-list .post-item').count() >= 17, 'blog list includes all posts');
+    const blogSections = await page.locator('.post-section-title').evaluateAll(nodes => nodes.map(node => node.textContent.trim()));
+    check(JSON.stringify(blogSections) === JSON.stringify(['Mathematics', 'Chemistry', 'Literature']), 'blog sections in order: ' + JSON.stringify(blogSections));
     await page.goBack();
     await ready(page);
     check((await page.locator('#post-title').textContent()).includes('十步万度'), 'browser back restores article');

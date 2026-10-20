@@ -1,6 +1,7 @@
 ---
 slug: "beidou-cultivation-notes"
 date: "2026-10-20"
+section: "literature"
 lang: "zh"
 title: "北斗修仙札记"
 summary: "从呼吸、吐纳、淬体到金丹、元婴、太虚，一部按修炼次第写成的修仙札记。"

@@ -1,6 +1,7 @@
 ---
 slug: "math-games-05-tronix"
 date: "2026-10-20"
+section: "math"
 lang: "zh"
 title: "从解结到平面嵌入：Tronix 中的图论、直线画法与交叉判定"
 summary: "从拖动节点解开交叉线出发，介绍平面图、Euler 公式、直线嵌入定理与交叉判定算法。"

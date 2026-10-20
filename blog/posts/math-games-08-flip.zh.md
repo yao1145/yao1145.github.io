@@ -1,6 +1,7 @@
 ---
 slug: "math-games-08-flip"
 date: "2026-10-20"
+section: "math"
 lang: "zh"
 title: "翻转全亮：模 2 线性代数、零空间与最小按键数"
 summary: "把翻转游戏化为模 2 线性方程组，推导仿射解空间、零空间枚举与最少按键算法，并核对十二关数据。"

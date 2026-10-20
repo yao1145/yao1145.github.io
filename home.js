@@ -69,6 +69,9 @@
       blogDescription: 'Yaozi（@yao1145）的随想与文章。',
       blogHeading: '随想',
       blogIntro: '偶尔写下一些想法和文章。',
+      blogSectionMath: '数学',
+      blogSectionChemistry: '化学',
+      blogSectionLiterature: '文学',
       blogEmpty: '还没有文章。下次见。',
       postMissing: '找不到这篇文章。',
       backToBlog: '返回随想',
@@ -139,6 +142,9 @@
       blogDescription: 'Notes and writing by Yaozi (@yao1145).',
       blogHeading: 'Notes',
       blogIntro: 'Occasional thoughts and writing.',
+      blogSectionMath: 'Mathematics',
+      blogSectionChemistry: 'Chemistry',
+      blogSectionLiterature: 'Literature',
       blogEmpty: 'No posts yet. See you next time.',
       postMissing: 'That post could not be found.',
       backToBlog: 'Back to notes',
@@ -285,27 +291,47 @@
     const active = slug ? postBySlug(slug) : null;
 
     postListView.replaceChildren();
+    const sectionOrder = ['math', 'chemistry', 'literature'];
+    const sectionLabels = {
+      math: text.blogSectionMath,
+      chemistry: text.blogSectionChemistry,
+      literature: text.blogSectionLiterature
+    };
+    const grouped = new Map(sectionOrder.map(section => [section, []]));
+    const ungrouped = [];
     for (const post of valid) {
-      const item = document.createElement('a');
-      item.className = 'post-item';
-      item.href = `#blog/${encodeURIComponent(String(post.slug))}`;
-      item.addEventListener('click', event => {
-        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
-        event.preventDefault();
-        navigate(`#blog/${encodeURIComponent(String(post.slug))}`);
-      });
-      const date = document.createElement('p');
-      date.className = 'post-item-date';
-      date.textContent = formatDate(post.date);
-      const title = document.createElement('h3');
-      title.className = 'post-item-title';
-      title.textContent = pickLocalized(post.title, language) || text.blogHeading;
-      const summary = document.createElement('p');
-      summary.className = 'post-summary';
-      summary.textContent = pickLocalized(post.summary, language);
-      item.append(date, title);
-      if (summary.textContent) item.append(summary);
-      postListView.append(item);
+      const bucket = grouped.get(post.section);
+      (bucket || ungrouped).push(post);
+    }
+    for (const section of [...sectionOrder, 'ungrouped']) {
+      const items = section === 'ungrouped' ? ungrouped : grouped.get(section);
+      if (!items.length) continue;
+      const heading = document.createElement('h2');
+      heading.className = 'post-section-title';
+      heading.textContent = section === 'ungrouped' ? text.blogHeading : sectionLabels[section];
+      postListView.append(heading);
+      for (const post of items) {
+        const item = document.createElement('a');
+        item.className = 'post-item';
+        item.href = `#blog/${encodeURIComponent(String(post.slug))}`;
+        item.addEventListener('click', event => {
+          if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+          event.preventDefault();
+          navigate(`#blog/${encodeURIComponent(String(post.slug))}`);
+        });
+        const date = document.createElement('p');
+        date.className = 'post-item-date';
+        date.textContent = formatDate(post.date);
+        const title = document.createElement('h3');
+        title.className = 'post-item-title';
+        title.textContent = pickLocalized(post.title, language) || text.blogHeading;
+        const summary = document.createElement('p');
+        summary.className = 'post-summary';
+        summary.textContent = pickLocalized(post.summary, language);
+        item.append(date, title);
+        if (summary.textContent) item.append(summary);
+        postListView.append(item);
+      }
     }
 
     const missing = Boolean(slug) && !active && valid.length > 0;

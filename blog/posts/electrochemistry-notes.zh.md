@@ -1,6 +1,7 @@
 ---
 slug: "electrochemistry-notes"
 date: "2026-10-20"
+section: "chemistry"
 lang: "zh"
 title: "电化学"
 summary: "整理半反应与电极电势的参考约定、电池反应的热力学量，以及液接电势和唐南平衡的计算。"

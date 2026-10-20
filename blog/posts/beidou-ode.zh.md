@@ -1,6 +1,7 @@
 ---
 slug: "beidou-ode"
 date: "2026-10-20"
+section: "literature"
 lang: "zh"
 title: "北斗赋"
 summary: "以赋体记述北斗大帝少小离乱、与道侣同行、负棺证道的旧事。"

@@ -7,7 +7,7 @@ const { compilePosts, serializePosts, buildBlog } = require('./build-blog.cjs');
 let checks = 0;
 const check = (condition, message) => { checks++; assert.ok(condition, message); };
 function source(overrides = {}, body = '## 小标题\n\n这是 **重点**。\n\n- 第一项\n- 第二项\n') {
-  const data = { slug: 'first-note', date: '2026-10-20', lang: 'zh', title: '第一篇随想', summary: '一段摘要。', draft: false, ...overrides };
+  const data = { slug: 'first-note', date: '2026-10-20', lang: 'zh', title: '第一篇随想', summary: '一段摘要。', section: 'math', draft: false, ...overrides };
   return '---\n' + Object.entries(data).map(([key, value]) => `${key}: ${JSON.stringify(value)}`).join('\n') + '\n---\n\n' + body;
 }
 const file = (name, text) => ({ name, source: text });
@@ -18,6 +18,7 @@ const rejects = (text, message, name) => { checks++; assert.throws(() => compile
 
 const posts = compile(source());
 check(posts.length === 1 && posts[0].title.zh === '第一篇随想', 'metadata');
+check(posts[0].section === 'math', 'section metadata');
 check(posts[0].html.zh.includes('<h3>小标题</h3>'), 'body headings follow the article h2');
 check(posts[0].html.zh.includes('<strong>重点</strong>') && posts[0].html.zh.includes('<li>第一项</li>'), 'Markdown formatting');
 check(compile(source({ draft: true })).length === 0, 'drafts excluded');
@@ -31,6 +32,8 @@ check(compile('\ufeff' + source().replace(/\n/g, '\r\n')).length === 1, 'Windows
 rejects('no metadata', /front matter/i);
 rejects(source({ slug: '../bad' }), /slug/);
 rejects(source({ lang: 'fr' }), /lang/);
+rejects(source({ section: 'other' }), /section/);
+rejects(source().replace('section: "math"\n', ''), /Missing required field: section/);
 rejects(source({ date: '2026-02-30' }), /date/);
 rejects(source({ title: '' }), /title/);
 rejects(source({ summary: '' }), /summary/);
@@ -41,6 +44,7 @@ rejects(source(), /filename/i, 'wrong.zh.md');
 rejects(source({}, '   '), /body/i);
 checks++; assert.throws(() => compilePosts([file('first-note.zh.md', source()), file('first-note.zh.md', source())]), /Duplicate/);
 checks++; assert.throws(() => compilePosts([file('first-note.zh.md', source()), file('first-note.en.md', source({ lang: 'en', date: '2026-10-19' }))]), /date/);
+checks++; assert.throws(() => compilePosts([file('first-note.zh.md', source()), file('first-note.en.md', source({ lang: 'en', section: 'chemistry' }))]), /section/);
 
 // Formula rendering must happen before Markdown consumes underscores and backslashes.
 const math = compile(source({}, '## 公式\n\n行内 $x_i^2 + \\alpha = 1$。\n\n$$\n\\begin{pmatrix}1 & 0\\\\0 & 1\\end{pmatrix}\n$$\n\n| 变量 | 值 |\n| --- | --- |\n| $x_i$ | $2^n$ |\n'))[0].html.zh;

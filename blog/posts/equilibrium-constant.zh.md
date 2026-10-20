@@ -1,6 +1,7 @@
 ---
 slug: "equilibrium-constant"
 date: "2026-10-20"
+section: "chemistry"
 lang: "zh"
 title: "平衡常数"
 summary: "从化学势判据说明吉布斯自由能判据与亥姆霍兹自由能判据的等价性，并讨论标准自由能表与化学势的关系。"

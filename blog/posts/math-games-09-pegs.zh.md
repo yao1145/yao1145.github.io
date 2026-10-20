@@ -1,6 +1,7 @@
 ---
 slug: "math-games-09-pegs"
 date: "2026-10-20"
+section: "math"
 lang: "zh"
 title: "孔明棋：占子向量、模 2 不变量与分层有向无环图"
 summary: "用占子向量、模 2 不变量和宝塔函数分析孔明棋，介绍分层状态图、搜索算法与合法解证书。"

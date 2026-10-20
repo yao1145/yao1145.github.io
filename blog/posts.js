@@ -3,6 +3,7 @@ window.YAOZI_BLOG_POSTS = [
   {
     "slug": "autumn-wind-ode",
     "date": "2026-10-20",
+    "section": "literature",
     "title": {
       "zh": "秋风赋"
     },
@@ -14,6 +15,7 @@ window.YAOZI_BLOG_POSTS = [
   {
     "slug": "beidou-cultivation-notes",
     "date": "2026-10-20",
+    "section": "literature",
     "title": {
       "zh": "北斗修仙札记"
     },
@@ -25,6 +27,7 @@ window.YAOZI_BLOG_POSTS = [
   {
     "slug": "beidou-ode",
     "date": "2026-10-20",
+    "section": "literature",
     "title": {
       "zh": "北斗赋"
     },
@@ -36,6 +39,7 @@ window.YAOZI_BLOG_POSTS = [
   {
     "slug": "electrochemistry-notes",
     "date": "2026-10-20",
+    "section": "chemistry",
     "title": {
       "zh": "电化学"
     },
@@ -47,6 +51,7 @@ window.YAOZI_BLOG_POSTS = [
   {
     "slug": "equilibrium-constant",
     "date": "2026-10-20",
+    "section": "chemistry",
     "title": {
       "zh": "平衡常数"
     },
@@ -58,6 +63,7 @@ window.YAOZI_BLOG_POSTS = [
   {
     "slug": "math-games-01-clocks",
     "date": "2026-10-20",
+    "section": "math",
     "title": {
       "zh": "十步万度：转子路由、交换性与沙堆群"
     },
@@ -69,6 +75,7 @@ window.YAOZI_BLOG_POSTS = [
   {
     "slug": "math-games-02-cube",
     "date": "2026-10-20",
+    "section": "math",
     "title": {
       "zh": "滚动立方体的颜色守恒与最短路径"
     },
@@ -80,6 +87,7 @@ window.YAOZI_BLOG_POSTS = [
   {
     "slug": "math-games-03-sixteen",
     "date": "2026-10-20",
+    "section": "math",
     "title": {
       "zh": "十六枚数字的置换几何：Sixteen 的奇偶性、下界与条件性的 17 步直径"
     },
@@ -91,6 +99,7 @@ window.YAOZI_BLOG_POSTS = [
   {
     "slug": "math-games-04-knight",
     "date": "2026-10-20",
+    "section": "math",
     "title": {
       "zh": "王冠巡游：骑士图上的哈密顿路径、颜色约束与 Warnsdorff 回溯"
     },
@@ -102,6 +111,7 @@ window.YAOZI_BLOG_POSTS = [
   {
     "slug": "math-games-05-tronix",
     "date": "2026-10-20",
+    "section": "math",
     "title": {
       "zh": "从解结到平面嵌入：Tronix 中的图论、直线画法与交叉判定"
     },
@@ -113,6 +123,7 @@ window.YAOZI_BLOG_POSTS = [
   {
     "slug": "math-games-06-coloring",
     "date": "2026-10-20",
+    "section": "math",
     "title": {
       "zh": "顶点着色：色数、下界与约束搜索"
     },
@@ -124,6 +135,7 @@ window.YAOZI_BLOG_POSTS = [
   {
     "slug": "math-games-07-swap",
     "date": "2026-10-20",
+    "section": "math",
     "title": {
       "zh": "交换、消去与反向构造：浏览器游戏《Swap 全清》的网格数学"
     },
@@ -135,6 +147,7 @@ window.YAOZI_BLOG_POSTS = [
   {
     "slug": "math-games-08-flip",
     "date": "2026-10-20",
+    "section": "math",
     "title": {
       "zh": "翻转全亮：模 2 线性代数、零空间与最小按键数"
     },
@@ -146,6 +159,7 @@ window.YAOZI_BLOG_POSTS = [
   {
     "slug": "math-games-09-pegs",
     "date": "2026-10-20",
+    "section": "math",
     "title": {
       "zh": "孔明棋：占子向量、模 2 不变量与分层有向无环图"
     },
@@ -157,6 +171,7 @@ window.YAOZI_BLOG_POSTS = [
   {
     "slug": "math-games-10-robots",
     "date": "2026-10-20",
+    "section": "math",
     "title": {
       "zh": "Robots · 四机归位：配置空间、松弛下界与构造式出题"
     },
@@ -168,6 +183,7 @@ window.YAOZI_BLOG_POSTS = [
   {
     "slug": "math-games-11-hex",
     "date": "2026-10-20",
+    "section": "math",
     "title": {
       "zh": "六边形棋盘上的连接博弈：Hex 的无平局定理、策略窃取与 MoHex 搜索"
     },
@@ -179,6 +195,7 @@ window.YAOZI_BLOG_POSTS = [
   {
     "slug": "organic-chemistry-lab",
     "date": "2026-10-20",
+    "section": "chemistry",
     "title": {
       "zh": "第3章 有机化合物的分离和提纯"
     },

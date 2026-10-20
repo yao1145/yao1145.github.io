@@ -1,6 +1,7 @@
 ---
 slug: "math-games-03-sixteen"
 date: "2026-10-20"
+section: "math"
 lang: "zh"
 title: "十六枚数字的置换几何：Sixteen 的奇偶性、下界与条件性的 17 步直径"
 summary: "从行列位移与局部旋转建立置换模型，介绍奇偶性、可采纳下界和最优搜索，并讨论条件性的 17 步直径。"

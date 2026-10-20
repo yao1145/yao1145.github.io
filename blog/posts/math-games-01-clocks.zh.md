@@ -1,6 +1,7 @@
 ---
 slug: "math-games-01-clocks"
 date: "2026-10-20"
+section: "math"
 lang: "zh"
 title: "十步万度：转子路由、交换性与沙堆群"
 summary: "从指针接力出发，介绍转子路由的阿贝尔性质、沙堆群与图拉普拉斯，并分析最优点击次数的枚举方法。"
