@@ -12,6 +12,10 @@ fs.mkdirSync(output, { recursive: true });
 const useWebkit = process.argv.includes('--webkit');
 const engine = useWebkit ? webkit : chromium;
 const widths = [320, 375, 390, 430, 768, 1280];
+const postSlugs = process.argv.slice(2)
+  .filter(argument => argument.startsWith('--post='))
+  .map(argument => argument.slice('--post='.length))
+  .filter(Boolean);
 const progress = label => { if (process.env.BLOG_TEST_PROGRESS) console.log(label); };
 let checks = 0;
 const check = (value, message) => { checks++; assert.ok(value, message); };
@@ -46,6 +50,66 @@ async function skipIntro(page) {
     document.querySelector('[data-yaozi-intro] button')?.click();
   });
 }
+// Check one published post by slug. Images are lazy, so scroll the article before
+// asserting naturalWidth; offscreen images otherwise report width 0.
+async function checkPost(page, url, slug) {
+  await page.goto(url + '#blog/' + encodeURIComponent(slug));
+  await skipIntro(page);
+  await page.waitForFunction(() => {
+    const body = document.getElementById('post-body');
+    return body && body.getAttribute('aria-busy') !== 'true' && body.textContent.trim().length > 50;
+  }, null, { timeout: 30000 });
+  await page.evaluate(() => document.fonts.ready);
+  const state = await page.evaluate(async () => {
+    const body = document.getElementById('post-body');
+    const images = [...body.querySelectorAll('img')];
+    for (const image of images) {
+      image.scrollIntoView({ block: 'center' });
+      await new Promise(resolve => setTimeout(resolve, 60));
+    }
+    window.scrollTo(0, 0);
+    await Promise.all(images.map(image => image.complete ? null : new Promise(resolve => {
+      const done = () => { clearTimeout(timer); resolve(); };
+      const timer = setTimeout(done, 5000);
+      image.addEventListener('load', done, { once: true });
+      image.addEventListener('error', done, { once: true });
+    })));
+    const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT);
+    const raw = [];
+    while (walker.nextNode()) {
+      const node = walker.currentNode;
+      if (!node.parentElement.closest('.katex,code,pre') && node.textContent.includes('$')) raw.push(node.textContent);
+    }
+    return {
+      title: document.getElementById('post-title').textContent.trim(),
+      formulas: body.querySelectorAll('.katex').length,
+      failures: body.querySelectorAll('.katex-error').length,
+      images: images.map(image => ({
+        src: image.getAttribute('src'),
+        alt: image.alt.trim(),
+        width: image.naturalWidth,
+        height: image.naturalHeight
+      })),
+      raw: raw.slice(0, 5)
+    };
+  });
+  check(state.title.length > 0, slug + ' has a title');
+  check(state.failures === 0, slug + ' formulas render without errors');
+  check(state.raw.length === 0, slug + ' raw formula delimiters: ' + JSON.stringify(state.raw));
+  check(state.images.every(image => image.width > 0 && image.height > 0),
+    slug + ' images load: ' + JSON.stringify(state.images.filter(image => !image.width || !image.height)));
+  check(state.images.every(image => image.alt.length > 0), slug + ' images have alt text');
+  for (const width of widths) {
+    await page.setViewportSize({ width, height: 900 });
+    await fits(page, slug + ' ' + width);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator('#theme-toggle').click();
+  await fits(page, slug + ' theme change');
+  await page.locator('#theme-toggle').click();
+  await page.screenshot({ path: path.join(output, engine.name() + '-post-' + slug + '-mobile.png') });
+  return { slug, ...state, imageCount: state.images.length };
+}
 (async () => {
   const url = await baseUrl();
   const browser = await engine.launch(useWebkit
@@ -57,6 +121,16 @@ async function skipIntro(page) {
     const errors = [], missing = [];
     page.on('pageerror', error => errors.push(error.message));
     page.on('response', response => { if (response.status() >= 400) missing.push(response.url()); });
+    if (postSlugs.length) {
+      const report = [];
+      for (const slug of postSlugs) {
+        progress('Checking post ' + slug);
+        report.push(await checkPost(page, url, slug));
+      }
+      check(errors.length === 0 && missing.length === 0, JSON.stringify({ errors, missing }));
+      console.log(JSON.stringify({ passed: true, engine: engine.name(), url, checks, mode: 'posts', report, screenshots: output }, null, 2));
+      return;
+    }
     await page.goto(url);
     await skipIntro(page);
     check(await page.locator('.game').count() === 12, 'twelve game cards');

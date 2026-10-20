@@ -166,6 +166,23 @@ node tests/cube-browser.cjs
 
 浏览器检查使用可用的 Playwright 运行时；Chromium 不可用时可使用已安装 Edge 的 `channel: 'msedge'`。Safari 相关修改增加 WebKit 验证；真实 iPhone 验证与浏览器模拟分别报告。
 
+博客文章与图片的检查优先复用已有脚本，不要每次临时另写浏览器脚本：
+
+```sh
+node scripts/build-blog.cjs
+node scripts/build-blog.cjs --check
+node scripts/verify-blog.cjs
+node scripts/verify-blog-browser.cjs --post=<slug> --post=<slug>
+```
+
+`scripts/verify-blog-browser.cjs` 默认检查十一篇游戏论文；传入 `--post=<slug>` 后只检查指定文章，覆盖公式、图片、替代文字、320–1280px 溢出和明暗主题。Playwright 路径仍通过 `PLAYWRIGHT_MODULE` 指定。
+
+- 图片放入 `blog/posts/assets/<slug>/`，文件名使用小写 ASCII 连字符；正文从源稿目录写相对路径 `./assets/<slug>/...`，不要保留草稿里的 `image/...` 或 URL 编码路径。复制前按哈希检查重复与未引用文件。
+- 图片带 `loading="lazy"`，未进入视口的图片 `complete` 为 false、`naturalWidth` 为 0。浏览器检查必须逐个滚动到图片，再断言 `naturalWidth > 0` 且替代文字非空；只查首屏会误判。
+- 生成后检查 `blog/articles/<slug>.js` 中是否残留字面 `$`、`.katex-error`，以及被当作普通字母渲染的命令。构建成功不代表公式正确：同一行的 `$$...$$$$...$$`、`\\frac`、`\_`、`\=` 不会让构建失败，但会留下未渲染公式或错误字形；改为独立 `$$` 块并去掉多余转义。
+- 源稿首行标题移入元信息，正文从 `##` 开始。原稿若从 `## 标题` 开始，各节标题要上移一级，避免正文首个小标题变成 h4；同时恢复被转义的粗体 `\*\*...\*\*`。
+- 发布后除确认文章、生成脚本和图片返回 200，还要用浏览器打开 `/#blog/<slug>`，核对标题、公式和首张图片，并检查手机宽度。
+
 界面变更至少检查桌面与手机宽度，并根据影响覆盖：
 
 - 320、375、390、430、768、1280px 及手机横屏下的溢出、遮挡和弹窗边界。
