@@ -1,8 +1,12 @@
-// Public repository descriptions checked against GitHub on 2026-10-20.
+// Public repository descriptions checked against GitHub on 2026-10-28.
 // Write new articles in blog/posts/*.md, then run node scripts/build-blog.cjs.
 // The posts field below remains available for old paragraph-format articles.
 window.YAOZI_CONTENT = {
   repositories: [
+    {
+      name: 'ReactiveMD', url: 'https://github.com/yao1145/ReactiveMD', language: 'TypeScript', fork: false,
+      description: { zh: '用 Markdown 写交互文档，把状态、表单、图表与计算关系写进正文。', en: 'Write interactive documents in Markdown, weaving state, forms, charts and calculations into the prose.' }
+    },
     {
       name: 'yao1145.github.io', url: 'https://github.com/yao1145/yao1145.github.io', language: 'JavaScript', fork: false,
       description: { zh: '个人主页与十二款浏览器小游戏，收集棋盘、路径和图论里的乐趣。', en: 'My personal website and twelve browser games exploring boards, paths and graphs.' }

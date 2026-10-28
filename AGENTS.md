@@ -93,7 +93,7 @@ node scripts/verify-blog.cjs
 
 ## 工具分区
 
-- 主页工具入口位于 `/#tools`；灵性测试直接链接至 `https://ling.raricy.com`，不复制其登录或实验流程。
+- 主页工具入口位于 `/#tools`；ReactiveMD 直接链接至 `https://yaozi.raricy.com`，灵性测试直接链接至 `https://ling.raricy.com`，不复制其登录或实验流程。
 - 平水韵页面为 `/tools/pingshui/`，来源是 `https://github.com/yao1145/ping_shui_yun`。保留原始数据来源与版本、按字和按韵部查询的语义；涉及规则变更时对照源仓库 `run.py`。
 - 工具沿用主页语言与主题键。字典本地加载，不引入后端或在线查询依赖；数据中的历史字形、备注与已知 OCR 别名应明确区分，不擅自批量改写。
 - 修改平水韵后运行 `node tools/pingshui/verify.cjs`，覆盖中文数字“十”、106 个韵部的完整可达性和强制查询前缀。更换字典时固定源仓库提交版本，并对照 Python 结果检查全部字条与韵部。
